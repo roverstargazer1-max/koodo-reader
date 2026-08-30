@@ -31,6 +31,19 @@ export interface MangaAiStatus {
   error: string | null;
 }
 
+export const getMangaOcrErrorMessage = (error: any): string => {
+  switch (error?.code) {
+    case "ocr_engine_unavailable":
+      return "Manga OCR runtime is not installed. Run setup-region-ocr.ps1 first.";
+    case "ocr_model_load_failed":
+      return "Manga OCR model is not ready. Run setup-region-ocr.ps1 -Warmup and retry.";
+    case "sidecar_timeout":
+      return "Manga OCR timed out. Warm the model and try again.";
+    default:
+      return error?.message || String(error);
+  }
+};
+
 const createRequestId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();

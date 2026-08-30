@@ -39,6 +39,7 @@ import { parseWithSystemOCR } from "../../utils/request/common";
 import MangaOcrPopup from "../../components/mangaOcrPopup/component";
 import {
   MangaOcrSelection,
+  getMangaOcrErrorMessage,
   ocrMangaRegion,
 } from "../../utils/mangaAi";
 import { bindMangaRegionSelection } from "../../utils/reader/mangaSelection";
@@ -49,6 +50,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   private resizeHandler: (() => void) | null = null;
   private mangaSelectionCleanups: Array<() => void> = [];
   private lastMangaSelection: MangaOcrSelection | null = null;
+  private mangaOcrRequestSequence = 0;
   private viewerMounted = false;
   private _pendingRerender = false;
   lock: boolean;
@@ -133,6 +135,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   }
   componentWillUnmount() {
     this.viewerMounted = false;
+    this.mangaOcrRequestSequence += 1;
     this.clearMangaSelection();
     if (this.resizeHandler) {
       window.removeEventListener("resize", this.resizeHandler);
@@ -260,6 +263,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     );
   };
   handleMangaSelection = async (selection: MangaOcrSelection) => {
+    const requestSequence = ++this.mangaOcrRequestSequence;
     this.lastMangaSelection = selection;
     this.setState({
       mangaOcr: {
@@ -274,7 +278,11 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         selection,
         ConfigService.getReaderConfig("transSource") || "auto"
       );
-      if (!this.viewerMounted) return;
+      if (
+        !this.viewerMounted ||
+        requestSequence !== this.mangaOcrRequestSequence
+      )
+        return;
       this.setState({
         mangaOcr: {
           status: "success",
@@ -284,18 +292,23 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         },
       });
     } catch (error: any) {
-      if (!this.viewerMounted) return;
+      if (
+        !this.viewerMounted ||
+        requestSequence !== this.mangaOcrRequestSequence
+      )
+        return;
       this.setState({
         mangaOcr: {
           status: "error",
           sourceText: "",
-          error: error?.message || String(error),
+          error: getMangaOcrErrorMessage(error),
           rect: selection.viewportRect,
         },
       });
     }
   };
   handleMangaClose = () => {
+    this.mangaOcrRequestSequence += 1;
     this.lastMangaSelection = null;
     this.setState({
       mangaOcr: { status: "idle", sourceText: "", error: "", rect: null },

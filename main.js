@@ -159,6 +159,7 @@ const runPowerShellScript = (script, timeout = 30000) => {
 // Manga AI is an optional local capability. Electron main owns its process,
 // credentials, dynamic port, logs, and shutdown; renderer code only sees IPC.
 const mangaAiSupervisor = (() => {
+  const DEFAULT_REQUEST_TIMEOUT_MS = 180000;
   const state = {
     child: null,
     port: null,
@@ -250,6 +251,12 @@ const mangaAiSupervisor = (() => {
       }
       const port = await getFreePort();
       const token = nodeCrypto.randomBytes(32).toString("hex");
+      const workspaceModelRoot = path.join(root, "models");
+      const modelRoot =
+        process.env.MANGA_AI_MODEL_ROOT ||
+        (isDev && fs.existsSync(workspaceModelRoot)
+          ? workspaceModelRoot
+          : path.join(configDir, "manga-ai", "models"));
       const child = spawn(pythonCommand(root), ["-m", "manga_ai_service.server"], {
         cwd: root,
         env: {
@@ -261,8 +268,7 @@ const mangaAiSupervisor = (() => {
             process.env.MANGA_TRANSLATOR_ROOT ||
             path.join(path.dirname(root), "MangaTranslator"),
           MANGA_AI_MODEL_ROOT:
-            process.env.MANGA_AI_MODEL_ROOT ||
-            path.join(configDir, "manga-ai", "models"),
+            modelRoot,
           ...(process.env.MANGA_AI_HF_ENDPOINT || process.env.HF_ENDPOINT
             ? {
                 HF_ENDPOINT:
@@ -325,14 +331,36 @@ const mangaAiSupervisor = (() => {
 
   const request = async (pathname, payload) => {
     const { port, token } = await start();
-    const response = await net.fetch(`http://127.0.0.1:${port}${pathname}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Manga-AI-Token": token,
-      },
-      body: JSON.stringify(payload),
-    });
+    const timeoutValue = Number(process.env.MANGA_AI_REQUEST_TIMEOUT_MS);
+    const timeoutMs = Number.isFinite(timeoutValue) && timeoutValue > 0
+      ? timeoutValue
+      : DEFAULT_REQUEST_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await net.fetch(`http://127.0.0.1:${port}${pathname}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Manga-AI-Token": token,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        const timeoutError = new Error(
+          `Manga AI request timed out after ${timeoutMs} ms`
+        );
+        timeoutError.code = "sidecar_timeout";
+        timeoutError.retryable = true;
+        throw timeoutError;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
     const body = await response.text();
     let parsed;
     try {
