@@ -8,7 +8,10 @@ export interface MangaPixelCrop {
 
 export interface MangaOcrSelection {
   imageDataUrl: string;
+  /** Geometry of the selected text on the original manga page. */
   crop: MangaPixelCrop;
+  /** Geometry inside imageDataUrl, which may be a compact image crop. */
+  transferCrop: MangaPixelCrop;
   imageSize: { width: number; height: number };
   viewportRect: { left: number; top: number; width: number; height: number };
 }
@@ -55,7 +58,11 @@ export const ocrMangaRegion = async (
     contractVersion: "1",
     requestId: createRequestId(),
     image: { dataUrl: selection.imageDataUrl },
-    crop: selection.crop,
+    crop: selection.transferCrop,
+    sourceRegion: {
+      imageSize: selection.imageSize,
+      crop: selection.crop,
+    },
     sourceLanguage: sourceLanguage || undefined,
     ocrEngine: "manga-ocr",
   });

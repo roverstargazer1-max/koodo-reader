@@ -260,6 +260,15 @@ const mangaAiSupervisor = (() => {
           MANGA_TRANSLATOR_ROOT:
             process.env.MANGA_TRANSLATOR_ROOT ||
             path.join(path.dirname(root), "MangaTranslator"),
+          MANGA_AI_MODEL_ROOT:
+            process.env.MANGA_AI_MODEL_ROOT ||
+            path.join(configDir, "manga-ai", "models"),
+          ...(process.env.MANGA_AI_HF_ENDPOINT || process.env.HF_ENDPOINT
+            ? {
+                HF_ENDPOINT:
+                  process.env.MANGA_AI_HF_ENDPOINT || process.env.HF_ENDPOINT,
+              }
+            : {}),
         },
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
@@ -276,6 +285,10 @@ const mangaAiSupervisor = (() => {
       );
       child.once("error", (error) => {
         state.lastError = error.message;
+        if (state.child === child) {
+          state.ready = false;
+          state.child = null;
+        }
         log.error("Manga AI sidecar process error:", error.message);
       });
       child.once("exit", (code, signal) => {
@@ -328,9 +341,12 @@ const mangaAiSupervisor = (() => {
       parsed = { error: { code: "invalid_sidecar_response", message: body } };
     }
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         parsed?.error?.message || `Manga AI HTTP ${response.status}`
       );
+      error.code = parsed?.error?.code;
+      error.retryable = Boolean(parsed?.error?.retryable);
+      throw error;
     }
     return parsed;
   };

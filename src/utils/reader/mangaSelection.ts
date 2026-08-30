@@ -50,13 +50,26 @@ const toHostRect = (doc: Document, rect: DOMRect) => {
   };
 };
 
-const imageToDataUrl = (image: HTMLImageElement) => {
+const cropToDataUrl = (
+  image: HTMLImageElement,
+  crop: { x: number; y: number; width: number; height: number }
+) => {
   const canvas = image.ownerDocument.createElement("canvas");
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+  canvas.width = crop.width;
+  canvas.height = crop.height;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("Canvas is unavailable for manga page capture");
-  context.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
+  if (!context) throw new Error("Canvas is unavailable for manga crop capture");
+  context.drawImage(
+    image,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    crop.width,
+    crop.height
+  );
   return canvas.toDataURL("image/jpeg", 0.92);
 };
 
@@ -138,22 +151,49 @@ export const bindMangaRegionSelection = (
     if (right - left < 2 || bottom - top < 2) return;
     const scaleX = image.naturalWidth / imageRect.width;
     const scaleY = image.naturalHeight / imageRect.height;
+    const cropLeft = clamp(
+      Math.floor((left - imageRect.left) * scaleX),
+      0,
+      image.naturalWidth - 1
+    );
+    const cropTop = clamp(
+      Math.floor((top - imageRect.top) * scaleY),
+      0,
+      image.naturalHeight - 1
+    );
+    const cropRight = clamp(
+      Math.ceil((right - imageRect.left) * scaleX),
+      cropLeft + 1,
+      image.naturalWidth
+    );
+    const cropBottom = clamp(
+      Math.ceil((bottom - imageRect.top) * scaleY),
+      cropTop + 1,
+      image.naturalHeight
+    );
     const crop = {
-      x: Math.round((left - imageRect.left) * scaleX),
-      y: Math.round((top - imageRect.top) * scaleY),
-      width: Math.max(1, Math.round((right - left) * scaleX)),
-      height: Math.max(1, Math.round((bottom - top) * scaleY)),
+      x: cropLeft,
+      y: cropTop,
+      width: cropRight - cropLeft,
+      height: cropBottom - cropTop,
       coordinateSpace: "image-pixel" as const,
     };
     try {
       onSelect({
-        imageDataUrl: imageToDataUrl(image),
+        imageDataUrl: cropToDataUrl(image, crop),
         crop,
+        transferCrop: {
+          x: 0,
+          y: 0,
+          width: crop.width,
+          height: crop.height,
+          coordinateSpace: "image-pixel",
+        },
         imageSize: { width: image.naturalWidth, height: image.naturalHeight },
         viewportRect: toHostRect(doc, new DOMRect(left, top, right - left, bottom - top)),
       });
     } catch (error) {
-      console.error("Manga page capture failed", error);
+      console.error("Manga crop capture failed", error);
     }
     if (!altDown) setLayerVisible(false);
   };
@@ -172,7 +212,9 @@ export const bindMangaRegionSelection = (
     if (!dragging) setLayerVisible(false);
   };
   const pointerdown = (event: PointerEvent) => {
-    if (!altDown || event.button !== 0) return;
+    if ((!altDown && !event.altKey) || event.button !== 0) return;
+    altDown = true;
+    setLayerVisible(true);
     event.preventDefault();
     event.stopPropagation();
     const current = point(event);
