@@ -31,6 +31,7 @@ export interface SettingInfoState {
   isFetchingModels: boolean;
   aiTranslateModel: string;
   mangaTranslateModel: string;
+  isAutoMangaTranslate: boolean;
   mangaAiStatus: MangaAiStatus | null;
   isCheckingMangaAi: boolean;
   aiDictModel: string;

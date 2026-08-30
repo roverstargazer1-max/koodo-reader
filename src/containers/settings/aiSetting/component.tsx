@@ -34,6 +34,8 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
       aiTranslateModel: ConfigService.getReaderConfig("aiTranslateModel") || "",
       mangaTranslateModel:
         ConfigService.getReaderConfig("mangaTranslateModel") || "",
+      isAutoMangaTranslate:
+        ConfigService.getReaderConfig("isAutoMangaTranslate") !== "no",
       mangaAiStatus: null,
       isCheckingMangaAi: false,
       aiDictModel: ConfigService.getReaderConfig("aiDictModel") || "",
@@ -66,6 +68,16 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
       };
       this.setState({ mangaAiStatus, isCheckingMangaAi: false });
     }
+  };
+
+  handleAutoMangaTranslateChange = () => {
+    const isAutoMangaTranslate = !this.state.isAutoMangaTranslate;
+    this.setState({ isAutoMangaTranslate });
+    ConfigService.setReaderConfig(
+      "isAutoMangaTranslate",
+      isAutoMangaTranslate ? "yes" : "no"
+    );
+    toast.success(this.props.t("Change successful"));
   };
 
   getAIModels = () => {
@@ -751,6 +763,21 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="setting-dialog-new-title">
+          <label
+            htmlFor="auto-manga-translate"
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          >
+            <Trans>Automatically translate Manga OCR</Trans>
+          </label>
+          <input
+            id="auto-manga-translate"
+            type="checkbox"
+            checked={this.state.isAutoMangaTranslate}
+            onChange={this.handleAutoMangaTranslateChange}
+          />
         </div>
 
         <div className="setting-dialog-new-title">

@@ -103,6 +103,23 @@ const getConfiguredModel = (): { key: string; config: MangaAiModelConfig } => {
   return { key, config };
 };
 
+/**
+ * Region OCR stays useful without a remote model. Check configuration before
+ * starting the optional automatic translation step so an OCR-only reader is
+ * not shown a transient provider error.
+ */
+export const shouldAutoTranslateMangaRegion = (): boolean => {
+  if (ConfigService.getReaderConfig("isAutoMangaTranslate") === "no") {
+    return false;
+  }
+  try {
+    getConfiguredModel();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const chatCompletionsUrl = (endpoint: string) => {
   const normalized = endpoint.replace(/\/+$/, "");
   return /\/chat\/completions$/i.test(normalized)

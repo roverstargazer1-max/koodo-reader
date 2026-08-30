@@ -49,6 +49,7 @@ import {
 } from "../../utils/mangaAi";
 import {
   getMangaTranslationErrorMessage,
+  shouldAutoTranslateMangaRegion,
   translateMangaRegions,
   translateMangaText,
 } from "../../utils/mangaTranslation";
@@ -549,6 +550,18 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           error: "",
           rect: selection.viewportRect,
         },
+      }, () => {
+        if (
+          requestSequence === this.mangaOcrRequestSequence &&
+          shouldAutoTranslateMangaRegion()
+        ) {
+          void this.translateMangaOcrResult(
+            result.sourceText,
+            "",
+            selection.viewportRect,
+            requestSequence
+          );
+        }
       });
     } catch (error: any) {
       if (
@@ -618,9 +631,13 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       textarea.remove();
     }
   };
-  handleMangaTranslate = async () => {
-    const { sourceText, translatedText, rect } = this.state.mangaOcr;
-    const text = sourceText;
+  translateMangaOcrResult = async (
+    sourceText: string,
+    translatedText: string,
+    rect: { left: number; top: number; width: number; height: number } | null,
+    ocrRequestSequence = this.mangaOcrRequestSequence
+  ) => {
+    const text = sourceText.trim();
     if (!text) return;
     const requestSequence = ++this.mangaTranslationRequestSequence;
     this.setState({
@@ -639,7 +656,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       });
       if (
         !this.viewerMounted ||
-        requestSequence !== this.mangaTranslationRequestSequence
+        requestSequence !== this.mangaTranslationRequestSequence ||
+        ocrRequestSequence !== this.mangaOcrRequestSequence
       )
         return;
       this.setState({
@@ -654,7 +672,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     } catch (error: any) {
       if (
         !this.viewerMounted ||
-        requestSequence !== this.mangaTranslationRequestSequence
+        requestSequence !== this.mangaTranslationRequestSequence ||
+        ocrRequestSequence !== this.mangaOcrRequestSequence
       )
         return;
       this.setState({
@@ -667,6 +686,10 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         },
       });
     }
+  };
+  handleMangaTranslate = () => {
+    const { sourceText, translatedText, rect } = this.state.mangaOcr;
+    void this.translateMangaOcrResult(sourceText, translatedText, rect);
   };
   handleRenderBook = async () => {
     if (lock) return;

@@ -16,6 +16,7 @@ jest.mock("../assets/lib/kookit-extra-browser.min", () => ({
 
 const {
   clearMangaTranslationCache,
+  shouldAutoTranslateMangaRegion,
   translateMangaText,
   translateMangaRegions,
 } = require("./mangaTranslation");
@@ -68,6 +69,30 @@ describe("translateMangaRegions", () => {
   it("returns an empty page without requiring a configured model", async () => {
     await expect(translateMangaRegions([])).resolves.toEqual([]);
     expect(aiRequest).not.toHaveBeenCalled();
+  });
+
+  it("automatically translates Region OCR by default only with a valid configured model", () => {
+    expect(shouldAutoTranslateMangaRegion()).toBe(true);
+
+    jest.spyOn(ConfigService, "getReaderConfig").mockImplementation((key) => {
+      const values = {
+        aiTranslateModel: "",
+        mangaTranslateModel: "",
+        isAutoMangaTranslate: "",
+      };
+      return values[key] || "";
+    });
+    expect(shouldAutoTranslateMangaRegion()).toBe(false);
+
+    jest.spyOn(ConfigService, "getReaderConfig").mockImplementation((key) => {
+      const values = {
+        aiTranslateModel: "model-key",
+        mangaTranslateModel: "",
+        isAutoMangaTranslate: "no",
+      };
+      return values[key] || "";
+    });
+    expect(shouldAutoTranslateMangaRegion()).toBe(false);
   });
 
   it("uses the existing OpenAI-compatible model and parses batch JSON", async () => {
