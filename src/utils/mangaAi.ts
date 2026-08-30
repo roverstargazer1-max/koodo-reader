@@ -88,6 +88,9 @@ export const getMangaOcrErrorMessage = (error: any): string => {
       return "Manga OCR model is not ready. Run setup-region-ocr.ps1 -Warmup and retry.";
     case "sidecar_timeout":
       return "Manga OCR timed out. Warm the model and try again.";
+    case "sidecar_unavailable":
+    case "invalid_sidecar_response":
+      return "Manga AI sidecar is unavailable. Check its runtime installation and retry.";
     case "detector_unavailable":
       return "Page detection runtime is not installed. Run setup-page-analysis.ps1 first.";
     case "detector_model_missing":

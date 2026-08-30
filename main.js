@@ -388,6 +388,22 @@ const mangaAiSupervisor = (() => {
   return { start, stop, request, status };
 })();
 
+// Electron serializes thrown IPC errors without custom fields such as `code`.
+// Keep Manga AI failures in the versioned renderer-side error shape instead.
+const toMangaAiIpcError = (error) => ({
+  error: {
+    code:
+      typeof error?.code === "string" && error.code
+        ? error.code
+        : "sidecar_unavailable",
+    message:
+      typeof error?.message === "string" && error.message
+        ? error.message
+        : "Manga AI sidecar request failed",
+    retryable: Boolean(error?.retryable),
+  },
+});
+
 const OCR_TEMP_DIR = path.join(configDir, "ocr-tmp");
 
 // macOS OCR 二进制支持的语言（VNRecognizeTextRequest recognitionLanguages）
@@ -1888,13 +1904,23 @@ const createMainWin = () => {
     if (!payload || typeof payload !== "object") {
       throw new TypeError("Invalid Manga AI OCR payload");
     }
-    return mangaAiSupervisor.request("/v1/ocr/region", payload);
+    try {
+      return await mangaAiSupervisor.request("/v1/ocr/region", payload);
+    } catch (error) {
+      log.warn("Manga AI OCR request failed:", error?.message || error);
+      return toMangaAiIpcError(error);
+    }
   });
   ipcMain.handle("manga-ai-analyze-page", async (event, payload) => {
     if (!payload || typeof payload !== "object") {
       throw new TypeError("Invalid Manga AI page analysis payload");
     }
-    return mangaAiSupervisor.request("/v1/analyze/page", payload);
+    try {
+      return await mangaAiSupervisor.request("/v1/analyze/page", payload);
+    } catch (error) {
+      log.warn("Manga AI page analysis failed:", error?.message || error);
+      return toMangaAiIpcError(error);
+    }
   });
   ipcMain.handle("generate-tts", async (event, voiceConfig) => {
     const { text, speed, pluginKey, config } = voiceConfig || {};
