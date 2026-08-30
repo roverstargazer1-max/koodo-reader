@@ -164,9 +164,11 @@ const mangaAiSupervisor = (() => {
     child: null,
     port: null,
     token: null,
+    runtime: null,
     ready: false,
     startPromise: null,
     lastError: null,
+    lastErrorCode: null,
   };
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -190,14 +192,73 @@ const mangaAiSupervisor = (() => {
       });
     });
 
-  const pythonCommand = (root) => {
-    if (process.env.MANGA_AI_PYTHON) return process.env.MANGA_AI_PYTHON;
-    const bundled =
+  const createSupervisorError = (code, message, retryable = false) => {
+    const error = new Error(message);
+    error.code = code;
+    error.retryable = retryable;
+    return error;
+  };
+
+  const resolveRuntime = (root) => {
+    const explicitExecutable = process.env.MANGA_AI_EXECUTABLE;
+    if (explicitExecutable) {
+      if (!fs.existsSync(explicitExecutable)) {
+        throw createSupervisorError(
+          "sidecar_runtime_missing",
+          `Manga AI executable was not found: ${explicitExecutable}`
+        );
+      }
+      return { command: explicitExecutable, args: [], kind: "configured-executable" };
+    }
+
+    const executableNames =
+      process.platform === "win32"
+        ? ["manga-ai-service.exe", "manga-ai-service"]
+        : ["manga-ai-service"];
+    const executableCandidates = [
+      ...executableNames.map((name) => path.join(root, name)),
+      ...executableNames.map((name) =>
+        path.join(process.resourcesPath, "manga-ai-service", name)
+      ),
+    ];
+    const executable = executableCandidates.find((candidate) =>
+      fs.existsSync(candidate)
+    );
+    if (executable) {
+      return { command: executable, args: [], kind: "packaged-executable" };
+    }
+
+    const explicitPython = process.env.MANGA_AI_PYTHON;
+    if (explicitPython) {
+      if (
+        (explicitPython.includes("\\") || explicitPython.includes("/")) &&
+        !fs.existsSync(explicitPython)
+      ) {
+        throw createSupervisorError(
+          "sidecar_runtime_missing",
+          `Manga AI Python runtime was not found: ${explicitPython}`
+        );
+      }
+      return {
+        command: explicitPython,
+        args: ["-m", "manga_ai_service.server"],
+        kind: "configured-python",
+      };
+    }
+
+    const localPython =
       process.platform === "win32"
         ? path.join(root, ".venv", "Scripts", "python.exe")
         : path.join(root, ".venv", "bin", "python");
-    if (fs.existsSync(bundled)) return bundled;
-    const packaged =
+    if (fs.existsSync(localPython)) {
+      return {
+        command: localPython,
+        args: ["-m", "manga_ai_service.server"],
+        kind: "project-venv",
+      };
+    }
+
+    const packagedPython =
       process.platform === "win32"
         ? path.join(process.resourcesPath, "manga-ai-runtime", "python.exe")
         : path.join(
@@ -206,8 +267,16 @@ const mangaAiSupervisor = (() => {
             "bin",
             "python3"
           );
-    if (fs.existsSync(packaged)) return packaged;
-    return process.platform === "win32" ? "python.exe" : "python3";
+    if (fs.existsSync(packagedPython)) {
+      return {
+        command: packagedPython,
+        args: ["-m", "manga_ai_service.server"],
+        kind: "packaged-python",
+      };
+    }
+
+    const systemPython = process.platform === "win32" ? "python.exe" : "python3";
+    return { command: systemPython, args: ["-m", "manga_ai_service.server"], kind: "system-python" };
   };
 
   const stop = () => {
@@ -216,6 +285,7 @@ const mangaAiSupervisor = (() => {
     state.ready = false;
     state.port = null;
     state.token = null;
+    state.runtime = null;
     state.startPromise = null;
     if (child && !child.killed) {
       try {
@@ -246,8 +316,18 @@ const mangaAiSupervisor = (() => {
     if (state.startPromise) return state.startPromise;
     state.startPromise = (async () => {
       const root = serviceRoot();
-      if (!fs.existsSync(root)) {
-        throw new Error(`Manga AI service directory not found: ${root}`);
+      const hasServiceRoot = fs.existsSync(root);
+      const runtime = resolveRuntime(root);
+      const canRunWithoutServiceRoot =
+        runtime.kind === "configured-executable" ||
+        runtime.kind === "configured-python" ||
+        runtime.kind === "packaged-executable" ||
+        runtime.kind === "packaged-python";
+      if (!hasServiceRoot && !canRunWithoutServiceRoot) {
+        throw createSupervisorError(
+          "sidecar_service_missing",
+          `Manga AI service directory not found: ${root}`
+        );
       }
       const port = await getFreePort();
       const token = nodeCrypto.randomBytes(32).toString("hex");
@@ -257,8 +337,13 @@ const mangaAiSupervisor = (() => {
         (isDev && fs.existsSync(workspaceModelRoot)
           ? workspaceModelRoot
           : path.join(configDir, "manga-ai", "models"));
-      const child = spawn(pythonCommand(root), ["-m", "manga_ai_service.server"], {
-        cwd: root,
+      const runtimeCwd = hasServiceRoot
+        ? root
+        : path.isAbsolute(runtime.command)
+          ? path.dirname(runtime.command)
+          : process.cwd();
+      const child = spawn(runtime.command, runtime.args, {
+        cwd: runtimeCwd,
         env: {
           ...process.env,
           MANGA_AI_HOST: "127.0.0.1",
@@ -282,7 +367,9 @@ const mangaAiSupervisor = (() => {
       state.child = child;
       state.port = port;
       state.token = token;
+      state.runtime = runtime.kind;
       state.lastError = null;
+      state.lastErrorCode = null;
       child.stdout?.on("data", (chunk) =>
         log.info(`[Manga AI] ${String(chunk).trim()}`)
       );
@@ -291,6 +378,7 @@ const mangaAiSupervisor = (() => {
       );
       child.once("error", (error) => {
         state.lastError = error.message;
+        state.lastErrorCode = "sidecar_runtime_error";
         if (state.child === child) {
           state.ready = false;
           state.child = null;
@@ -304,6 +392,7 @@ const mangaAiSupervisor = (() => {
           state.lastError = `sidecar exited (code=${code}, signal=${
             signal || "none"
           })`;
+          state.lastErrorCode = "sidecar_exited";
           log.warn("Manga AI sidecar stopped:", state.lastError);
         }
       });
@@ -315,9 +404,11 @@ const mangaAiSupervisor = (() => {
         if (!state.child || state.child.killed) break;
         await delay(100);
       }
-      const error = new Error(
+      const error = createSupervisorError(
+        state.lastErrorCode || "sidecar_unavailable",
         state.lastError ||
-          "Manga AI sidecar did not become healthy within 10 seconds"
+          "Manga AI sidecar did not become healthy within 10 seconds",
+        true
       );
       stop();
       throw error;
@@ -382,6 +473,7 @@ const mangaAiSupervisor = (() => {
   const status = () => ({
     running: Boolean(state.ready && state.child && !state.child.killed),
     port: state.port,
+    runtime: state.runtime,
     error: state.lastError,
   });
 

@@ -77,6 +77,14 @@ export interface MangaPageAnalyzeResult {
 export interface MangaAiStatus {
   running: boolean;
   port: number | null;
+  runtime?:
+    | "configured-executable"
+    | "packaged-executable"
+    | "configured-python"
+    | "project-venv"
+    | "packaged-python"
+    | "system-python"
+    | null;
   error: string | null;
 }
 
@@ -88,6 +96,13 @@ export const getMangaOcrErrorMessage = (error: any): string => {
       return "Manga OCR model is not ready. Run setup-region-ocr.ps1 -Warmup and retry.";
     case "sidecar_timeout":
       return "Manga OCR timed out. Warm the model and try again.";
+    case "sidecar_service_missing":
+      return "Manga AI service files are missing. Check the beta installation.";
+    case "sidecar_runtime_missing":
+      return "Manga AI runtime is missing. Run the setup script and retry.";
+    case "sidecar_runtime_error":
+      return "Manga AI runtime could not start. Check the sidecar installation and retry.";
+    case "sidecar_exited":
     case "sidecar_unavailable":
     case "invalid_sidecar_response":
       return "Manga AI sidecar is unavailable. Check its runtime installation and retry.";
