@@ -187,8 +187,11 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       await this.props.handleFetchUserInfo();
     }
     DatabaseService.getRecord(key, "books").then((book: Book | null) => {
-      book = book || JSON.parse(ConfigService.getItem("tempBook") || "{}");
-      if (!book) return;
+      const fallbackBook = JSON.parse(
+        ConfigService.getItem("tempBook") || "null"
+      );
+      book = book || fallbackBook;
+      if (!book?.key || !book?.format) return;
 
       this.props.handleFetchPercentage(book);
       let readerMode =

@@ -49,7 +49,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   private resizeHandler: (() => void) | null = null;
   private mangaSelectionCleanups: Array<() => void> = [];
   private lastMangaSelection: MangaOcrSelection | null = null;
-  private isMounted = false;
+  private viewerMounted = false;
   private _pendingRerender = false;
   lock: boolean;
   constructor(props: ViewerProps) {
@@ -95,7 +95,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.props.handleFetchPlugins();
   }
   componentDidMount() {
-    this.isMounted = true;
+    this.viewerMounted = true;
     this.handleRenderBook();
     //make sure page width is always 12 times, section = Math.floor(element.clientWidth / 12), or text will be blocked
     this.setState(
@@ -132,7 +132,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     window.addEventListener("resize", this.resizeHandler);
   }
   componentWillUnmount() {
-    this.isMounted = false;
+    this.viewerMounted = false;
     this.clearMangaSelection();
     if (this.resizeHandler) {
       window.removeEventListener("resize", this.resizeHandler);
@@ -245,7 +245,11 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   };
   bindMangaSelection = () => {
     this.clearMangaSelection();
-    if (!this.isMounted || !this.props.currentBook.format.startsWith("CB")) return;
+    if (
+      !this.viewerMounted ||
+      !this.props.currentBook?.format?.startsWith("CB")
+    )
+      return;
     getIframeDoc(this.props.currentBook.format, this.props.currentBook.key).forEach(
       (doc: Document | null) => {
         if (!doc) return;
@@ -270,7 +274,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         selection,
         ConfigService.getReaderConfig("transSource") || "auto"
       );
-      if (!this.isMounted) return;
+      if (!this.viewerMounted) return;
       this.setState({
         mangaOcr: {
           status: "success",
@@ -280,7 +284,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         },
       });
     } catch (error: any) {
-      if (!this.isMounted) return;
+      if (!this.viewerMounted) return;
       this.setState({
         mangaOcr: {
           status: "error",
