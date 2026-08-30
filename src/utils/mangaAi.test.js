@@ -99,5 +99,14 @@ describe("Manga AI renderer client", () => {
         errorCode: "sidecar_runtime_missing",
       })
     ).toBe("Manga AI runtime is missing. Run the setup script and retry.");
+    expect(
+      getMangaAiStatusMessage({
+        running: false,
+        port: null,
+        runtime: "packaged-executable",
+        error: "Manga AI sidecar does not support Contract v1",
+        errorCode: "sidecar_contract_mismatch",
+      })
+    ).toBe("Manga AI runtime is incompatible with this Koodo build. Update Koodo and Manga AI together.");
   });
 });

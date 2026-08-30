@@ -32,6 +32,7 @@ const yazl = require("yazl");
 const yauzl = require("yauzl");
 const AdmZip = require("adm-zip");
 const { getVoicePlugin } = require("./src/utils/plugins/main/registry");
+const { validateMangaAiHealth } = require("./src/utils/mangaAiHealth");
 const configDir = app.getPath("userData");
 const dirPath = path.join(configDir, "uploads");
 const packageJson = require("./package.json");
@@ -351,15 +352,44 @@ const mangaAiSupervisor = (() => {
   };
 
   const health = async () => {
-    if (!state.port || !state.token) return false;
+    if (!state.port || !state.token) return { ok: false };
     try {
       const response = await net.fetch(
         `http://127.0.0.1:${state.port}/v1/health`,
         { headers: { "X-Manga-AI-Token": state.token } }
       );
-      return response.ok;
+      if (!response.ok) {
+        return {
+          ok: false,
+          fatal: true,
+          errorCode: "sidecar_health_failed",
+          error: `Manga AI health check returned HTTP ${response.status}`,
+        };
+      }
+      const body = await response.text();
+      let payload;
+      try {
+        payload = JSON.parse(body);
+      } catch {
+        return {
+          ok: false,
+          fatal: true,
+          errorCode: "sidecar_contract_mismatch",
+          error: "Manga AI health response is not a Contract v1 JSON document",
+        };
+      }
+      const validation = validateMangaAiHealth(payload);
+      if (!validation.ok) {
+        return {
+          ok: false,
+          fatal: true,
+          errorCode: validation.errorCode,
+          error: validation.error,
+        };
+      }
+      return { ok: true };
     } catch {
-      return false;
+      return { ok: false };
     }
   };
 
@@ -451,9 +481,15 @@ const mangaAiSupervisor = (() => {
         }
       });
       for (let attempt = 0; attempt < 100; attempt += 1) {
-        if (await health()) {
+        const healthResult = await health();
+        if (healthResult.ok) {
           state.ready = true;
           return { port, token };
+        }
+        if (healthResult.fatal) {
+          state.lastError = healthResult.error;
+          state.lastErrorCode = healthResult.errorCode;
+          break;
         }
         if (!state.child || state.child.killed) break;
         await delay(100);

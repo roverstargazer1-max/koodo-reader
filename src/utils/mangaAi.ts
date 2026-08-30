@@ -109,6 +109,11 @@ export const getMangaOcrErrorMessage = (error: any): string => {
     case "sidecar_unavailable":
     case "invalid_sidecar_response":
       return "Manga AI sidecar is unavailable. Check its runtime installation and retry.";
+    case "sidecar_health_failed":
+      return "Manga AI sidecar failed its startup health check. Check the runtime installation and retry.";
+    case "sidecar_contract_mismatch":
+    case "sidecar_capability_missing":
+      return "Manga AI runtime is incompatible with this Koodo build. Update Koodo and Manga AI together.";
     case "detector_unavailable":
       return "Page detection runtime is not installed. Run setup-page-analysis.ps1 first.";
     case "detector_model_missing":
