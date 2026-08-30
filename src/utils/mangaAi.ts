@@ -128,7 +128,7 @@ export const getMangaOcrErrorMessage = (error: any): string => {
   }
 };
 
-const createRequestId = () => {
+export const createMangaAiRequestId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
@@ -147,13 +147,23 @@ export const getMangaAiStatus = async (): Promise<MangaAiStatus> => {
   return getElectronApi().invoke("manga-ai-status");
 };
 
+/** Best-effort cancellation. The sidecar keeps its warmed model process alive. */
+export const cancelMangaAiRequest = async (requestId: string): Promise<boolean> => {
+  if (!requestId) return false;
+  const result = await getElectronApi().invoke("manga-ai-cancel-request", {
+    requestId,
+  });
+  return Boolean(result?.cancelled);
+};
+
 export const ocrMangaRegion = async (
   selection: MangaOcrSelection,
-  sourceLanguage?: string
+  sourceLanguage?: string,
+  requestId = createMangaAiRequestId()
 ): Promise<MangaOcrResult> => {
   const result = await getElectronApi().invoke("manga-ai-ocr-region", {
     contractVersion: "1",
-    requestId: createRequestId(),
+    requestId,
     image: { dataUrl: selection.imageDataUrl },
     crop: selection.transferCrop,
     sourceRegion: {
@@ -180,11 +190,12 @@ export const analyzeMangaPage = async (
     sourceLanguage?: string;
     readingDirection?: "rtl" | "ltr" | "auto";
     detector?: "manga-translator" | "none";
+    requestId?: string;
   } = {}
 ): Promise<MangaPageAnalyzeResult> => {
   const result = await getElectronApi().invoke("manga-ai-analyze-page", {
     contractVersion: "1",
-    requestId: createRequestId(),
+    requestId: options.requestId || createMangaAiRequestId(),
     image: { dataUrl: page.imageDataUrl },
     pageId: options.pageId,
     sourceLanguage: options.sourceLanguage,

@@ -8,6 +8,7 @@ export interface MangaOcrPopupProps {
   error: string;
   rect: { left: number; top: number; width: number; height: number } | null;
   onClose: () => void;
+  onCancel: () => void;
   onRetry: () => void;
   onCopy: () => void;
   onTranslate: () => void;
@@ -20,6 +21,7 @@ const MangaOcrPopup = ({
   error,
   rect,
   onClose,
+  onCancel,
   onRetry,
   onCopy,
   onTranslate,
@@ -43,6 +45,9 @@ const MangaOcrPopup = ({
         <div className="manga-ocr-popup-loading" role="status">
           <span className="manga-ocr-spinner" />
           <span>Reading page text...</span>
+          <button type="button" className="manga-ocr-action" onClick={onCancel}>
+            Cancel
+          </button>
         </div>
       ) : status === "error" ? (
         <div className="manga-ocr-popup-error">

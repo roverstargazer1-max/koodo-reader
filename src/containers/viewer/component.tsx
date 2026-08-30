@@ -39,6 +39,8 @@ import { parseWithSystemOCR } from "../../utils/request/common";
 import MangaOcrPopup from "../../components/mangaOcrPopup/component";
 import {
   analyzeMangaPage,
+  cancelMangaAiRequest,
+  createMangaAiRequestId,
   MangaPageCapture,
   MangaOcrSelection,
   MangaTextRegion,
@@ -63,8 +65,10 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   private mangaSelectionCleanups: Array<() => void> = [];
   private lastMangaSelection: MangaOcrSelection | null = null;
   private mangaOcrRequestSequence = 0;
+  private mangaOcrRequestId: string | null = null;
   private mangaTranslationRequestSequence = 0;
   private mangaPageRequestSequence = 0;
+  private mangaPageRequestId: string | null = null;
   private mangaPageTarget: Document | null = null;
   private mangaPageImage: HTMLImageElement | null = null;
   private mangaOverlayCleanups: Array<() => void> = [];
@@ -162,6 +166,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.mangaOcrRequestSequence += 1;
     this.mangaTranslationRequestSequence += 1;
     this.mangaPageRequestSequence += 1;
+    this.cancelMangaOcrRequest();
+    this.cancelMangaPageRequest();
     this.mangaPageTarget = null;
     this.mangaPageImage = null;
     this.clearMangaSelection();
@@ -279,9 +285,20 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.mangaOverlayCleanups.forEach((cleanup) => cleanup());
     this.mangaOverlayCleanups = [];
   };
+  cancelMangaOcrRequest = () => {
+    const requestId = this.mangaOcrRequestId;
+    this.mangaOcrRequestId = null;
+    if (requestId) void cancelMangaAiRequest(requestId).catch(() => undefined);
+  };
+  cancelMangaPageRequest = () => {
+    const requestId = this.mangaPageRequestId;
+    this.mangaPageRequestId = null;
+    if (requestId) void cancelMangaAiRequest(requestId).catch(() => undefined);
+  };
   handleMangaPageInvalidated = () => {
     this.mangaPageRequestSequence += 1;
     this.mangaTranslationRequestSequence += 1;
+    this.cancelMangaPageRequest();
     this.mangaPageTarget = null;
     this.mangaPageImage = null;
     this.clearMangaOverlay();
@@ -423,7 +440,10 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     if (!this.viewerMounted || !this.props.currentBook?.format?.startsWith("CB")) {
       return;
     }
+    this.cancelMangaPageRequest();
     const requestSequence = ++this.mangaPageRequestSequence;
+    const requestId = createMangaAiRequestId();
+    this.mangaPageRequestId = requestId;
     this.clearMangaOverlay();
     this.setState({
       mangaPage: {
@@ -440,8 +460,10 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       const result = await analyzeMangaPage(capture, {
         pageId: `${this.props.currentBook.key}:${this.state.chapterDocIndex}`,
         sourceLanguage: ConfigService.getReaderConfig("transSource") || "auto",
+        requestId,
       });
       if (!this.viewerMounted || requestSequence !== this.mangaPageRequestSequence) return;
+      this.mangaPageRequestId = null;
       this.mangaPageTarget = target;
       this.mangaPageImage = capture.renderedImage;
       if (translate && result.regions.length) {
@@ -465,6 +487,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       });
     } catch (error: any) {
       if (!this.viewerMounted || requestSequence !== this.mangaPageRequestSequence) return;
+      this.mangaPageRequestId = null;
       this.setState({
         mangaPage: {
           status: "error",
@@ -475,8 +498,27 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       });
     }
   };
+  handleMangaPageCancel = () => {
+    if (
+      this.state.mangaPage.status !== "loading" ||
+      this.state.mangaPage.stage !== "detecting"
+    ) {
+      return;
+    }
+    this.mangaPageRequestSequence += 1;
+    this.cancelMangaPageRequest();
+    this.mangaPageTarget = null;
+    this.mangaPageImage = null;
+    this.clearMangaOverlay();
+    this.setState({
+      mangaPage: { status: "idle", stage: null, error: "", regions: [] },
+    });
+  };
   handleMangaSelection = async (selection: MangaOcrSelection) => {
+    this.cancelMangaOcrRequest();
     const requestSequence = ++this.mangaOcrRequestSequence;
+    const requestId = createMangaAiRequestId();
+    this.mangaOcrRequestId = requestId;
     this.lastMangaSelection = selection;
     this.setState({
       mangaOcr: {
@@ -490,13 +532,15 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     try {
       const result = await ocrMangaRegion(
         selection,
-        ConfigService.getReaderConfig("transSource") || "auto"
+        ConfigService.getReaderConfig("transSource") || "auto",
+        requestId
       );
       if (
         !this.viewerMounted ||
         requestSequence !== this.mangaOcrRequestSequence
       )
         return;
+      this.mangaOcrRequestId = null;
       this.setState({
         mangaOcr: {
           status: "success",
@@ -512,6 +556,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         requestSequence !== this.mangaOcrRequestSequence
       )
         return;
+      this.mangaOcrRequestId = null;
       this.setState({
         mangaOcr: {
           status: "error",
@@ -526,6 +571,22 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   handleMangaClose = () => {
     this.mangaOcrRequestSequence += 1;
     this.mangaTranslationRequestSequence += 1;
+    this.cancelMangaOcrRequest();
+    this.lastMangaSelection = null;
+    this.setState({
+      mangaOcr: {
+        status: "idle",
+        sourceText: "",
+        translatedText: "",
+        error: "",
+        rect: null,
+      },
+    });
+  };
+  handleMangaOcrCancel = () => {
+    if (this.state.mangaOcr.status !== "loading") return;
+    this.mangaOcrRequestSequence += 1;
+    this.cancelMangaOcrRequest();
     this.lastMangaSelection = null;
     this.setState({
       mangaOcr: {
@@ -620,11 +681,22 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     }
     this.clearMangaSelection();
     this.clearMangaOverlay();
+    this.mangaOcrRequestSequence += 1;
     this.mangaPageRequestSequence += 1;
     this.mangaTranslationRequestSequence += 1;
+    this.cancelMangaOcrRequest();
+    this.cancelMangaPageRequest();
+    this.lastMangaSelection = null;
     this.mangaPageTarget = null;
     this.mangaPageImage = null;
     this.setState({
+      mangaOcr: {
+        status: "idle",
+        sourceText: "",
+        translatedText: "",
+        error: "",
+        rect: null,
+      },
       mangaPage: { status: "idle", stage: null, error: "", regions: [] },
     });
     this.props.handleHtmlBook(null);
@@ -1075,6 +1147,18 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
                 ? "Translating..."
                 : "Translate page"}
             </button>
+            {this.state.mangaPage.status === "loading" &&
+            this.state.mangaPage.stage === "detecting" ? (
+              <button
+                type="button"
+                className="manga-page-analyze-button"
+                onClick={this.handleMangaPageCancel}
+                title="Cancel current manga page detection"
+              >
+                <span className="icon-close" />
+                Cancel
+              </button>
+            ) : null}
             {this.state.mangaPage.status === "success" ? (
               <span className="manga-page-analysis-count" role="status">
                 {this.state.mangaPage.regions.length} region
@@ -1095,6 +1179,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           error={this.state.mangaOcr.error}
           rect={this.state.mangaOcr.rect}
           onClose={this.handleMangaClose}
+          onCancel={this.handleMangaOcrCancel}
           onRetry={this.handleMangaRetry}
           onCopy={this.handleMangaCopy}
           onTranslate={this.handleMangaTranslate}

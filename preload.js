@@ -77,6 +77,7 @@ const INVOKE_CHANNELS = new Set([
   "manga-ai-status",
   "manga-ai-ocr-region",
   "manga-ai-analyze-page",
+  "manga-ai-cancel-request",
   "manga-ai-stop",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);

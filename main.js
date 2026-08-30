@@ -169,6 +169,8 @@ const mangaAiSupervisor = (() => {
     startPromise: null,
     lastError: null,
     lastErrorCode: null,
+    activeRequests: new Map(),
+    pendingCancelledRequestIds: new Set(),
   };
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -197,6 +199,25 @@ const mangaAiSupervisor = (() => {
     error.code = code;
     error.retryable = retryable;
     return error;
+  };
+
+  const rememberPendingCancellation = (requestId) => {
+    state.pendingCancelledRequestIds.add(requestId);
+    // Request ids are renderer-generated UUIDs. Keep a small bound anyway so
+    // a cancelled start that never reaches the sidecar cannot grow this map.
+    while (state.pendingCancelledRequestIds.size > 128) {
+      state.pendingCancelledRequestIds.delete(
+        state.pendingCancelledRequestIds.values().next().value
+      );
+    }
+  };
+
+  const consumePendingCancellation = (requestId) => {
+    if (!requestId || !state.pendingCancelledRequestIds.has(requestId)) {
+      return false;
+    }
+    state.pendingCancelledRequestIds.delete(requestId);
+    return true;
   };
 
   const resolveRuntime = (root) => {
@@ -287,6 +308,12 @@ const mangaAiSupervisor = (() => {
     state.token = null;
     state.runtime = null;
     state.startPromise = null;
+    state.activeRequests.forEach((record) => {
+      record.cancelled = true;
+      record.controller.abort();
+    });
+    state.activeRequests.clear();
+    state.pendingCancelledRequestIds.clear();
     if (child && !child.killed) {
       try {
         child.kill();
@@ -421,13 +448,34 @@ const mangaAiSupervisor = (() => {
   };
 
   const request = async (pathname, payload) => {
+    const requestId =
+      payload && typeof payload.requestId === "string" ? payload.requestId : null;
+    if (consumePendingCancellation(requestId)) {
+      throw createSupervisorError(
+        "sidecar_cancelled",
+        "Manga AI request was cancelled"
+      );
+    }
     const { port, token } = await start();
+    if (consumePendingCancellation(requestId)) {
+      throw createSupervisorError(
+        "sidecar_cancelled",
+        "Manga AI request was cancelled"
+      );
+    }
     const timeoutValue = Number(process.env.MANGA_AI_REQUEST_TIMEOUT_MS);
     const timeoutMs = Number.isFinite(timeoutValue) && timeoutValue > 0
       ? timeoutValue
       : DEFAULT_REQUEST_TIMEOUT_MS;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const record = { controller, cancelled: false, timedOut: false };
+    if (requestId) {
+      state.activeRequests.set(requestId, record);
+    }
+    const timeout = setTimeout(() => {
+      record.timedOut = true;
+      controller.abort();
+    }, timeoutMs);
     let response;
     try {
       response = await net.fetch(`http://127.0.0.1:${port}${pathname}`, {
@@ -440,6 +488,12 @@ const mangaAiSupervisor = (() => {
         signal: controller.signal,
       });
     } catch (error) {
+      if (record.cancelled) {
+        throw createSupervisorError(
+          "sidecar_cancelled",
+          "Manga AI request was cancelled"
+        );
+      }
       if (error?.name === "AbortError") {
         const timeoutError = new Error(
           `Manga AI request timed out after ${timeoutMs} ms`
@@ -451,6 +505,9 @@ const mangaAiSupervisor = (() => {
       throw error;
     } finally {
       clearTimeout(timeout);
+      if (requestId && state.activeRequests.get(requestId) === record) {
+        state.activeRequests.delete(requestId);
+      }
     }
     const body = await response.text();
     let parsed;
@@ -470,6 +527,40 @@ const mangaAiSupervisor = (() => {
     return parsed;
   };
 
+  const cancel = (requestId) => {
+    if (typeof requestId !== "string" || !requestId) {
+      return { requestId: requestId || "", cancelled: false };
+    }
+    const record = state.activeRequests.get(requestId);
+    if (!record) {
+      rememberPendingCancellation(requestId);
+      return { requestId, cancelled: true };
+    }
+    record.cancelled = true;
+    record.controller.abort();
+    state.activeRequests.delete(requestId);
+
+    // The current OCR and YOLO backends only support cooperative cancellation.
+    // Notify the sidecar in parallel, while returning control to the Reader
+    // immediately and keeping the warmed process alive for the next request.
+    if (state.port && state.token) {
+      void net
+        .fetch(
+          `http://127.0.0.1:${state.port}/v1/requests/${encodeURIComponent(
+            requestId
+          )}/cancel`,
+          {
+            method: "POST",
+            headers: { "X-Manga-AI-Token": state.token },
+          }
+        )
+        .catch((error) =>
+          log.debug("Manga AI cancellation notification failed:", error?.message || error)
+        );
+    }
+    return { requestId, cancelled: true };
+  };
+
   const status = () => ({
     running: Boolean(state.ready && state.child && !state.child.killed),
     port: state.port,
@@ -477,7 +568,7 @@ const mangaAiSupervisor = (() => {
     error: state.lastError,
   });
 
-  return { start, stop, request, status };
+  return { start, stop, request, cancel, status };
 })();
 
 // Electron serializes thrown IPC errors without custom fields such as `code`.
@@ -1991,6 +2082,12 @@ const createMainWin = () => {
   ipcMain.handle("manga-ai-stop", () => {
     mangaAiSupervisor.stop();
     return { ok: true };
+  });
+  ipcMain.handle("manga-ai-cancel-request", (event, payload) => {
+    if (!payload || typeof payload.requestId !== "string") {
+      throw new TypeError("Invalid Manga AI cancellation payload");
+    }
+    return mangaAiSupervisor.cancel(payload.requestId);
   });
   ipcMain.handle("manga-ai-ocr-region", async (event, payload) => {
     if (!payload || typeof payload !== "object") {
