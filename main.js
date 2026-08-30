@@ -22,11 +22,12 @@ const isDev = require("electron-is-dev");
 const Store = require("electron-store");
 const log = require("electron-log/main");
 const os = require("os");
-const { execFile } = require("child_process");
+const { execFile, spawn } = require("child_process");
 const store = new Store();
 const fs = require("fs");
 const fsExtra = require("fs-extra");
 const nodeCrypto = require("crypto");
+const nodeNet = require("net");
 const yazl = require("yazl");
 const yauzl = require("yauzl");
 const AdmZip = require("adm-zip");
@@ -154,6 +155,194 @@ const runPowerShellScript = (script, timeout = 30000) => {
     );
   });
 };
+
+// Manga AI is an optional local capability. Electron main owns its process,
+// credentials, dynamic port, logs, and shutdown; renderer code only sees IPC.
+const mangaAiSupervisor = (() => {
+  const state = {
+    child: null,
+    port: null,
+    token: null,
+    ready: false,
+    startPromise: null,
+    lastError: null,
+  };
+
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const serviceRoot = () =>
+    process.env.MANGA_AI_SERVICE_ROOT ||
+    path.join(
+      isDev ? path.resolve(__dirname, "..") : process.resourcesPath,
+      "manga-ai-service"
+    );
+
+  const getFreePort = () =>
+    new Promise((resolve, reject) => {
+      const server = nodeNet.createServer();
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        const address = server.address();
+        const port = address && typeof address === "object" ? address.port : 0;
+        server.close(() =>
+          port ? resolve(port) : reject(new Error("No free port"))
+        );
+      });
+    });
+
+  const pythonCommand = (root) => {
+    if (process.env.MANGA_AI_PYTHON) return process.env.MANGA_AI_PYTHON;
+    const bundled =
+      process.platform === "win32"
+        ? path.join(root, ".venv", "Scripts", "python.exe")
+        : path.join(root, ".venv", "bin", "python");
+    if (fs.existsSync(bundled)) return bundled;
+    const packaged =
+      process.platform === "win32"
+        ? path.join(process.resourcesPath, "manga-ai-runtime", "python.exe")
+        : path.join(
+            process.resourcesPath,
+            "manga-ai-runtime",
+            "bin",
+            "python3"
+          );
+    if (fs.existsSync(packaged)) return packaged;
+    return process.platform === "win32" ? "python.exe" : "python3";
+  };
+
+  const stop = () => {
+    const child = state.child;
+    state.child = null;
+    state.ready = false;
+    state.port = null;
+    state.token = null;
+    state.startPromise = null;
+    if (child && !child.killed) {
+      try {
+        child.kill();
+      } catch (error) {
+        log.warn("Failed to stop Manga AI sidecar:", error.message);
+      }
+    }
+  };
+
+  const health = async () => {
+    if (!state.port || !state.token) return false;
+    try {
+      const response = await net.fetch(
+        `http://127.0.0.1:${state.port}/v1/health`,
+        { headers: { "X-Manga-AI-Token": state.token } }
+      );
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const start = async () => {
+    if (state.ready && state.child && !state.child.killed) {
+      return { port: state.port, token: state.token };
+    }
+    if (state.startPromise) return state.startPromise;
+    state.startPromise = (async () => {
+      const root = serviceRoot();
+      if (!fs.existsSync(root)) {
+        throw new Error(`Manga AI service directory not found: ${root}`);
+      }
+      const port = await getFreePort();
+      const token = nodeCrypto.randomBytes(32).toString("hex");
+      const child = spawn(pythonCommand(root), ["-m", "manga_ai_service.server"], {
+        cwd: root,
+        env: {
+          ...process.env,
+          MANGA_AI_HOST: "127.0.0.1",
+          MANGA_AI_PORT: String(port),
+          MANGA_AI_TOKEN: token,
+          MANGA_TRANSLATOR_ROOT:
+            process.env.MANGA_TRANSLATOR_ROOT ||
+            path.join(path.dirname(root), "MangaTranslator"),
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      });
+      state.child = child;
+      state.port = port;
+      state.token = token;
+      state.lastError = null;
+      child.stdout?.on("data", (chunk) =>
+        log.info(`[Manga AI] ${String(chunk).trim()}`)
+      );
+      child.stderr?.on("data", (chunk) =>
+        log.warn(`[Manga AI] ${String(chunk).trim()}`)
+      );
+      child.once("error", (error) => {
+        state.lastError = error.message;
+        log.error("Manga AI sidecar process error:", error.message);
+      });
+      child.once("exit", (code, signal) => {
+        if (state.child === child) {
+          state.ready = false;
+          state.child = null;
+          state.lastError = `sidecar exited (code=${code}, signal=${
+            signal || "none"
+          })`;
+          log.warn("Manga AI sidecar stopped:", state.lastError);
+        }
+      });
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        if (await health()) {
+          state.ready = true;
+          return { port, token };
+        }
+        if (!state.child || state.child.killed) break;
+        await delay(100);
+      }
+      const error = new Error(
+        state.lastError ||
+          "Manga AI sidecar did not become healthy within 10 seconds"
+      );
+      stop();
+      throw error;
+    })();
+    try {
+      return await state.startPromise;
+    } finally {
+      state.startPromise = null;
+    }
+  };
+
+  const request = async (pathname, payload) => {
+    const { port, token } = await start();
+    const response = await net.fetch(`http://127.0.0.1:${port}${pathname}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Manga-AI-Token": token,
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await response.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      parsed = { error: { code: "invalid_sidecar_response", message: body } };
+    }
+    if (!response.ok) {
+      throw new Error(
+        parsed?.error?.message || `Manga AI HTTP ${response.status}`
+      );
+    }
+    return parsed;
+  };
+
+  const status = () => ({
+    running: Boolean(state.ready && state.child && !state.child.killed),
+    port: state.port,
+    error: state.lastError,
+  });
+
+  return { start, stop, request, status };
+})();
 
 const OCR_TEMP_DIR = path.join(configDir, "ocr-tmp");
 
@@ -1646,6 +1835,17 @@ const createMainWin = () => {
     }
     return { ok: true };
   });
+  ipcMain.handle("manga-ai-status", () => mangaAiSupervisor.status());
+  ipcMain.handle("manga-ai-stop", () => {
+    mangaAiSupervisor.stop();
+    return { ok: true };
+  });
+  ipcMain.handle("manga-ai-ocr-region", async (event, payload) => {
+    if (!payload || typeof payload !== "object") {
+      throw new TypeError("Invalid Manga AI OCR payload");
+    }
+    return mangaAiSupervisor.request("/v1/ocr/region", payload);
+  });
   ipcMain.handle("generate-tts", async (event, voiceConfig) => {
     const { text, speed, pluginKey, config } = voiceConfig || {};
     const plugin = getVoicePlugin(pluginKey);
@@ -3063,6 +3263,7 @@ app.on("ready", async () => {
 });
 app.on("before-quit", () => {
   isQuitting = true;
+  mangaAiSupervisor.stop();
   destroyDiscordRPC();
 });
 app.on("window-all-closed", () => {

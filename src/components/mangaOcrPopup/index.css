@@ -1,0 +1,79 @@
+.manga-ocr-popup {
+  position: fixed;
+  z-index: 1000;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  color: var(--color-text, #222);
+  background: var(--color-background, #fff);
+  border: 1px solid rgba(92, 158, 230, 0.45);
+  border-radius: 8px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+  font-size: 14px;
+}
+.manga-ocr-popup-header,
+.manga-ocr-popup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.manga-ocr-popup-header {
+  margin-bottom: 8px;
+}
+.manga-ocr-icon-button,
+.manga-ocr-action {
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  color: inherit;
+  background: rgba(92, 158, 230, 0.12);
+  padding: 5px 8px;
+}
+.manga-ocr-icon-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.manga-ocr-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.manga-ocr-source-text {
+  min-height: 42px;
+  max-height: 150px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 9px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  background: rgba(127, 127, 127, 0.1);
+}
+.manga-ocr-popup-actions {
+  justify-content: flex-end;
+}
+.manga-ocr-popup-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 62px;
+}
+.manga-ocr-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(92, 158, 230, 0.25);
+  border-top-color: #5c9ee6;
+  border-radius: 50%;
+  animation: manga-ocr-spin 0.8s linear infinite;
+}
+.manga-ocr-popup-error {
+  color: #b64646;
+  line-height: 1.4;
+}
+.manga-ocr-popup-error .manga-ocr-action {
+  margin-top: 10px;
+}
+@keyframes manga-ocr-spin {
+  to { transform: rotate(360deg); }
+}

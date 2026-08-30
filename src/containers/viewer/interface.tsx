@@ -34,6 +34,7 @@ export interface ViewerProps {
   handleFetchBookmarks: () => void;
   handleNoteKey: (key: string) => void;
   handleOpenMenu: (isOpenMenu: boolean) => void;
+  handleOriginalText: (originalText: string) => void;
   handleMenuMode: (menu: string) => void;
   handleReaderMode: (readerMode: string) => void;
   handleCurrentChapter: (currentChapter: string) => void;
@@ -58,4 +59,10 @@ export interface ViewerState {
   contents: any;
   rect: any;
   rendition: any;
+  mangaOcr: {
+    status: "idle" | "loading" | "success" | "error";
+    sourceText: string;
+    error: string;
+    rect: { left: number; top: number; width: number; height: number } | null;
+  };
 }

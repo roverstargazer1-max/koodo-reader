@@ -74,6 +74,9 @@ const INVOKE_CHANNELS = new Set([
   "zip-command",
   "ai-request",
   "ai-chat-stream",
+  "manga-ai-status",
+  "manga-ai-ocr-region",
+  "manga-ai-stop",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);
 const SEND_SYNC_CHANNELS = new Set([

@@ -36,11 +36,20 @@ import DatabaseService from "../../utils/storage/databaseService";
 import { getOcrResult, getOcrResultV2 } from "../../utils/request/reader";
 import { BookHelper } from "../../assets/lib/kookit.min";
 import { parseWithSystemOCR } from "../../utils/request/common";
+import MangaOcrPopup from "../../components/mangaOcrPopup/component";
+import {
+  MangaOcrSelection,
+  ocrMangaRegion,
+} from "../../utils/mangaAi";
+import { bindMangaRegionSelection } from "../../utils/reader/mangaSelection";
 declare var window: any;
 let lock = false; //prevent from clicking too fasts
 
 class Viewer extends React.Component<ViewerProps, ViewerState> {
   private resizeHandler: (() => void) | null = null;
+  private mangaSelectionCleanups: Array<() => void> = [];
+  private lastMangaSelection: MangaOcrSelection | null = null;
+  private isMounted = false;
   private _pendingRerender = false;
   lock: boolean;
   constructor(props: ViewerProps) {
@@ -70,6 +79,12 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       pageWidth: "",
       chapter: "",
       rendition: null,
+      mangaOcr: {
+        status: "idle",
+        sourceText: "",
+        error: "",
+        rect: null,
+      },
     };
     this.lock = false;
   }
@@ -80,6 +95,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.props.handleFetchPlugins();
   }
   componentDidMount() {
+    this.isMounted = true;
     this.handleRenderBook();
     //make sure page width is always 12 times, section = Math.floor(element.clientWidth / 12), or text will be blocked
     this.setState(
@@ -116,6 +132,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     window.addEventListener("resize", this.resizeHandler);
   }
   componentWillUnmount() {
+    this.isMounted = false;
+    this.clearMangaSelection();
     if (this.resizeHandler) {
       window.removeEventListener("resize", this.resizeHandler);
       this.resizeHandler = null;
@@ -221,6 +239,91 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.props.handleMenuMode("note");
     this.props.handleOpenMenu(true);
   };
+  clearMangaSelection = () => {
+    this.mangaSelectionCleanups.forEach((cleanup) => cleanup());
+    this.mangaSelectionCleanups = [];
+  };
+  bindMangaSelection = () => {
+    this.clearMangaSelection();
+    if (!this.isMounted || !this.props.currentBook.format.startsWith("CB")) return;
+    getIframeDoc(this.props.currentBook.format, this.props.currentBook.key).forEach(
+      (doc: Document | null) => {
+        if (!doc) return;
+        this.mangaSelectionCleanups.push(
+          bindMangaRegionSelection(doc, this.handleMangaSelection)
+        );
+      }
+    );
+  };
+  handleMangaSelection = async (selection: MangaOcrSelection) => {
+    this.lastMangaSelection = selection;
+    this.setState({
+      mangaOcr: {
+        status: "loading",
+        sourceText: "",
+        error: "",
+        rect: selection.viewportRect,
+      },
+    });
+    try {
+      const result = await ocrMangaRegion(
+        selection,
+        ConfigService.getReaderConfig("transSource") || "auto"
+      );
+      if (!this.isMounted) return;
+      this.setState({
+        mangaOcr: {
+          status: "success",
+          sourceText: result.sourceText,
+          error: "",
+          rect: selection.viewportRect,
+        },
+      });
+    } catch (error: any) {
+      if (!this.isMounted) return;
+      this.setState({
+        mangaOcr: {
+          status: "error",
+          sourceText: "",
+          error: error?.message || String(error),
+          rect: selection.viewportRect,
+        },
+      });
+    }
+  };
+  handleMangaClose = () => {
+    this.lastMangaSelection = null;
+    this.setState({
+      mangaOcr: { status: "idle", sourceText: "", error: "", rect: null },
+    });
+  };
+  handleMangaRetry = () => {
+    if (this.lastMangaSelection) this.handleMangaSelection(this.lastMangaSelection);
+  };
+  handleMangaCopy = async () => {
+    const text = this.state.mangaOcr.sourceText;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+  };
+  handleMangaTranslate = () => {
+    const text = this.state.mangaOcr.sourceText;
+    if (!text) return;
+    this.handleMangaClose();
+    this.props.handleOriginalText(text);
+    this.props.handleMenuMode("trans");
+    this.props.handleOpenMenu(true);
+  };
   handleRenderBook = async () => {
     if (lock) return;
     let { key, path, format, name } = this.props.currentBook;
@@ -232,6 +335,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     } else {
       window.currentBookKey = "";
     }
+    this.clearMangaSelection();
     this.props.handleHtmlBook(null);
     if (this.state.rendition) {
       this.state.rendition.removeContent();
@@ -415,6 +519,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       rendition: rendition,
     });
     this.setState({ rendition });
+    this.bindMangaSelection();
     if (
       this.props.currentBook.format === "PDF" &&
       !ConfigService.getAllListConfig("convertPDFBooks").includes(
@@ -523,6 +628,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       // rendition.tranformText();
       this.handleBindGesture();
       await this.handleHighlight(rendition);
+      this.bindMangaSelection();
       lock = true;
       setTimeout(() => {
         lock = false;
@@ -648,6 +754,16 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   render() {
     return (
       <>
+        <MangaOcrPopup
+          status={this.state.mangaOcr.status}
+          sourceText={this.state.mangaOcr.sourceText}
+          error={this.state.mangaOcr.error}
+          rect={this.state.mangaOcr.rect}
+          onClose={this.handleMangaClose}
+          onRetry={this.handleMangaRetry}
+          onCopy={this.handleMangaCopy}
+          onTranslate={this.handleMangaTranslate}
+        />
         {this.props.htmlBook ? (
           <PopupMenu
             {...({
