@@ -66,6 +66,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   private mangaTranslationRequestSequence = 0;
   private mangaPageRequestSequence = 0;
   private mangaPageTarget: Document | null = null;
+  private mangaPageImage: HTMLImageElement | null = null;
   private mangaOverlayCleanups: Array<() => void> = [];
   private viewerMounted = false;
   private _pendingRerender = false;
@@ -162,6 +163,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.mangaTranslationRequestSequence += 1;
     this.mangaPageRequestSequence += 1;
     this.mangaPageTarget = null;
+    this.mangaPageImage = null;
     this.clearMangaSelection();
     this.clearMangaOverlay();
     if (this.resizeHandler) {
@@ -281,6 +283,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.mangaPageRequestSequence += 1;
     this.mangaTranslationRequestSequence += 1;
     this.mangaPageTarget = null;
+    this.mangaPageImage = null;
     this.clearMangaOverlay();
     if (this.state.mangaPage.status !== "idle") {
       this.setState({
@@ -319,10 +322,15 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     }
     return null;
   };
-  bindMangaPageOverlay = (target: Document, regions: MangaTextRegion[]) => {
+  bindMangaPageOverlay = (
+    target: Document,
+    regions: MangaTextRegion[],
+    image: HTMLImageElement | null = this.mangaPageImage
+  ) => {
     this.clearMangaOverlay();
     this.mangaOverlayCleanups.push(
       bindMangaTextOverlay(target, regions, {
+        image,
         onRegionClick: (region, rect) => {
           this.mangaTranslationRequestSequence += 1;
           this.setState({
@@ -345,6 +353,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     if (
       currentPage &&
       currentPage.target === this.mangaPageTarget &&
+      currentPage.capture.renderedImage === this.mangaPageImage &&
       mangaPage.status === "success" &&
       mangaPage.regions.length > 0
     ) {
@@ -352,7 +361,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       void this.translateMangaPageRegions(
         currentPage.target,
         mangaPage.regions,
-        requestSequence
+        requestSequence,
+        currentPage.capture.renderedImage
       );
       return;
     }
@@ -361,7 +371,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   translateMangaPageRegions = async (
     target: Document,
     regions: MangaTextRegion[],
-    requestSequence: number
+    requestSequence: number,
+    image: HTMLImageElement | null = this.mangaPageImage
   ) => {
     this.setState({
       mangaPage: {
@@ -379,7 +390,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       if (!this.viewerMounted || requestSequence !== this.mangaPageRequestSequence) {
         return;
       }
-      this.bindMangaPageOverlay(target, translatedRegions);
+      this.bindMangaPageOverlay(target, translatedRegions, image);
       this.setState({
         mangaPage: {
           status: "success",
@@ -394,7 +405,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       }
       // Preserve detected regions and their overlay so a model configuration or
       // transient provider failure does not force another expensive detection.
-      this.bindMangaPageOverlay(target, regions);
+      this.bindMangaPageOverlay(target, regions, image);
       this.setState({
         mangaPage: {
           status: "success",
@@ -432,12 +443,18 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       });
       if (!this.viewerMounted || requestSequence !== this.mangaPageRequestSequence) return;
       this.mangaPageTarget = target;
+      this.mangaPageImage = capture.renderedImage;
       if (translate && result.regions.length) {
-        this.bindMangaPageOverlay(target, result.regions);
-        await this.translateMangaPageRegions(target, result.regions, requestSequence);
+        this.bindMangaPageOverlay(target, result.regions, capture.renderedImage);
+        await this.translateMangaPageRegions(
+          target,
+          result.regions,
+          requestSequence,
+          capture.renderedImage
+        );
         return;
       }
-      this.bindMangaPageOverlay(target, result.regions);
+      this.bindMangaPageOverlay(target, result.regions, capture.renderedImage);
       this.setState({
         mangaPage: {
           status: "success",
@@ -606,6 +623,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.mangaPageRequestSequence += 1;
     this.mangaTranslationRequestSequence += 1;
     this.mangaPageTarget = null;
+    this.mangaPageImage = null;
     this.setState({
       mangaPage: { status: "idle", stage: null, error: "", regions: [] },
     });

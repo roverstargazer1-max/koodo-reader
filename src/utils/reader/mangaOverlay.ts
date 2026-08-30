@@ -25,15 +25,19 @@ export const bindMangaTextOverlay = (
   doc: Document,
   regions: MangaTextRegion[],
   options: {
+    /** Pin the overlay to the image that produced the regions. */
+    image?: HTMLImageElement | null;
     showSourceWhenUntranslated?: boolean;
     onRegionClick?: (region: MangaTextRegion, rect: MangaOverlayRect) => void;
   } = {}
 ) => {
   cleanups.get(doc)?.();
   if (!regions.length) return () => undefined;
-  const image = getPrimaryRenderedMangaImage(doc);
+  const image = options.image || getPrimaryRenderedMangaImage(doc);
   const root = doc.body || doc.documentElement;
-  if (!image || !root) return () => undefined;
+  if (!image || image.ownerDocument !== doc || !image.isConnected || !root) {
+    return () => undefined;
+  }
 
   const layer = doc.createElement("div");
   layer.id = OVERLAY_ID;

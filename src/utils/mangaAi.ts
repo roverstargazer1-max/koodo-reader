@@ -28,6 +28,8 @@ export interface MangaOcrResult {
 export interface MangaPageCapture {
   imageDataUrl: string;
   imageSize: { width: number; height: number };
+  /** The exact rendered page image captured by the Reader. Never sent over IPC. */
+  renderedImage: HTMLImageElement;
   viewportRect: {
     left: number;
     top: number;

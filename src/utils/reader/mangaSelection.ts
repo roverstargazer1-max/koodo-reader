@@ -67,6 +67,7 @@ export const captureMangaPage = (doc: Document): MangaPageCapture | null => {
   return {
     imageDataUrl: canvas.toDataURL("image/jpeg", 0.88),
     imageSize: { width: image.naturalWidth, height: image.naturalHeight },
+    renderedImage: image,
     viewportRect: toHostMangaRect(doc, image.getBoundingClientRect()),
   };
 };
