@@ -1890,6 +1890,12 @@ const createMainWin = () => {
     }
     return mangaAiSupervisor.request("/v1/ocr/region", payload);
   });
+  ipcMain.handle("manga-ai-analyze-page", async (event, payload) => {
+    if (!payload || typeof payload !== "object") {
+      throw new TypeError("Invalid Manga AI page analysis payload");
+    }
+    return mangaAiSupervisor.request("/v1/analyze/page", payload);
+  });
   ipcMain.handle("generate-tts", async (event, voiceConfig) => {
     const { text, speed, pluginKey, config } = voiceConfig || {};
     const plugin = getVoicePlugin(pluginKey);

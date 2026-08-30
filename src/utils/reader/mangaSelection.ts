@@ -1,4 +1,4 @@
-import { MangaOcrSelection } from "../mangaAi";
+import { MangaOcrSelection, MangaPageCapture } from "../mangaAi";
 
 type SelectionCallback = (selection: MangaOcrSelection) => void;
 
@@ -8,10 +8,14 @@ const cleanups = new WeakMap<Document, () => void>();
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
-const getImageForPoint = (doc: Document, x: number, y: number) => {
-  const images = Array.from(doc.images).filter(
+export const getRenderedMangaImages = (doc: Document) => {
+  return Array.from(doc.images).filter(
     (image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
   );
+};
+
+const getImageForPoint = (doc: Document, x: number, y: number) => {
+  const images = getRenderedMangaImages(doc);
   const hit = images.find((image) => {
     const rect = image.getBoundingClientRect();
     return (
@@ -29,6 +33,25 @@ const getImageForPoint = (doc: Document, x: number, y: number) => {
       b.getBoundingClientRect().width * b.getBoundingClientRect().height -
       a.getBoundingClientRect().width * a.getBoundingClientRect().height
   )[0];
+};
+
+/** Capture the largest rendered manga page at its natural pixel dimensions. */
+export const captureMangaPage = (doc: Document): MangaPageCapture | null => {
+  const image = getRenderedMangaImages(doc).sort(
+    (a, b) => b.naturalWidth * b.naturalHeight - a.naturalWidth * a.naturalHeight
+  )[0];
+  if (!image) return null;
+  const canvas = doc.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas is unavailable for manga page capture");
+  context.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
+  return {
+    imageDataUrl: canvas.toDataURL("image/jpeg", 0.88),
+    imageSize: { width: image.naturalWidth, height: image.naturalHeight },
+    viewportRect: toHostRect(doc, image.getBoundingClientRect()),
+  };
 };
 
 const toHostRect = (doc: Document, rect: DOMRect) => {

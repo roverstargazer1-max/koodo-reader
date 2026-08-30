@@ -25,6 +25,55 @@ export interface MangaOcrResult {
   crop: MangaPixelCrop;
 }
 
+export interface MangaPageCapture {
+  imageDataUrl: string;
+  imageSize: { width: number; height: number };
+  viewportRect: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+}
+
+export interface MangaTextRegion {
+  id: string;
+  pageId?: string | null;
+  imageSha256?: string | null;
+  bbox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    space: "image-pixel";
+  };
+  bboxNorm?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+  polygon?: Array<{ x: number; y: number }> | null;
+  sourceText: string;
+  translatedText?: string | null;
+  confidence?: number | null;
+  type?: "dialogue" | "narration" | "sfx" | "other" | null;
+  orientation?: "vertical" | "horizontal" | "unknown" | null;
+  readingOrder?: number | null;
+  engines?: Record<string, string> | null;
+  cacheIdentity?: string | null;
+}
+
+export interface MangaPageAnalyzeResult {
+  contractVersion: "1";
+  requestId: string;
+  pageId?: string | null;
+  imageSize: { width: number; height: number };
+  regions: MangaTextRegion[];
+  detector: string;
+  ocrEngine: string;
+}
+
 export interface MangaAiStatus {
   running: boolean;
   port: number | null;
@@ -39,6 +88,13 @@ export const getMangaOcrErrorMessage = (error: any): string => {
       return "Manga OCR model is not ready. Run setup-region-ocr.ps1 -Warmup and retry.";
     case "sidecar_timeout":
       return "Manga OCR timed out. Warm the model and try again.";
+    case "detector_unavailable":
+      return "Page detection runtime is not installed. Install the full Manga AI runtime first.";
+    case "detector_import_failed":
+    case "detector_failed":
+      return "Page detection failed. Check the Manga AI sidecar logs and retry.";
+    case "mask_unsupported":
+      return "Page masks are not available in this build yet.";
     default:
       return error?.message || String(error);
   }
@@ -87,4 +143,34 @@ export const ocrMangaRegion = async (
     throw error;
   }
   return result as MangaOcrResult;
+};
+
+export const analyzeMangaPage = async (
+  page: MangaPageCapture,
+  options: {
+    pageId?: string;
+    sourceLanguage?: string;
+    readingDirection?: "rtl" | "ltr" | "auto";
+    detector?: "manga-translator" | "none";
+  } = {}
+): Promise<MangaPageAnalyzeResult> => {
+  const result = await getElectronApi().invoke("manga-ai-analyze-page", {
+    contractVersion: "1",
+    requestId: createRequestId(),
+    image: { dataUrl: page.imageDataUrl },
+    pageId: options.pageId,
+    sourceLanguage: options.sourceLanguage,
+    readingDirection: options.readingDirection || "auto",
+    detector: options.detector || "manga-translator",
+    ocrEngine: "manga-ocr",
+    includeMask: false,
+  });
+  if (!result || result.error) {
+    const error = new Error(
+      result?.error?.message || "Manga AI page analysis failed"
+    ) as Error & { code?: string };
+    error.code = result?.error?.code;
+    throw error;
+  }
+  return result as MangaPageAnalyzeResult;
 };

@@ -1,5 +1,6 @@
 import BookModel from "../../models/Book";
 import HtmlBook from "../../models/HtmlBook";
+import { MangaTextRegion } from "../../utils/mangaAi";
 
 export interface ViewerProps {
   book: BookModel;
@@ -64,5 +65,10 @@ export interface ViewerState {
     sourceText: string;
     error: string;
     rect: { left: number; top: number; width: number; height: number } | null;
+  };
+  mangaPage: {
+    status: "idle" | "loading" | "success" | "error";
+    error: string;
+    regions: MangaTextRegion[];
   };
 }

@@ -38,11 +38,17 @@ import { BookHelper } from "../../assets/lib/kookit.min";
 import { parseWithSystemOCR } from "../../utils/request/common";
 import MangaOcrPopup from "../../components/mangaOcrPopup/component";
 import {
+  analyzeMangaPage,
+  MangaPageCapture,
   MangaOcrSelection,
   getMangaOcrErrorMessage,
   ocrMangaRegion,
 } from "../../utils/mangaAi";
-import { bindMangaRegionSelection } from "../../utils/reader/mangaSelection";
+import {
+  bindMangaRegionSelection,
+  captureMangaPage,
+} from "../../utils/reader/mangaSelection";
+import { bindMangaTextOverlay } from "../../utils/reader/mangaOverlay";
 declare var window: any;
 let lock = false; //prevent from clicking too fasts
 
@@ -51,6 +57,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   private mangaSelectionCleanups: Array<() => void> = [];
   private lastMangaSelection: MangaOcrSelection | null = null;
   private mangaOcrRequestSequence = 0;
+  private mangaPageRequestSequence = 0;
+  private mangaOverlayCleanups: Array<() => void> = [];
   private viewerMounted = false;
   private _pendingRerender = false;
   lock: boolean;
@@ -86,6 +94,11 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         sourceText: "",
         error: "",
         rect: null,
+      },
+      mangaPage: {
+        status: "idle",
+        error: "",
+        regions: [],
       },
     };
     this.lock = false;
@@ -136,7 +149,9 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   componentWillUnmount() {
     this.viewerMounted = false;
     this.mangaOcrRequestSequence += 1;
+    this.mangaPageRequestSequence += 1;
     this.clearMangaSelection();
+    this.clearMangaOverlay();
     if (this.resizeHandler) {
       window.removeEventListener("resize", this.resizeHandler);
       this.resizeHandler = null;
@@ -246,6 +261,17 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.mangaSelectionCleanups.forEach((cleanup) => cleanup());
     this.mangaSelectionCleanups = [];
   };
+  clearMangaOverlay = () => {
+    this.mangaOverlayCleanups.forEach((cleanup) => cleanup());
+    this.mangaOverlayCleanups = [];
+  };
+  handleMangaPageInvalidated = () => {
+    this.mangaPageRequestSequence += 1;
+    this.clearMangaOverlay();
+    if (this.state.mangaPage.status !== "idle") {
+      this.setState({ mangaPage: { status: "idle", error: "", regions: [] } });
+    }
+  };
   bindMangaSelection = () => {
     this.clearMangaSelection();
     if (
@@ -261,6 +287,62 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         );
       }
     );
+  };
+  handleMangaPageAnalyze = async () => {
+    if (!this.viewerMounted || !this.props.currentBook?.format?.startsWith("CB")) {
+      return;
+    }
+    const requestSequence = ++this.mangaPageRequestSequence;
+    this.clearMangaOverlay();
+    this.setState({ mangaPage: { status: "loading", error: "", regions: [] } });
+    try {
+      const docs = getIframeDoc(this.props.currentBook.format, this.props.currentBook.key);
+      let target: Document | null = null;
+      let capture: MangaPageCapture | null = null;
+      for (const doc of docs) {
+        if (!doc) continue;
+        const candidate = captureMangaPage(doc);
+        if (candidate) {
+          target = doc;
+          capture = candidate;
+          break;
+        }
+      }
+      if (!target || !capture) throw new Error("No rendered manga page is available");
+      const result = await analyzeMangaPage(capture, {
+        pageId: `${this.props.currentBook.key}:${this.state.chapterDocIndex}`,
+      });
+      if (!this.viewerMounted || requestSequence !== this.mangaPageRequestSequence) return;
+      this.mangaOverlayCleanups.push(
+        bindMangaTextOverlay(target, result.regions, {
+          onRegionClick: (region, rect) => {
+            this.setState({
+              mangaOcr: {
+                status: "success",
+                sourceText: region.sourceText,
+                error: "",
+                rect: {
+                  left: rect.left,
+                  top: rect.top,
+                  width: rect.width,
+                  height: rect.height,
+                },
+              },
+            });
+          },
+        })
+      );
+      this.setState({ mangaPage: { status: "success", error: "", regions: result.regions } });
+    } catch (error: any) {
+      if (!this.viewerMounted || requestSequence !== this.mangaPageRequestSequence) return;
+      this.setState({
+        mangaPage: {
+          status: "error",
+          error: getMangaOcrErrorMessage(error),
+          regions: [],
+        },
+      });
+    }
   };
   handleMangaSelection = async (selection: MangaOcrSelection) => {
     const requestSequence = ++this.mangaOcrRequestSequence;
@@ -353,6 +435,9 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       window.currentBookKey = "";
     }
     this.clearMangaSelection();
+    this.clearMangaOverlay();
+    this.mangaPageRequestSequence += 1;
+    this.setState({ mangaPage: { status: "idle", error: "", regions: [] } });
     this.props.handleHtmlBook(null);
     if (this.state.rendition) {
       this.state.rendition.removeContent();
@@ -537,6 +622,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     });
     this.setState({ rendition });
     this.bindMangaSelection();
+    rendition.on("page-changed", this.handleMangaPageInvalidated);
     if (
       this.props.currentBook.format === "PDF" &&
       !ConfigService.getAllListConfig("convertPDFBooks").includes(
@@ -589,6 +675,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       }
     }
     rendition.on("rendered", async () => {
+      this.handleMangaPageInvalidated();
       this.handleLocation();
       let bookLocation: {
         text: string;
@@ -771,6 +858,33 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   render() {
     return (
       <>
+        {this.props.currentBook?.format?.startsWith("CB") ? (
+          <div className="manga-page-tools">
+            <button
+              type="button"
+              className="manga-page-analyze-button"
+              onClick={this.handleMangaPageAnalyze}
+              disabled={this.state.mangaPage.status === "loading"}
+              title="Detect text on the current manga page"
+            >
+              <span className="icon-translate" />
+              {this.state.mangaPage.status === "loading"
+                ? "Detecting..."
+                : "Detect text"}
+            </button>
+            {this.state.mangaPage.status === "success" ? (
+              <span className="manga-page-analysis-count" role="status">
+                {this.state.mangaPage.regions.length} region
+                {this.state.mangaPage.regions.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+            {this.state.mangaPage.status === "error" ? (
+              <span className="manga-page-analysis-error" role="alert">
+                {this.state.mangaPage.error}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         <MangaOcrPopup
           status={this.state.mangaOcr.status}
           sourceText={this.state.mangaOcr.sourceText}
