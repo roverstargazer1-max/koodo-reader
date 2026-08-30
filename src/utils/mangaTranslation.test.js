@@ -16,6 +16,7 @@ jest.mock("../assets/lib/kookit-extra-browser.min", () => ({
 
 const {
   clearMangaTranslationCache,
+  translateMangaText,
   translateMangaRegions,
 } = require("./mangaTranslation");
 const { aiRequest } = require("./request/common");
@@ -43,6 +44,7 @@ describe("translateMangaRegions", () => {
     jest.spyOn(ConfigService, "getReaderConfig").mockImplementation((key) => {
       const values = {
         aiTranslateModel: "model-key",
+        mangaTranslateModel: "",
         transSource: "Japanese",
         transTarget: "Chinese",
         aiTranslatePrompt: "Translate {text} from {from} to {to}.",
@@ -96,6 +98,51 @@ describe("translateMangaRegions", () => {
       "你好",
       "再见",
     ]);
+  });
+
+  it("uses the optional Manga model override without duplicating provider config", async () => {
+    jest.spyOn(ConfigService, "getReaderConfig").mockImplementation((key) => {
+      const values = {
+        aiTranslateModel: "text-model-key",
+        mangaTranslateModel: "manga-model-key",
+        transSource: "Japanese",
+        transTarget: "Chinese",
+        aiTranslatePrompt: "Translate {text} from {from} to {to}.",
+      };
+      return values[key] || "";
+    });
+    jest.spyOn(ConfigService, "getObjectConfig").mockImplementation((key) => ({
+      config:
+        key === "manga-model-key"
+          ? {
+              endpoint: "https://manga-provider.example/v1",
+              modelId: "manga-model",
+              apiKey: "manga-key",
+              providerId: "custom",
+            }
+          : {
+              endpoint: "https://text-provider.example/v1",
+              modelId: "text-model",
+              apiKey: "text-key",
+              providerId: "custom",
+            },
+    }));
+    aiRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      body: JSON.stringify({
+        choices: [{ message: { content: "漫画译文" } }],
+      }),
+    });
+
+    await expect(translateMangaText("こんにちは")).resolves.toBe("漫画译文");
+    expect(aiRequest).toHaveBeenCalledWith(
+      "https://manga-provider.example/v1/chat/completions",
+      "POST",
+      expect.objectContaining({ Authorization: "Bearer manga-key" }),
+      expect.stringContaining('"model":"manga-model"')
+    );
   });
 
   it("falls back to independent requests when the provider ignores batch JSON", async () => {

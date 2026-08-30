@@ -27,6 +27,8 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
       fetchedModels: [],
       isFetchingModels: false,
       aiTranslateModel: ConfigService.getReaderConfig("aiTranslateModel") || "",
+      mangaTranslateModel:
+        ConfigService.getReaderConfig("mangaTranslateModel") || "",
       aiDictModel: ConfigService.getReaderConfig("aiDictModel") || "",
       aiAssistanceModel:
         ConfigService.getReaderConfig("aiAssistanceModel") || "",
@@ -272,6 +274,10 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
       if (this.state.aiTranslateModel === key) {
         this.setState({ aiTranslateModel: "" });
         ConfigService.setReaderConfig("aiTranslateModel", "");
+      }
+      if (this.state.mangaTranslateModel === key) {
+        this.setState({ mangaTranslateModel: "" });
+        ConfigService.setReaderConfig("mangaTranslateModel", "");
       }
       if (this.state.aiDictModel === key) {
         this.setState({ aiDictModel: "" });
@@ -646,6 +652,36 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
           >
             <option value="" className="lang-setting-option">
               {this.props.t("Please select")}
+            </option>
+            {aiModels.map((item) => (
+              <option
+                key={item.key}
+                value={item.key}
+                className="lang-setting-option"
+              >
+                {item.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="setting-dialog-new-title">
+          <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Trans>Manga translation model</Trans>
+          </span>
+          <select
+            className="lang-setting-dropdown"
+            value={this.state.mangaTranslateModel}
+            onChange={(e) => {
+              const val = e.target.value;
+              this.setState({ mangaTranslateModel: val });
+              ConfigService.setReaderConfig("mangaTranslateModel", val);
+              toast.success(this.props.t("Change successful"));
+              this.props.handleFetchPlugins();
+            }}
+          >
+            <option value="" className="lang-setting-option">
+              <Trans>Use AI translation model</Trans>
             </option>
             {aiModels.map((item) => (
               <option

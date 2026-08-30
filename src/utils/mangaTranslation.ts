@@ -79,11 +79,17 @@ const parseModelConfig = (value: unknown): MangaAiModelConfig | null => {
 };
 
 const getConfiguredModel = (): { key: string; config: MangaAiModelConfig } => {
-  const key = ConfigService.getReaderConfig("aiTranslateModel") || "";
+  // Manga can opt into a different configured model without duplicating the
+  // provider, endpoint, or credential store. An empty override inherits the
+  // existing text-translation model for backward compatibility.
+  const key =
+    ConfigService.getReaderConfig("mangaTranslateModel") ||
+    ConfigService.getReaderConfig("aiTranslateModel") ||
+    "";
   if (!key) {
     throw new MangaTranslationError(
       "manga_translation_model_missing",
-      "Choose an AI translation model in Settings > AI before translating manga."
+      "Choose an AI or Manga translation model in Settings > AI before translating manga."
     );
   }
   const entry = ConfigService.getObjectConfig(key, "aiModelConfig", null);

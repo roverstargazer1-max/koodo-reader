@@ -29,6 +29,7 @@ export interface SettingInfoState {
   fetchedModels: { id: string; name: string }[];
   isFetchingModels: boolean;
   aiTranslateModel: string;
+  mangaTranslateModel: string;
   aiDictModel: string;
   aiAssistanceModel: string;
   aiTranslatePrompt: string;
