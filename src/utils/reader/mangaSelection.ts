@@ -14,6 +14,29 @@ export const getRenderedMangaImages = (doc: Document) => {
   );
 };
 
+const visibleArea = (rect: DOMRect, width: number, height: number) => {
+  const left = Math.max(0, rect.left);
+  const top = Math.max(0, rect.top);
+  const right = Math.min(width, rect.right);
+  const bottom = Math.min(height, rect.bottom);
+  return Math.max(0, right - left) * Math.max(0, bottom - top);
+};
+
+/** Return the rendered page that currently has the strongest viewport presence. */
+export const getPrimaryRenderedMangaImage = (doc: Document) => {
+  const view = doc.defaultView;
+  const viewportWidth = view?.innerWidth || 0;
+  const viewportHeight = view?.innerHeight || 0;
+  return getRenderedMangaImages(doc).sort((a, b) => {
+    const aRect = a.getBoundingClientRect();
+    const bRect = b.getBoundingClientRect();
+    const aVisible = visibleArea(aRect, viewportWidth, viewportHeight);
+    const bVisible = visibleArea(bRect, viewportWidth, viewportHeight);
+    if (aVisible !== bVisible) return bVisible - aVisible;
+    return b.naturalWidth * b.naturalHeight - a.naturalWidth * a.naturalHeight;
+  })[0];
+};
+
 const getImageForPoint = (doc: Document, x: number, y: number) => {
   const images = getRenderedMangaImages(doc);
   const hit = images.find((image) => {
@@ -28,18 +51,12 @@ const getImageForPoint = (doc: Document, x: number, y: number) => {
     );
   });
   if (hit) return hit;
-  return images.sort(
-    (a, b) =>
-      b.getBoundingClientRect().width * b.getBoundingClientRect().height -
-      a.getBoundingClientRect().width * a.getBoundingClientRect().height
-  )[0];
+  return getPrimaryRenderedMangaImage(doc);
 };
 
 /** Capture the largest rendered manga page at its natural pixel dimensions. */
 export const captureMangaPage = (doc: Document): MangaPageCapture | null => {
-  const image = getRenderedMangaImages(doc).sort(
-    (a, b) => b.naturalWidth * b.naturalHeight - a.naturalWidth * a.naturalHeight
-  )[0];
+  const image = getPrimaryRenderedMangaImage(doc);
   if (!image) return null;
   const canvas = doc.createElement("canvas");
   canvas.width = image.naturalWidth;
@@ -50,11 +67,11 @@ export const captureMangaPage = (doc: Document): MangaPageCapture | null => {
   return {
     imageDataUrl: canvas.toDataURL("image/jpeg", 0.88),
     imageSize: { width: image.naturalWidth, height: image.naturalHeight },
-    viewportRect: toHostRect(doc, image.getBoundingClientRect()),
+    viewportRect: toHostMangaRect(doc, image.getBoundingClientRect()),
   };
 };
 
-const toHostRect = (doc: Document, rect: DOMRect) => {
+export const toHostMangaRect = (doc: Document, rect: DOMRect) => {
   const frame = doc.defaultView?.frameElement as HTMLIFrameElement | null;
   const frameRect = frame?.getBoundingClientRect();
   if (!frameRect) {
@@ -213,7 +230,10 @@ export const bindMangaRegionSelection = (
           coordinateSpace: "image-pixel",
         },
         imageSize: { width: image.naturalWidth, height: image.naturalHeight },
-        viewportRect: toHostRect(doc, new DOMRect(left, top, right - left, bottom - top)),
+        viewportRect: toHostMangaRect(
+          doc,
+          new DOMRect(left, top, right - left, bottom - top)
+        ),
       });
     } catch (error) {
       console.error("Manga crop capture failed", error);

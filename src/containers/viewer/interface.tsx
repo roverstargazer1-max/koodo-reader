@@ -61,13 +61,15 @@ export interface ViewerState {
   rect: any;
   rendition: any;
   mangaOcr: {
-    status: "idle" | "loading" | "success" | "error";
+    status: "idle" | "loading" | "success" | "translating" | "error";
     sourceText: string;
+    translatedText: string;
     error: string;
     rect: { left: number; top: number; width: number; height: number } | null;
   };
   mangaPage: {
     status: "idle" | "loading" | "success" | "error";
+    stage: "detecting" | "translating" | null;
     error: string;
     regions: MangaTextRegion[];
   };

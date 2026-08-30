@@ -1,5 +1,8 @@
 import { MangaTextRegion } from "../mangaAi";
-import { getRenderedMangaImages } from "./mangaSelection";
+import {
+  getPrimaryRenderedMangaImage,
+  toHostMangaRect,
+} from "./mangaSelection";
 
 const OVERLAY_ID = "koodo-manga-text-overlay";
 const cleanups = new WeakMap<Document, () => void>();
@@ -7,10 +10,12 @@ const cleanups = new WeakMap<Document, () => void>();
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
-const getPageImage = (doc: Document): HTMLImageElement | undefined =>
-  getRenderedMangaImages(doc).sort(
-    (a, b) => b.naturalWidth * b.naturalHeight - a.naturalWidth * a.naturalHeight
-  )[0];
+export interface MangaOverlayRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
 /**
  * Render page-local regions in the iframe viewport. The source contract stays
@@ -21,12 +26,12 @@ export const bindMangaTextOverlay = (
   regions: MangaTextRegion[],
   options: {
     showSourceWhenUntranslated?: boolean;
-    onRegionClick?: (region: MangaTextRegion, rect: DOMRect) => void;
+    onRegionClick?: (region: MangaTextRegion, rect: MangaOverlayRect) => void;
   } = {}
 ) => {
   cleanups.get(doc)?.();
   if (!regions.length) return () => undefined;
-  const image = getPageImage(doc);
+  const image = getPrimaryRenderedMangaImage(doc);
   const root = doc.body || doc.documentElement;
   if (!image || !root) return () => undefined;
 
@@ -51,7 +56,10 @@ export const bindMangaTextOverlay = (
       label.style.pointerEvents = "auto";
       label.style.cursor = "pointer";
       label.addEventListener("click", () =>
-        options.onRegionClick?.(region, label.getBoundingClientRect())
+        options.onRegionClick?.(
+          region,
+          toHostMangaRect(doc, label.getBoundingClientRect())
+        )
       );
     }
     layer.appendChild(label);

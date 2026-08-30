@@ -2,8 +2,9 @@ import React from "react";
 import "./index.css";
 
 export interface MangaOcrPopupProps {
-  status: "idle" | "loading" | "success" | "error";
+  status: "idle" | "loading" | "success" | "translating" | "error";
   sourceText: string;
+  translatedText: string;
   error: string;
   rect: { left: number; top: number; width: number; height: number } | null;
   onClose: () => void;
@@ -15,6 +16,7 @@ export interface MangaOcrPopupProps {
 const MangaOcrPopup = ({
   status,
   sourceText,
+  translatedText,
   error,
   rect,
   onClose,
@@ -52,17 +54,30 @@ const MangaOcrPopup = ({
       ) : (
         <>
           <div className="manga-ocr-source-text">{sourceText || "No text detected"}</div>
-          <div className="manga-ocr-popup-actions">
-            <button type="button" className="manga-ocr-action" onClick={onCopy} disabled={!sourceText}>
-              <span className="icon-copy" /> Copy
-            </button>
-            <button type="button" className="manga-ocr-action" onClick={onTranslate} disabled={!sourceText}>
-              <span className="icon-translate" /> Translate
-            </button>
-            <button type="button" className="manga-ocr-action" onClick={onClose}>
-              Done
-            </button>
-          </div>
+          {status === "translating" ? (
+            <div className="manga-ocr-popup-loading" role="status">
+              <span className="manga-ocr-spinner" />
+              <span>Translating...</span>
+            </div>
+          ) : (
+            <>
+              {translatedText ? (
+                <div className="manga-ocr-translation-text">{translatedText}</div>
+              ) : null}
+              {error ? <div className="manga-ocr-inline-error">{error}</div> : null}
+              <div className="manga-ocr-popup-actions">
+                <button type="button" className="manga-ocr-action" onClick={onCopy} disabled={!sourceText}>
+                  <span className="icon-copy" /> {translatedText ? "Copy translation" : "Copy"}
+                </button>
+                <button type="button" className="manga-ocr-action" onClick={onTranslate} disabled={!sourceText}>
+                  <span className="icon-translate" /> {translatedText ? "Translate again" : "Translate"}
+                </button>
+                <button type="button" className="manga-ocr-action" onClick={onClose}>
+                  Done
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

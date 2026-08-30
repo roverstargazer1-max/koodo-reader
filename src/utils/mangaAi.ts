@@ -89,7 +89,15 @@ export const getMangaOcrErrorMessage = (error: any): string => {
     case "sidecar_timeout":
       return "Manga OCR timed out. Warm the model and try again.";
     case "detector_unavailable":
-      return "Page detection runtime is not installed. Install the full Manga AI runtime first.";
+      return "Page detection runtime is not installed. Run setup-page-analysis.ps1 first.";
+    case "detector_model_missing":
+    case "detector_model_path_required":
+      return "Page detector model is not installed. Run setup-page-analysis.ps1 -Warmup and retry.";
+    case "detector_model_download_unavailable":
+    case "detector_model_download_failed":
+      return "Page detector model could not be downloaded. Configure a model endpoint or install the model manually.";
+    case "detector_backend_unsupported":
+      return "The configured page detection backend is not supported.";
     case "detector_import_failed":
     case "detector_failed":
       return "Page detection failed. Check the Manga AI sidecar logs and retry.";

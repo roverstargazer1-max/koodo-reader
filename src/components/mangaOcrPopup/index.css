@@ -50,6 +50,22 @@
   border-radius: 5px;
   background: rgba(127, 127, 127, 0.1);
 }
+.manga-ocr-translation-text {
+  min-height: 42px;
+  max-height: 150px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 9px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  background: rgba(92, 158, 230, 0.14);
+}
+.manga-ocr-inline-error {
+  margin: -2px 0 10px;
+  color: #b64646;
+  line-height: 1.4;
+}
 .manga-ocr-popup-actions {
   justify-content: flex-end;
 }
