@@ -1,6 +1,7 @@
 const {
   analyzeMangaPage,
   cancelMangaAiRequest,
+  getMangaAiStatusMessage,
   ocrMangaRegion,
 } = require("./mangaAi");
 
@@ -78,5 +79,25 @@ describe("Manga AI renderer client", () => {
       "manga-ai-cancel-request",
       { requestId: "page-request" }
     );
+  });
+
+  it("renders runtime diagnostics without exposing sidecar internals", () => {
+    expect(
+      getMangaAiStatusMessage({
+        running: false,
+        port: null,
+        runtime: "project-venv",
+        error: null,
+      })
+    ).toBe("Project Manga AI runtime detected");
+    expect(
+      getMangaAiStatusMessage({
+        running: false,
+        port: null,
+        runtime: null,
+        error: "Manga AI executable was not found",
+        errorCode: "sidecar_runtime_missing",
+      })
+    ).toBe("Manga AI runtime is missing. Run the setup script and retry.");
   });
 });

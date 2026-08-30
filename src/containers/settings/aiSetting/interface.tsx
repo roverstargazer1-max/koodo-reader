@@ -1,5 +1,6 @@
 import PluginModel from "../../../models/Plugin";
 import { RouteComponentProps } from "react-router-dom";
+import { MangaAiStatus } from "../../../utils/mangaAi";
 export interface SettingInfoProps extends RouteComponentProps<any> {
   handleSetting: (isSettingOpen: boolean) => void;
   handleSettingMode: (settingMode: string) => void;
@@ -30,6 +31,8 @@ export interface SettingInfoState {
   isFetchingModels: boolean;
   aiTranslateModel: string;
   mangaTranslateModel: string;
+  mangaAiStatus: MangaAiStatus | null;
+  isCheckingMangaAi: boolean;
   aiDictModel: string;
   aiAssistanceModel: string;
   aiTranslatePrompt: string;

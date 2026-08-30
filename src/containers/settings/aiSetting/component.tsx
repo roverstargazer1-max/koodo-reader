@@ -8,6 +8,11 @@ import {
   ConfigService,
   KookitConfig,
 } from "../../../assets/lib/kookit-extra-browser.min";
+import {
+  getMangaAiStatus,
+  getMangaAiStatusMessage,
+  MangaAiStatus,
+} from "../../../utils/mangaAi";
 
 class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
   constructor(props: SettingInfoProps) {
@@ -29,6 +34,8 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
       aiTranslateModel: ConfigService.getReaderConfig("aiTranslateModel") || "",
       mangaTranslateModel:
         ConfigService.getReaderConfig("mangaTranslateModel") || "",
+      mangaAiStatus: null,
+      isCheckingMangaAi: false,
       aiDictModel: ConfigService.getReaderConfig("aiDictModel") || "",
       aiAssistanceModel:
         ConfigService.getReaderConfig("aiAssistanceModel") || "",
@@ -39,6 +46,27 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
         ConfigService.getReaderConfig("aiAssistancePrompt") || "",
     };
   }
+
+  componentDidMount() {
+    void this.refreshMangaAiStatus();
+  }
+
+  refreshMangaAiStatus = async () => {
+    this.setState({ isCheckingMangaAi: true });
+    try {
+      const mangaAiStatus = await getMangaAiStatus();
+      this.setState({ mangaAiStatus, isCheckingMangaAi: false });
+    } catch (error: any) {
+      const mangaAiStatus: MangaAiStatus = {
+        running: false,
+        port: null,
+        runtime: null,
+        error: error?.message || "Manga AI runtime status is unavailable",
+        errorCode: error?.code || null,
+      };
+      this.setState({ mangaAiStatus, isCheckingMangaAi: false });
+    }
+  };
 
   getAIModels = () => {
     // Load AI models from ConfigService
@@ -663,6 +691,36 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="setting-dialog-new-title">
+          <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Trans>Manga AI runtime</Trans>
+          </span>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              maxWidth: "60%",
+              textAlign: "right",
+            }}
+          >
+            <span
+              style={{
+                color: this.state.mangaAiStatus?.error ? "#b64646" : undefined,
+                opacity: this.state.isCheckingMangaAi ? 0.65 : 0.85,
+              }}
+            >
+              {this.props.t(getMangaAiStatusMessage(this.state.mangaAiStatus))}
+            </span>
+            <span
+              className="change-location-button"
+              onClick={this.refreshMangaAiStatus}
+            >
+              <Trans>{this.state.isCheckingMangaAi ? "Checking..." : "Refresh"}</Trans>
+            </span>
+          </span>
         </div>
 
         <div className="setting-dialog-new-title">

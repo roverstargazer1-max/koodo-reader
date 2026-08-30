@@ -300,6 +300,33 @@ const mangaAiSupervisor = (() => {
     return { command: systemPython, args: ["-m", "manga_ai_service.server"], kind: "system-python" };
   };
 
+  const inspectRuntime = () => {
+    const root = serviceRoot();
+    const hasServiceRoot = fs.existsSync(root);
+    try {
+      const runtime = resolveRuntime(root);
+      const canRunWithoutServiceRoot =
+        runtime.kind === "configured-executable" ||
+        runtime.kind === "configured-python" ||
+        runtime.kind === "packaged-executable" ||
+        runtime.kind === "packaged-python";
+      if (!hasServiceRoot && !canRunWithoutServiceRoot) {
+        const error = createSupervisorError(
+          "sidecar_service_missing",
+          `Manga AI service directory not found: ${root}`
+        );
+        return { runtime: runtime.kind, error: error.message, errorCode: error.code };
+      }
+      return { runtime: runtime.kind, error: null, errorCode: null };
+    } catch (error) {
+      return {
+        runtime: null,
+        error: error?.message || "Manga AI runtime could not be resolved",
+        errorCode: error?.code || "sidecar_runtime_error",
+      };
+    }
+  };
+
   const stop = () => {
     const child = state.child;
     state.child = null;
@@ -561,12 +588,16 @@ const mangaAiSupervisor = (() => {
     return { requestId, cancelled: true };
   };
 
-  const status = () => ({
-    running: Boolean(state.ready && state.child && !state.child.killed),
-    port: state.port,
-    runtime: state.runtime,
-    error: state.lastError,
-  });
+  const status = () => {
+    const inspection = inspectRuntime();
+    return {
+      running: Boolean(state.ready && state.child && !state.child.killed),
+      port: state.port,
+      runtime: state.runtime || inspection.runtime,
+      error: state.lastError || inspection.error,
+      errorCode: state.lastErrorCode || inspection.errorCode,
+    };
+  };
 
   return { start, stop, request, cancel, status };
 })();

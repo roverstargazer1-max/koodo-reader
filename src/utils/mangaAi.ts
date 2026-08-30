@@ -88,6 +88,7 @@ export interface MangaAiStatus {
     | "system-python"
     | null;
   error: string | null;
+  errorCode?: string | null;
 }
 
 export const getMangaOcrErrorMessage = (error: any): string => {
@@ -145,6 +146,31 @@ const getElectronApi = () => {
 
 export const getMangaAiStatus = async (): Promise<MangaAiStatus> => {
   return getElectronApi().invoke("manga-ai-status");
+};
+
+export const getMangaAiStatusMessage = (status: MangaAiStatus | null): string => {
+  if (!status) return "Checking Manga AI runtime...";
+  if (status.running) return `Running (${status.runtime || "local runtime"})`;
+  if (status.error) {
+    return getMangaOcrErrorMessage({
+      code: status.errorCode,
+      message: status.error,
+    });
+  }
+  switch (status.runtime) {
+    case "project-venv":
+      return "Project Manga AI runtime detected";
+    case "packaged-executable":
+    case "packaged-python":
+      return "Packaged Manga AI runtime detected";
+    case "configured-executable":
+    case "configured-python":
+      return "Configured Manga AI runtime detected";
+    case "system-python":
+      return "System Python will be checked on first use";
+    default:
+      return "Manga AI runtime has not been configured";
+  }
 };
 
 /** Best-effort cancellation. The sidecar keeps its warmed model process alive. */
