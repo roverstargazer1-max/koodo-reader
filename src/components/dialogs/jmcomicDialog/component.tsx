@@ -725,6 +725,9 @@ class JmcomicDialog extends React.Component<
             pythonVersion: res.data.python_version,
             jmcomicVersion: res.data.jmcomic_version,
             pythonPath: res.data.python_path,
+            runtimeMode: res.data.runtimeMode,
+            expectedJmcomicVersion: res.data.expectedJmcomicVersion,
+            runtimeAvailable: res.data.runtimeAvailable !== false,
             isChecking: false,
             message: hasJm
               ? ""
@@ -751,9 +754,12 @@ class JmcomicDialog extends React.Component<
         this.setState({
           envStatus: {
             checked: true,
-            hasPython: false,
+            hasPython: res?.data?.runtimeAvailable === true,
             hasJmcomic: false,
             pythonPath: res?.data?.python_path,
+            runtimeMode: res?.data?.runtimeMode,
+            expectedJmcomicVersion: res?.data?.expectedJmcomicVersion,
+            runtimeAvailable: res?.data?.runtimeAvailable,
             message: errMsg,
             isChecking: false,
           },
@@ -1988,6 +1994,7 @@ class JmcomicDialog extends React.Component<
   renderSettingsTab() {
     const { config, envStatus, availableDomains } = this.state;
     const isReady = envStatus.hasPython && envStatus.hasJmcomic;
+    const isBundledRuntime = envStatus.runtimeMode === "bundled-sidecar";
     const boxStatusClass = envStatus.isChecking || envStatus.isInstalling
       ? "loading"
       : isReady
@@ -2009,7 +2016,9 @@ class JmcomicDialog extends React.Component<
             }}
           >
             <div style={{ fontWeight: 600, fontSize: "14px" }}>
-              <Trans>Python Environment Status</Trans>
+              {isBundledRuntime
+                ? this.props.t("Bundled JMComic Sidecar Status")
+                : this.props.t("Python Environment Status")}
             </div>
             {isReady && !envStatus.isChecking && !envStatus.isInstalling && (
               <span
@@ -2064,6 +2073,11 @@ class JmcomicDialog extends React.Component<
                   {envStatus.pythonPath && (
                     <div style={{ opacity: 0.7, fontSize: "11px" }}>
                       <Trans>Executable</Trans>: {envStatus.pythonPath}
+                    </div>
+                  )}
+                  {envStatus.runtimeMode && (
+                    <div style={{ opacity: 0.7, fontSize: "11px" }}>
+                      <Trans>Runtime mode</Trans>: {envStatus.runtimeMode}
                     </div>
                   )}
                 </div>
@@ -2122,7 +2136,9 @@ class JmcomicDialog extends React.Component<
               {envStatus.isInstalling && <span className="jmcomic-spinner" />}
               {envStatus.isInstalling
                 ? this.props.t("Installing dependencies...")
-                : this.props.t("Install JMComic Dependencies")}
+                : isBundledRuntime
+                ? this.props.t("Verify Bundled Sidecar")
+                : this.props.t("Create or Repair Project Environment")}
             </button>
           </div>
 
@@ -2137,8 +2153,8 @@ class JmcomicDialog extends React.Component<
           )}
         </div>
 
-        {/* Python Path */}
-        <div className="jmcomic-form-group">
+        {/* A custom Python is a source-mode override; releases always use the sidecar. */}
+        {!isBundledRuntime && <div className="jmcomic-form-group">
           <label className="jmcomic-form-label">
             <Trans>Python Executable Path (Optional)</Trans>
           </label>
@@ -2147,7 +2163,7 @@ class JmcomicDialog extends React.Component<
               type="text"
               className="jmcomic-search-input"
               style={{ flex: 1 }}
-              placeholder={this.props.t("Default: system python / python3")}
+              placeholder={this.props.t("Default: project .venv")}
               value={config.pythonPath || ""}
               onChange={(e) => this.saveConfig({ pythonPath: e.target.value })}
             />
@@ -2164,7 +2180,7 @@ class JmcomicDialog extends React.Component<
               Specify a custom Python or virtual environment path if needed.
             </Trans>
           </span>
-        </div>
+        </div>}
 
         {/* Proxy */}
         <div className="jmcomic-form-group">

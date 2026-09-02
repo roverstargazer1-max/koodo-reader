@@ -1,17 +1,17 @@
 {
-  "name": "koodo-reader",
+  "name": "koodo-reader-personal",
   "main": "main.js",
-  "version": "2.4.4",
-  "description": "Koodo Reader is a cross-platform ebook reader",
+  "version": "0.1.0",
+  "description": "A Windows-first personal library derived from Koodo Reader with built-in JMComic integration",
   "author": {
-    "name": "App by Troye",
-    "email": "feedback@koodoreader.com"
+    "name": "roverstargazer1-max"
   },
   "engines": {
-    "node": ">=20.0.0",
-    "npm": ">=6.0.0"
+    "node": "22.x",
+    "yarn": "1.22.22"
   },
-  "repository": "https://github.com/koodo-reader/koodo-reader",
+  "packageManager": "yarn@1.22.22",
+  "repository": "https://github.com/roverstargazer1-max/koodo-reader-personal",
   "private": false,
   "resolutions": {
     "@types/react": "^18.3.1",
@@ -22,7 +22,7 @@
     "@mozilla/readability": "^0.6.0",
     "axios": "0.31.1",
     "basic-ftp": "5.3.1",
-    "better-sqlite3": "^11.6.0",
+    "better-sqlite3": "11.10.0",
     "buffer": "^6.0.3",
     "chardet": "^2.0.0",
     "color-thief-browser": "^2.0.2",
@@ -111,35 +111,41 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "ele": "electron .",
-    "dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://127.0.0.1:3000/ && nodemon --watch main.js --watch src/utils/plugins/main --ext js --exec electron .\"",
-    "release": "electron-builder",
+    "setup": "node scripts/setup.js",
+    "setup:python": "node scripts/setup-python.js",
+    "check:env": "node scripts/check-environment.js",
+    "typecheck": "tsc --noEmit --noUnusedLocals false --noUnusedParameters false",
+    "test:jmcomic-runtime": "node --test scripts/jmcomic/runtime.test.js",
+    "build:jmcomic-sidecar": "node scripts/build-jmcomic-sidecar.js",
+    "dev": "node scripts/check-environment.js && concurrently \"cross-env BROWSER=none yarn start\" \"wait-on http://127.0.0.1:3000/ && nodemon --watch main.js --watch src/utils/plugins/main --watch scripts/jmcomic --ext js --exec 'electron .'\"",
+    "package:win": "yarn build && yarn build:jmcomic-sidecar && electron-builder --win --x64 --publish never",
+    "release": "yarn build:jmcomic-sidecar && electron-builder --win --x64",
     "prerelease": "yarn build",
-    "postinstall": "node scripts/patch-nan.js && electron-builder install-app-deps",
+    "postinstall": "node scripts/patch-nan.js && electron-rebuild -f -w better-sqlite3",
     "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "homepage": "./",
   "build": {
-    "appId": "xyz.960960.koodo",
-    "productName": "Koodo Reader",
-    "copyright": "Copyright (c) 2020-2025 ${author}",
+    "appId": "io.github.roverstargazer1max.koodoreaderpersonal",
+    "productName": "Koodo Reader Personal",
+    "copyright": "Copyright (c) 2026 roverstargazer1-max and Koodo Reader contributors",
     "files": [
       "build/**/*",
+      "!build/pyinstaller/**/*",
       "node_modules/**/*",
       "package.json",
       "src/assets/lib/kookit-extra.min.mjs",
       "src/utils/plugins/main/**/*.js",
-      "scripts/jmcomic/**/*",
+      "scripts/jmcomic/jmcomicManager.js",
+      "scripts/jmcomic/runtime.js",
       "main.js",
       "preload.js",
       "chat-preload.js"
     ],
     "extraResources": [
       {
-        "from": "assets/macos",
-        "to": "assets/macos",
-        "filter": [
-          "ocr-*-apple-darwin"
-        ]
+        "from": "dist-sidecar/jmcomic-bridge",
+        "to": "jmcomic-bridge"
       }
     ],
     "protocols": {
@@ -153,11 +159,12 @@
     },
     "publish": {
       "provider": "github",
-      "repo": "koodo-reader",
-      "owner": "koodo-reader"
+      "repo": "koodo-reader-personal",
+      "owner": "roverstargazer1-max"
     },
     "buildDependenciesFromSource": false,
     "nodeGypRebuild": false,
+    "npmRebuild": false,
     "fileAssociations": [
       {
         "ext": "epub",
@@ -221,54 +228,10 @@
       }
     ],
     "extends": null,
-    "dmg": {
-      "contents": [
-        {
-          "x": 410,
-          "y": 150,
-          "type": "link",
-          "path": "/Applications"
-        },
-        {
-          "x": 130,
-          "y": 150,
-          "type": "file"
-        }
-      ]
-    },
-    "mac": {
-      "darkModeSupport": true,
-      "entitlements": "assets/macos/entitlements.mac.plist",
-      "entitlementsInherit": "assets/macos/entitlements.mac.plist",
-      "identity": "Liang Guo",
-      "gatekeeperAssess": false,
-      "hardenedRuntime": true,
-      "notarize": true,
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "assets/icons/icon.icns",
-      "category": "public.app-category.productivity",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
-    },
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32",
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
           "arch": [
             "x64"
           ]
@@ -280,66 +243,19 @@
           ]
         }
       ],
-      "icon": "assets/icons/icon.ico",
-      "artifactName": "${productName}-${version}-${arch}-Win.${ext}"
-    },
-    "linux": {
-      "icon": "assets/icons",
-      "category": "Office",
-      "target": [
-        {
-          "target": "snap",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "rpm",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "icon": "icons/icon.ico",
+      "signAndEditExecutable": false,
+      "artifactName": "Koodo-Reader-Personal-${version}-${arch}.${ext}"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-${arch}-Portable.${ext}"
-    },
-    "appx": {
-      "applicationId": "com.koodoreader.electron",
-      "identityName": "AppbyTroye.KoodoReader",
-      "publisher": "CN=0AEAD7C6-DF4A-4D05-8FA0-D816D7DE37FF",
-      "publisherDisplayName": "App by Troye",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "displayName": "Koodo Reader",
-      "backgroundColor": "transparent"
+      "artifactName": "Koodo-Reader-Personal-${version}-${arch}-Portable.${ext}"
     },
     "nsis": {
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "artifactName": "Koodo-Reader-Personal-${version}-${arch}-Setup.${ext}",
       "oneClick": true,
       "allowToChangeInstallationDirectory": false,
       "buildUniversalInstaller": false,
       "include": "assets/windows/installer.nsh"
-    },
-    "snap": {
-      "base": "core22",
-      "publish": [
-        {
-          "provider": "github"
-        }
-      ]
     }
   },
   "eslintConfig": {

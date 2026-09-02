@@ -1,4 +1,8 @@
-export const sideMenu = [
+const desktopOnlyModes = new Set(["jmcomic"]);
+const isDesktopRuntime =
+  typeof window !== "undefined" && Boolean(window.electronAPI);
+
+const allSideMenuItems = [
   {
     name: "Books",
     icon: "home-line",
@@ -30,3 +34,7 @@ export const sideMenu = [
     mode: "trash",
   },
 ];
+
+export const sideMenu = allSideMenuItems.filter(
+  (item) => isDesktopRuntime || !desktopOnlyModes.has(item.mode)
+);

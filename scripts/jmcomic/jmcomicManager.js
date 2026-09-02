@@ -1,158 +1,22 @@
 const path = require("path");
 const fs = require("fs");
-const { spawn, execSync } = require("child_process");
+const { spawn } = require("child_process");
 const { app, session } = require("electron");
+const {
+  BRIDGE_SCRIPT: SCRIPT_PATH,
+  resolveJmcomicRuntime,
+  runtimeEnvironment,
+  runtimeUnavailableResult,
+} = require("./runtime");
 
-const SCRIPT_PATH = path.join(__dirname, "jm_bridge.py");
 const activeDownloadProcesses = new Map();
 
-/**
- * Resolve python executable path
- */
-function resolvePythonPath(customPythonPath) {
-  if (
-    customPythonPath &&
-    typeof customPythonPath === "string" &&
-    customPythonPath.trim()
-  ) {
-    const trimmed = customPythonPath.trim();
-    if (fs.existsSync(trimmed)) {
-      return trimmed;
-    }
-  }
-
-  if (process.env.PYTHON && fs.existsSync(process.env.PYTHON)) {
-    return process.env.PYTHON;
-  }
-
-  if (process.platform === "win32") {
-    // 1. Try finding via where.exe
-    const lookupCommands = [
-      "where.exe python",
-      "where.exe py",
-      "where.exe python3",
-    ];
-    for (const cmd of lookupCommands) {
-      try {
-        const stdout = execSync(cmd, {
-          encoding: "utf-8",
-          timeout: 2500,
-          windowsHide: true,
-        });
-        const lines = stdout
-          .split(/\r?\n/)
-          .map((l) => l.trim())
-          .filter(Boolean);
-        for (const line of lines) {
-          if (line.toLowerCase().includes("windowsapps")) {
-            try {
-              if (fs.existsSync(line) && fs.statSync(line).size > 0) {
-                return line;
-              }
-            } catch (e) {}
-            continue;
-          }
-          if (fs.existsSync(line)) {
-            return line;
-          }
-        }
-      } catch (e) {}
-    }
-
-    // 2. Search common Windows directories
-    const localAppData = process.env.LOCALAPPDATA || "";
-    const appData = process.env.APPDATA || "";
-    const userProfile = process.env.USERPROFILE || "";
-    const programFiles = process.env.ProgramFiles || "C:\\Program Files";
-    const programFilesX86 =
-      process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
-
-    const pyVersions = [
-      "Python314",
-      "Python313",
-      "Python312",
-      "Python311",
-      "Python310",
-      "Python39",
-      "Python38",
-    ];
-    const candidates = [];
-
-    for (const ver of pyVersions) {
-      candidates.push(
-        path.join(localAppData, "Programs", "Python", ver, "python.exe")
-      );
-      candidates.push(
-        path.join(
-          userProfile,
-          "AppData",
-          "Local",
-          "Programs",
-          "Python",
-          ver,
-          "python.exe"
-        )
-      );
-      candidates.push(path.join(programFiles, "Python", ver, "python.exe"));
-      candidates.push(path.join(programFiles, ver, "python.exe"));
-      candidates.push(path.join(programFilesX86, "Python", ver, "python.exe"));
-      candidates.push(path.join(programFilesX86, ver, "python.exe"));
-      candidates.push(`C:\\${ver}\\python.exe`);
-      candidates.push(`C:\\Program Files\\${ver}\\python.exe`);
-    }
-
-    // Common Conda / Scoop / Chocolatey paths
-    candidates.push(
-      path.join(userProfile, "miniconda3", "python.exe"),
-      path.join(userProfile, "anaconda3", "python.exe"),
-      path.join(localAppData, "miniconda3", "python.exe"),
-      path.join(localAppData, "anaconda3", "python.exe"),
-      "C:\\ProgramData\\miniconda3\\python.exe",
-      "C:\\ProgramData\\anaconda3\\python.exe",
-      path.join(userProfile, "scoop", "shims", "python.exe"),
-      path.join(userProfile, "scoop", "apps", "python", "current", "python.exe"),
-      "C:\\ProgramData\\chocolatey\\bin\\python.exe",
-      "C:\\tools\\python3\\python.exe",
-      "C:\\Windows\\py.exe"
-    );
-
-    for (const c of candidates) {
-      if (c && fs.existsSync(c)) {
-        return c;
-      }
-    }
-
-    return "python";
-  } else {
-    // macOS / Linux lookup
-    const lookupCommands = ["which python3", "which python"];
-    for (const cmd of lookupCommands) {
-      try {
-        const stdout = execSync(cmd, { encoding: "utf-8", timeout: 2500 });
-        const line = stdout.trim();
-        if (line && fs.existsSync(line)) {
-          return line;
-        }
-      } catch (e) {}
-    }
-
-    const unixCandidates = [
-      "/usr/local/bin/python3",
-      "/opt/homebrew/bin/python3",
-      "/usr/bin/python3",
-      path.join(process.env.HOME || "", ".pyenv", "shims", "python3"),
-      path.join(process.env.HOME || "", "miniconda3", "bin", "python3"),
-      path.join(process.env.HOME || "", "anaconda3", "bin", "python3"),
-    ];
-
-    for (const c of unixCandidates) {
-      if (c && fs.existsSync(c)) {
-        return c;
-      }
-    }
-
-    return "python3";
-  }
+function getRuntime(options = {}) {
+  return resolveJmcomicRuntime(options, {
+    isPackaged: app.isPackaged || __dirname.toLowerCase().includes("app.asar"),
+    platform: process.platform,
+    resourcesPath: process.resourcesPath,
+  });
 }
 
 /**
@@ -160,10 +24,15 @@ function resolvePythonPath(customPythonPath) {
  */
 function runBridgeCommand(command, args = [], options = {}) {
   return new Promise((resolve) => {
-    const pythonPath = resolvePythonPath(options.pythonPath);
-    const cmdArgs = [SCRIPT_PATH, command, ...args];
+    const runtime = getRuntime(options);
+    if (!runtime.available) {
+      resolve(runtimeUnavailableResult(runtime));
+      return;
+    }
+    const cmdArgs = [...runtime.prefixArgs, command, ...args];
 
     let timer = null;
+    let child = null;
     let isSettled = false;
 
     const safeResolve = (val) => {
@@ -175,6 +44,7 @@ function runBridgeCommand(command, args = [], options = {}) {
 
     // 120s timeout
     timer = setTimeout(() => {
+      if (child && !child.killed) child.kill();
       safeResolve({
         code: 1,
         msg: `Command timed out after 120s: ${command}`,
@@ -182,17 +52,16 @@ function runBridgeCommand(command, args = [], options = {}) {
       });
     }, 120000);
 
-    let child;
     try {
-      child = spawn(pythonPath, cmdArgs, {
-        cwd: path.dirname(SCRIPT_PATH),
-        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      child = spawn(runtime.executable, cmdArgs, {
+        cwd: runtime.cwd,
+        env: runtimeEnvironment(runtime),
         windowsHide: true,
       });
     } catch (spawnErr) {
       return safeResolve({
         code: 1,
-        msg: `Failed to spawn Python process (${pythonPath}): ${spawnErr.message}`,
+        msg: `Failed to spawn JMComic runtime (${runtime.executable}): ${spawnErr.message}`,
         error: spawnErr.message,
       });
     }
@@ -211,7 +80,7 @@ function runBridgeCommand(command, args = [], options = {}) {
     child.on("error", (err) => {
       safeResolve({
         code: 1,
-        msg: `Failed to spawn Python process (${pythonPath}): ${err.message}`,
+        msg: `Failed to spawn JMComic runtime (${runtime.executable}): ${err.message}`,
         error: err.message,
       });
     });
@@ -245,6 +114,79 @@ function runBridgeCommand(command, args = [], options = {}) {
           code: 0,
           msg: "ok",
           raw: stdoutData,
+        });
+      }
+    });
+  });
+}
+
+function installSourceEnvironment(options = {}) {
+  if (app.isPackaged || __dirname.toLowerCase().includes("app.asar")) {
+    return runBridgeCommand("check_env", [], options).then((status) => ({
+      code: status.code,
+      msg:
+        status.code === 0
+          ? "Bundled JMComic sidecar is ready."
+          : status.msg,
+      data:
+        status.code === 0
+          ? "Packaged mode uses the bundled, immutable JMComic sidecar."
+          : status.msg,
+    }));
+  }
+
+  return new Promise((resolve) => {
+    const setupScript = path.resolve(__dirname, "..", "setup-python.js");
+    const args = [setupScript, "--json"];
+    if (typeof options.pythonPath === "string" && options.pythonPath.trim()) {
+      args.push("--python", options.pythonPath.trim());
+    }
+
+    const child = spawn(process.execPath, args, {
+      cwd: path.resolve(__dirname, "..", ".."),
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+    let isSettled = false;
+    const safeResolve = (result) => {
+      if (isSettled) return;
+      isSettled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => {
+      child.kill();
+      safeResolve({
+        code: 1,
+        msg: "Project Python environment setup timed out after 10 minutes.",
+        data: stderr || stdout,
+      });
+    }, 10 * 60 * 1000);
+
+    child.stdout.on("data", (chunk) => (stdout += chunk.toString("utf8")));
+    child.stderr.on("data", (chunk) => (stderr += chunk.toString("utf8")));
+    child.on("error", (error) => {
+      safeResolve({ code: 1, msg: error.message, data: stderr || stdout });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      const output = [stdout, stderr].filter(Boolean).join("\n").trim();
+      const lines = output.split(/\r?\n/).filter(Boolean);
+      const resultLine = [...lines]
+        .reverse()
+        .find((line) => line.trim().startsWith("{"));
+      try {
+        safeResolve(JSON.parse(resultLine));
+      } catch {
+        safeResolve({
+          code: code === 0 ? 0 : 1,
+          msg:
+            code === 0
+              ? "Project Python environment is ready."
+              : "Project Python environment setup failed.",
+          data: output,
         });
       }
     });
@@ -303,7 +245,7 @@ function initJmcomicIpc(ipcMain, getMainWindow) {
 
   // 2. Install dependencies
   ipcMain.handle("jmcomic-install-deps", async (event, config = {}) => {
-    return runBridgeCommand("install_deps", [], config);
+    return installSourceEnvironment(config);
   });
 
   // 3. Get available domains
@@ -431,8 +373,13 @@ function initJmcomicIpc(ipcMain, getMainWindow) {
       fs.mkdirSync(defaultOutputDir, { recursive: true });
     }
 
+    const runtime = getRuntime({ pythonPath });
+    if (!runtime.available) {
+      return runtimeUnavailableResult(runtime);
+    }
+
     const args = [
-      SCRIPT_PATH,
+      ...runtime.prefixArgs,
       "download",
       "--album_id",
       String(albumId),
@@ -450,10 +397,9 @@ function initJmcomicIpc(ipcMain, getMainWindow) {
     if (proxy) args.push("--proxy", proxy);
     if (domain) args.push("--domain", domain);
 
-    const execPath = resolvePythonPath(pythonPath);
-    const child = spawn(execPath, args, {
-      cwd: path.dirname(SCRIPT_PATH),
-      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+    const child = spawn(runtime.executable, args, {
+      cwd: runtime.cwd,
+      env: runtimeEnvironment(runtime),
       windowsHide: true,
     });
 
@@ -533,7 +479,7 @@ function initJmcomicIpc(ipcMain, getMainWindow) {
 
 module.exports = {
   initJmcomicIpc,
-  resolvePythonPath,
+  resolveJmcomicRuntime,
   setupJmcomicImageProxy,
 };
 

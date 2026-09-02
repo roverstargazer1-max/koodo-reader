@@ -4,6 +4,8 @@ JMComic CLI Bridge for Koodo Reader
 Provides JSON IPC interface for search, rank, detail, and download with CBZ packaging.
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import json
@@ -18,12 +20,10 @@ if hasattr(sys.stdout, 'reconfigure'):
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
-# Ensure local JMComic-Crawler-Python package can be imported
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
-LOCAL_JMCOMIC_SRC = os.path.join(PROJECT_ROOT, "JMComic-Crawler-Python", "src")
-if os.path.exists(LOCAL_JMCOMIC_SRC) and LOCAL_JMCOMIC_SRC not in sys.path:
-    sys.path.insert(0, LOCAL_JMCOMIC_SRC)
+EXPECTED_JMCOMIC_VERSION = os.environ.get("KOODO_JM_EXPECTED_VERSION", "2.7.5")
+RUNTIME_MODE = os.environ.get("KOODO_JM_RUNTIME_MODE", "direct-cli")
 
 try:
     import jmcomic
@@ -141,10 +141,38 @@ def cmd_check_env(args):
                 "python_version": sys.version,
                 "python_path": sys.executable,
                 "has_jmcomic": False,
-                "import_error": IMPORT_ERROR
+                "runtimeAvailable": True,
+                "import_error": IMPORT_ERROR,
+                "runtimeMode": RUNTIME_MODE,
+                "expectedJmcomicVersion": EXPECTED_JMCOMIC_VERSION,
             }
         })
-        return
+        sys.exit(1)
+
+    installed_version = str(getattr(jmcomic, "__version__", "unknown"))
+    if installed_version != EXPECTED_JMCOMIC_VERSION:
+        repair = (
+            "Reinstall Koodo Reader Personal from a complete release package."
+            if RUNTIME_MODE == "bundled-sidecar"
+            else "Run `yarn setup` from the project root."
+        )
+        emit_json({
+            "code": 1,
+            "msg": (
+                f"JMComic version mismatch: expected {EXPECTED_JMCOMIC_VERSION}, "
+                f"found {installed_version}. {repair}"
+            ),
+            "data": {
+                "python_version": sys.version,
+                "python_path": sys.executable,
+                "jmcomic_version": installed_version,
+                "has_jmcomic": True,
+                "runtimeAvailable": True,
+                "runtimeMode": RUNTIME_MODE,
+                "expectedJmcomicVersion": EXPECTED_JMCOMIC_VERSION,
+            }
+        })
+        sys.exit(1)
 
     emit_json({
         "code": 0,
@@ -152,63 +180,30 @@ def cmd_check_env(args):
         "data": {
             "python_version": sys.version,
             "python_path": sys.executable,
-            "jmcomic_version": getattr(jmcomic, "__version__", "unknown"),
-            "has_jmcomic": True
+            "jmcomic_version": installed_version,
+            "has_jmcomic": True,
+            "runtimeAvailable": True,
+            "runtimeMode": RUNTIME_MODE,
+            "expectedJmcomicVersion": EXPECTED_JMCOMIC_VERSION,
         }
     })
 
 
 def cmd_install_deps(args):
-    """Run pip install to ensure jmcomic and dependencies are installed."""
-    import subprocess
-    req_file = os.path.join(os.path.dirname(__file__), "requirements.txt")
-    target_dir = os.path.join(PROJECT_ROOT, "JMComic-Crawler-Python")
-
-    output_logs = []
-    success = False
-    last_error = ""
-
-    packages = ["jmcomic", "curl_cffi", "commonX", "PyYAML", "Pillow", "pycryptodome", "rich"]
-
-    pip_cmds = [
-        # 1. Try Tsinghua mirror first for fast domestic download
-        [sys.executable, "-m", "pip", "install", "--upgrade", "-i", "https://pypi.tuna.tsinghua.edu.cn/simple", "--trusted-host", "pypi.tuna.tsinghua.edu.cn", *packages],
-        # 2. Try Aliyun mirror
-        [sys.executable, "-m", "pip", "install", "--upgrade", "-i", "https://mirrors.aliyun.com/pypi/simple/", "--trusted-host", "mirrors.aliyun.com", *packages],
-        # 3. Try official PyPI
-        [sys.executable, "-m", "pip", "install", "--upgrade", *packages],
-        # 4. Try requirements.txt if present
-        [sys.executable, "-m", "pip", "install", "-r", req_file] if os.path.exists(req_file) else None,
-        # 5. Try local package directory if present
-        [sys.executable, "-m", "pip", "install", "-e", target_dir] if os.path.exists(target_dir) else None,
-    ]
-
-    for cmd in pip_cmds:
-        if not cmd:
-            continue
-        cmd_str = " ".join(cmd)
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=120)
-            output_logs.append(f"Command succeeded ({cmd_str}):\n{proc.stdout}")
-            success = True
-            break
-        except Exception as e:
-            err_text = getattr(e, 'stderr', str(e)) or getattr(e, 'stdout', '') or str(e)
-            last_error = err_text
-            output_logs.append(f"Command attempt failed ({cmd_str}):\n{err_text}")
-
-    if success:
-        emit_json({
-            "code": 0,
-            "msg": "Successfully installed JMComic dependencies",
-            "data": "\n".join(output_logs)
-        })
-    else:
-        emit_json({
-            "code": 1,
-            "msg": f"Failed to install dependencies: {last_error}",
-            "data": "\n".join(output_logs)
-        })
+    """Keep package installation outside the bridge runtime."""
+    emit_json({
+        "code": 1,
+        "msg": (
+            "The bundled runtime is immutable; reinstall the application."
+            if RUNTIME_MODE == "bundled-sidecar"
+            else "Run `yarn setup` to create or repair the project .venv."
+        ),
+        "data": {
+            "runtimeMode": RUNTIME_MODE,
+            "expectedJmcomicVersion": EXPECTED_JMCOMIC_VERSION,
+        }
+    })
+    sys.exit(1)
 
 
 def cmd_get_domains(args):

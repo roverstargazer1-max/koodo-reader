@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+/.venv/
+__pycache__/
+*.py[cod]
 /.pnp
 .pnp.js
 
@@ -12,6 +15,9 @@
 #/build
 
 dist/
+/dist-sidecar/
+/build/pyinstaller/
+/.pyinstaller-build/
 
 /build/*
 /.vscode

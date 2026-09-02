@@ -150,6 +150,9 @@ export interface JmcomicDialogState {
     pythonVersion?: string;
     jmcomicVersion?: string;
     pythonPath?: string;
+    runtimeMode?: "bundled-sidecar" | "custom-python" | "project-venv" | string;
+    expectedJmcomicVersion?: string;
+    runtimeAvailable?: boolean;
     isChecking?: boolean;
     isInstalling?: boolean;
     message?: string;

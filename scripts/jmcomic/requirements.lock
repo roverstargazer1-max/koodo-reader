@@ -1,0 +1,11 @@
+# Runtime lock for Python 3.12 on Windows x64.
+# Update this file only in a dependency-upgrade change with bridge tests.
+certifi==2026.7.22
+cffi==2.1.1
+commonX==0.6.40
+curl_cffi==0.16.2
+jmcomic==2.7.5
+Pillow==12.3.0
+pycparser==3.0
+pycryptodome==3.23.0
+PyYAML==6.0.3
