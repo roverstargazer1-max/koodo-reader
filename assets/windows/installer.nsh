@@ -2,8 +2,9 @@
 !macroend
 
 !macro customInstall
-  ; Kill the Personal process before installation to prevent file locking
+  ; Kill the Personal and Sidecar processes before installation to prevent file locking
   nsExec::ExecToLog 'taskkill /f /im "Koodo Reader Personal.exe"'
+  nsExec::ExecToLog 'taskkill /f /im "jmcomic-bridge.exe"'
   ; Wait for the OS to release file handles after process termination
   Sleep 3000
 !macroend

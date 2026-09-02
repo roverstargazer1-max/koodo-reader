@@ -212,9 +212,48 @@ class UpdateInfo extends React.Component<UpdateInfoProps, UpdateInfoState> {
                             );
                           }
                         );
-                        ipcRenderer.invoke("update-win-app", {
-                          version: this.state.updateLog.version,
-                        });
+                        ipcRenderer
+                          .invoke("update-win-app", {
+                            version: this.state.updateLog.version,
+                          })
+                          .then((res: any) => {
+                            if (res && res.code !== 0) {
+                              this.setState({
+                                isDownloading: false,
+                                progress: 0,
+                                downloadedMB: 0,
+                                totalMB: 0,
+                              });
+                              toast.error(
+                                res.msg || this.props.t("Download failed"),
+                                {
+                                  id: "download-progress",
+                                  position: "bottom-center",
+                                }
+                              );
+                              if (res.isPortable) {
+                                openExternalUrl(
+                                  this.state.updateLog.html_url ||
+                                    PERSONAL_RELEASES_URL
+                                );
+                              }
+                            }
+                          })
+                          .catch((err: any) => {
+                            this.setState({
+                              isDownloading: false,
+                              progress: 0,
+                              downloadedMB: 0,
+                              totalMB: 0,
+                            });
+                            toast.error(
+                              err?.message || this.props.t("Download failed"),
+                              {
+                                id: "download-progress",
+                                position: "bottom-center",
+                              }
+                            );
+                          });
                       } else {
                         ipcRenderer.invoke("cancel-download-app", {});
                         this.setState({

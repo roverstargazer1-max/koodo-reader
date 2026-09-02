@@ -61,6 +61,88 @@ let pickerUtilCache = {};
 let downloadRequest = null;
 let downloadFile = null;
 let downloadFilePath = null;
+const activeStoragePaths = new Set();
+
+const closeAllDatabases = () => {
+  for (const dbName of Object.keys(dbConnection)) {
+    try {
+      const db = dbConnection[dbName];
+      if (db && typeof db.close === "function") {
+        try {
+          db.pragma("wal_checkpoint(TRUNCATE)");
+        } catch (checkpointErr) {
+          console.warn(`WAL checkpoint failed for ${dbName}:`, checkpointErr.message);
+        }
+        db.close();
+      }
+    } catch (err) {
+      console.error(`Failed to close database ${dbName}:`, err.message);
+    }
+  }
+  dbConnection = {};
+};
+
+const createPreUpdateBackup = (currentVersion) => {
+  try {
+    const backupBaseDir = path.join(configDir, "backups");
+    if (!fs.existsSync(backupBaseDir)) {
+      fs.mkdirSync(backupBaseDir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const targetDir = path.join(
+      backupBaseDir,
+      `pre-update-v${currentVersion || "unknown"}-${timestamp}`
+    );
+    fs.mkdirSync(targetDir, { recursive: true });
+
+    // 1. 备份各数据库存储路径下的 config 目录（包含所有的 *.db 文件）
+    const pathsToBackup = new Set(activeStoragePaths);
+    pathsToBackup.add(path.join(dirPath, "data"));
+
+    for (const sPath of pathsToBackup) {
+      const dbConfigDir = path.join(sPath, "config");
+      if (fs.existsSync(dbConfigDir)) {
+        const files = fs.readdirSync(dbConfigDir);
+        for (const file of files) {
+          if (file.endsWith(".db") || file.endsWith(".db-wal") || file.endsWith(".db-shm")) {
+            const srcFile = path.join(dbConfigDir, file);
+            const destFile = path.join(targetDir, file);
+            fs.copyFileSync(srcFile, destFile);
+          }
+        }
+      }
+    }
+
+    // 2. 备份应用基础配置 config.json (electron-store)
+    const storeConfigFile = store.path;
+    if (storeConfigFile && fs.existsSync(storeConfigFile)) {
+      fs.copyFileSync(storeConfigFile, path.join(targetDir, "config.json"));
+    }
+
+    console.info("Pre-update backup created successfully at:", targetDir);
+
+    // 3. 自动轮转清理：保留最近 5 份 pre-update-* 备份
+    const allBackups = fs
+      .readdirSync(backupBaseDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith("pre-update-"))
+      .map((entry) => ({
+        name: entry.name,
+        fullPath: path.join(backupBaseDir, entry.name),
+        time: fs.statSync(path.join(backupBaseDir, entry.name)).mtimeMs,
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    if (allBackups.length > 5) {
+      const toRemove = allBackups.slice(5);
+      for (const item of toRemove) {
+        fs.rmSync(item.fullPath, { recursive: true, force: true });
+        console.info("Removed old pre-update backup:", item.name);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to create pre-update backup:", err.message);
+  }
+};
 
 const RESIZE_THROTTLE_MS = 300;
 
@@ -775,6 +857,9 @@ if (filePath && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
   );
 }
 const getDBConnection = (dbName, storagePath, sqlStatement) => {
+  if (storagePath) {
+    activeStoragePaths.add(storagePath);
+  }
   if (!dbConnection[dbName]) {
     if (!fs.existsSync(path.join(storagePath, "config"))) {
       fs.mkdirSync(path.join(storagePath, "config"), { recursive: true });
@@ -1323,6 +1408,16 @@ const createMainWin = () => {
     }
   });
   ipcMain.handle("update-win-app", (event, config) => {
+    if (
+      process.env.PORTABLE_EXECUTABLE_DIR ||
+      process.env.PORTABLE_EXECUTABLE_FILE
+    ) {
+      return {
+        code: 2,
+        msg: "检测到当前为便携版 (Portable)。请前往 Releases 页面下载新版便携版 exe 替换即可，数据不会丢失。",
+        isPortable: true,
+      };
+    }
     if (!config || !/^[0-9A-Za-z.-]+$/.test(String(config.version))) {
       return { code: 1, msg: "Invalid release version" };
     }
@@ -1429,19 +1524,31 @@ const createMainWin = () => {
             return;
           }
           try {
-            // 先退出应用，再启动安装程序，避免文件锁定导致覆盖安装失败
+            // 覆盖安装前先关闭数据库并创建数据快照，确保数据 100% 完整安全
+            closeAllDatabases();
+            createPreUpdateBackup(packageJson.version);
+
+            // 先退出应用，再启动静默安装程序，自动覆盖安装并在完成后重启应用
             app.once("will-quit", () => {
-              const child = spawn(updateExePath, [], {
-                stdio: "ignore",
-                detached: true,
-                shell: true,
-                windowsHide: false,
-              });
-              child.unref();
+              try {
+                const child = spawn(
+                  updateExePath,
+                  ["/S", "--force-run", "--updated"],
+                  {
+                    stdio: "ignore",
+                    detached: true,
+                    shell: true,
+                    windowsHide: true,
+                  }
+                );
+                child.unref();
+              } catch (spawnErr) {
+                console.error(`启动更新安装程序失败: ${spawnErr.message}`);
+              }
             });
             app.quit();
           } catch (err) {
-            console.error(`spawn 执行异常: ${err.message}`);
+            console.error(`更新执行异常: ${err.message}`);
           }
         });
       });
@@ -3016,6 +3123,7 @@ app.on("ready", async () => {
 app.on("before-quit", () => {
   isQuitting = true;
   destroyDiscordRPC();
+  closeAllDatabases();
 });
 app.on("window-all-closed", () => {
   app.quit();
