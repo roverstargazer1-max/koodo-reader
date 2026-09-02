@@ -2,6 +2,7 @@
   width: 400px;
   /* height: 200px; */
   float: left;
+  margin: 6px 6px;
   overflow: hidden;
   position: relative;
   cursor: grab;
@@ -35,7 +36,7 @@
   /* height: 170px; */
   opacity: 1;
   width: 120px;
-  margin: 5px 15px 15px 15px;
+  margin: 0px 10px 10px 10px;
   cursor: pointer;
   /* overflow: hidden; */
   float: left;

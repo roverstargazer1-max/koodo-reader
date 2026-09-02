@@ -1,6 +1,5 @@
 .book-list-item-container {
-  margin: 12px;
-  margin-right: 25px;
+  margin: 6px 25px 6px 6px;
   position: relative;
   cursor: grab;
 }

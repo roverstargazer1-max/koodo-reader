@@ -24,8 +24,10 @@ function getBookCountPerPage() {
   if (!container) return 24; // fallback
   const containerWidth = container.clientWidth;
   const containerHeight = container.clientHeight;
-  const bookWidth = 133;
-  const bookHeight = 201;
+  // 133px card width + 4px left margin + 4px right margin = 141px per slot
+  // 201px card height + 4px top margin + 4px bottom margin = 209px per slot
+  const bookWidth = 141;
+  const bookHeight = 209;
   const columns = Math.max(1, Math.floor(containerWidth / bookWidth));
   const rows = Math.max(1, Math.floor(containerHeight / bookHeight)) + 2;
   return columns * rows;

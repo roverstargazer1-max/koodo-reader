@@ -2,6 +2,9 @@
   width: calc(133px * var(--card-scale, 1));
   /* height: 192px; */
   float: left;
+  /* 用真实的外边距在卡片之间创造 DOM 间隙，确保间隙区域不属于任何可点击卡片，
+     以便鼠标从间隙处开始框选时不会误触卡片点击事件 */
+  margin: calc(4px * var(--card-scale, 1)) calc(4px * var(--card-scale, 1));
   overflow: hidden;
   position: relative;
   cursor: grab;
@@ -13,8 +16,9 @@
   width: calc(105px * var(--card-scale, 1));
   /* height: 137px; */
   opacity: 1;
-  margin: calc(10px * var(--card-scale, 1)) calc(15px * var(--card-scale, 1))
-    calc(5px * var(--card-scale, 1)) calc(15px * var(--card-scale, 1));
+  /* 减少内部 margin，整体留白效果与外边距加起来和之前保持一致 */
+  margin: calc(6px * var(--card-scale, 1)) calc(11px * var(--card-scale, 1))
+    calc(1px * var(--card-scale, 1)) calc(11px * var(--card-scale, 1));
   cursor: pointer;
   /* overflow: hidden; */
   display: flex;
