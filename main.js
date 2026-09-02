@@ -2469,6 +2469,17 @@ const createMainWin = () => {
 
     return "pong";
   });
+  ipcMain.handle("open-file-path", async (event, config) => {
+    const { shell } = require("electron");
+    if (config && config.path) {
+      if (config.isFolder) {
+        shell.openPath(config.path);
+      } else {
+        shell.showItemInFolder(config.path);
+      }
+    }
+    return "pong";
+  });
   ipcMain.handle("get-debug-logs", async (event, config) => {
     const { shell } = require("electron");
     const file = log.transports.file.getFile();

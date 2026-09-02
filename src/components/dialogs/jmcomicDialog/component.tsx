@@ -1061,7 +1061,10 @@ class JmcomicDialog extends React.Component<
     const ipc = getIpc();
     try {
       if (ipc) {
-        await ipc.invoke("open-file-path", { path: filePath });
+        await ipc.invoke("open-explorer-folder", {
+          path: filePath,
+          isFolder: false,
+        });
       }
     } catch (e) {
       console.error("Open file location failed:", e);

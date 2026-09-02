@@ -79,6 +79,7 @@ const INVOKE_CHANNELS = new Set([
   "jmcomic-detail",
   "jmcomic-download",
   "jmcomic-cancel-download",
+  "open-file-path",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);
 const SEND_SYNC_CHANNELS = new Set([
