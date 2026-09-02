@@ -1,100 +1,110 @@
-name: Build/release
+name: Windows x64 build and release
 
-on: workflow_dispatch
+on:
+  push:
+    branches: [main, dev]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  release:
-    runs-on: ${{ matrix.os }}
-
+  windows-x64:
+    runs-on: windows-2022
     env:
-      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
-
-    # Platforms to build on/for
-    strategy:
-      matrix:
-        os: [macos-26, ubuntu-22.04, windows-2022, ubuntu-24.04-arm]
+      USE_HARD_LINKS: "false"
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v6
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - name: Install Node.js, NPM and Yarn
-        uses: actions/setup-node@v6
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: yarn
 
-      - name: Install dependencies
-        run: yarn install
+      - name: Activate Yarn 1.22.22
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+
+      - name: Set up Python 3.12 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64
+
+      - name: Create reproducible development environment
+        run: yarn setup
+
+      - name: Test runtime resolution
+        run: yarn test:jmcomic-runtime
 
       - name: TypeScript type check
-        run: npx tsc --noEmit --noUnusedLocals false --noUnusedParameters false
+        run: yarn typecheck
 
-      - name: Install Snapcraft
-        uses: samuelmeuli/action-snapcraft@v3
-        # Only install Snapcraft on Ubuntu
-        if: startsWith(matrix.os, 'ubuntu-22.04')
-      - name: Install Gcc
-        if: startsWith(matrix.os, 'ubuntu-22.04')
+      - name: Build React application
+        run: yarn build
+
+      - name: Build PyInstaller onedir sidecar
+        run: yarn build:jmcomic-sidecar
+
+      - name: Test sidecar directly
+        shell: pwsh
         run: |
-          sudo apt update
-          sudo apt-get install gcc-multilib g++-multilib
-      - name: Install FPM
-        if: startsWith(matrix.os, 'ubuntu-24.04-arm')
+          $sidecar = "dist-sidecar/jmcomic-bridge/jmcomic-bridge.exe"
+          $result = & $sidecar check_env | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "Sidecar check_env exited with $LASTEXITCODE" }
+          if ($result.code -ne 0) { throw $result.msg }
+          if ($result.data.jmcomic_version -ne "2.7.5") { throw "Unexpected JMComic version" }
+
+      - name: Build and test unpacked Electron application
+        shell: pwsh
         run: |
-          sudo apt update
-          sudo apt-get install -y ruby-full build-essential zlib1g-dev liblzma-dev
-          sudo gem install --no-document fpm
-      - name: Prepare for app notarization (macOS)
-        if: startsWith(matrix.os, 'macos')
-        # Import Apple API key for app notarization on macOS
+          yarn electron-builder --win --x64 --dir --publish never -c.win.signAndEditExecutable=true
+          $sidecar = "dist/win-unpacked/resources/jmcomic-bridge/jmcomic-bridge.exe"
+          if (-not (Test-Path $sidecar)) { throw "Packaged sidecar is missing" }
+          $result = & $sidecar check_env | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $result.code -ne 0) { throw "Packaged sidecar self-check failed" }
+          $nativeModule = "dist/win-unpacked/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+          if (-not (Test-Path $nativeModule)) { throw "Packaged better-sqlite3 binding is missing" }
+          $exe = "dist/win-unpacked/Koodo Reader Personal.exe"
+          $process = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 10
+          $process.Refresh()
+          if ($process.HasExited) { throw "Unpacked application exited during startup with code $($process.ExitCode)" }
+          Stop-Process -Id $process.Id -Force
+
+      - name: Build NSIS and portable packages
+        run: yarn electron-builder --win nsis portable --x64 --publish never -c.win.signAndEditExecutable=true
+
+      - name: Create SHA-256 manifest
+        shell: pwsh
         run: |
-          mkdir -p ~/private_keys/
-          echo ${{ github.ref }}
-          echo '${{ secrets.API_KEY }}' > ~/private_keys/AuthKey_${{ secrets.API_KEY_ID }}.p8
-          brew install python-setuptools
-      - name: Set environment variable USE_SYSTEM_FPM
-        if: startsWith(matrix.os, 'ubuntu-24.04-arm')
-        run: echo "USE_SYSTEM_FPM=true" >> $GITHUB_ENV
-      - name: Set environment variable USE_HARD_LINKS
-        run: echo "USE_HARD_LINKS=false" >> $GITHUB_ENV
-      - name: Modify package.json for dev branch
-        if: github.ref == 'refs/heads/dev'
-        shell: bash
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-22" ]]; then
-            powershell -Command "(Get-Content package.json) -replace '\"productName\": \"Koodo Reader\"', '\"productName\": \"Koodo Reader DEV\"' | Set-Content package.json"
-          else
-            sed -i.bak 's/"productName": "Koodo Reader"/"productName": "Koodo Reader DEV"/' package.json
-          fi
-      - name: Modify package.json for Linux arm64 build
-        if: startsWith(matrix.os, 'ubuntu-24.04-arm')
-        run: |
-          jq '.build.linux.target = [
-            {
-              "target": "deb",
-              "arch": ["arm64"]
-            },
-            {
-              "target": "AppImage", 
-              "arch": ["arm64"]
-            }
-          ]' package.json > package.json.tmp && mv package.json.tmp package.json
-      - name: Build/release Electron app
-        uses: samuelmeuli/action-electron-builder@v1.6.0
+          Get-ChildItem dist -Filter "*.exe" | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          build_script_name: "build"
-          # GitHub token, automatically provided to the action
-          # (No need to define this secret in the repo settings)
-          github_token: ${{ secrets.github_token }}
+          name: Koodo-Reader-Personal-${{ github.ref_name }}-windows-x64
+          path: |
+            dist/*.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
 
-          # macOS code signing certificate
-          mac_certs: ${{ secrets.MAC_CERTS }}
-          mac_certs_password: ${{ secrets.MAC_CERTS_PASSWORD }}
-
-          # If the commit is tagged with a version (e.g. "v1.0.0"),
-          # release the app after building
-          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        env:
-          # macOS notarization API key
-          API_KEY_ID: ${{ secrets.API_KEY_ID }}
-          API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.exe
+            dist/SHA256SUMS.txt
