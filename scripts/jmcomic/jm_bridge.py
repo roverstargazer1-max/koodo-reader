@@ -75,8 +75,21 @@ def get_safe_cover_url(album_id: str, size: str = "") -> str:
     return f"https://cdn-msp3.jmapiproxy2.cc/media/albums/{album_id}{size_str}.jpg"
 
 
-def create_custom_option(proxy: Optional[str] = None, domain: Optional[str] = None, threads: int = 5, output_dir: Optional[str] = None) -> JmOption:
-    """Create a configured JmOption instance with proxy and domain rules."""
+def parse_cookies_arg(cookies_str: Optional[str]) -> Optional[Dict[str, str]]:
+    """Parse JSON encoded cookies string into dictionary."""
+    if not cookies_str or not str(cookies_str).strip():
+        return None
+    try:
+        data = json.loads(cookies_str)
+        if isinstance(data, dict):
+            return {str(k): str(v) for k, v in data.items()}
+    except Exception:
+        pass
+    return None
+
+
+def create_custom_option(proxy: Optional[str] = None, domain: Optional[str] = None, threads: int = 5, output_dir: Optional[str] = None, cookies: Optional[Dict] = None) -> JmOption:
+    """Create a configured JmOption instance with proxy, domain, and cookies."""
     option = JmModuleConfig.option_class().default()
 
     # Configure proxy
@@ -98,6 +111,14 @@ def create_custom_option(proxy: Optional[str] = None, domain: Optional[str] = No
             }
         else:
             option.client.domain = [d]
+
+    # Configure cookies if provided
+    if cookies and isinstance(cookies, dict):
+        try:
+            option.update_cookies(cookies)
+        except Exception:
+            option.client.postman.meta_data.setdefault('cookies', {})
+            option.client.postman.meta_data['cookies'] = cookies
 
     # Configure concurrency and output dir
     if threads > 0:
@@ -536,6 +557,208 @@ def cmd_download(args):
         emit_json({"code": 1, "msg": f"Download failed: {str(e)}"})
 
 
+def cmd_login(args):
+    """Login to JM account and return profile + session cookies."""
+    if not HAS_JMCOMIC:
+        emit_json({"code": 1, "msg": "jmcomic not installed"})
+        return
+
+    username = (args.username or "").strip()
+    password = (args.password or "").strip()
+    if not username or not password:
+        emit_json({"code": 1, "msg": "Username and password are required"})
+        return
+
+    try:
+        option = create_custom_option(args.proxy, args.domain)
+        client = option.new_jm_client()
+
+        resp = client.login(username=username, password=password)
+        res_data = getattr(resp, 'res_data', {}) or {}
+
+        # Extract session cookies
+        client_cookies = {}
+        try:
+            if hasattr(client, 'get_meta_data') and client.get_meta_data('cookies'):
+                client_cookies = dict(client.get_meta_data('cookies'))
+            elif hasattr(client, 'cookies'):
+                client_cookies = dict(client.cookies)
+        except Exception:
+            pass
+
+        # Also ensure AVS is present
+        if 's' in res_data and res_data['s']:
+            client_cookies['AVS'] = res_data['s']
+
+        photo_url = res_data.get('photo') or ""
+        if photo_url and not photo_url.startswith('http'):
+            photo_url = f"https://cdn-msp3.jmapiproxy2.cc/media/users/{photo_url}"
+
+        profile = {
+            "uid": str(res_data.get("uid", "")),
+            "username": res_data.get("username", username),
+            "fname": res_data.get("fname", ""),
+            "email": res_data.get("email", ""),
+            "photo": photo_url,
+            "coin": res_data.get("coin", 0),
+            "album_favorites": res_data.get("album_favorites", 0),
+            "album_favorites_max": res_data.get("album_favorites_max", 0),
+            "level_name": res_data.get("level_name", "Lv.1"),
+            "level": res_data.get("level", 1),
+            "exp": res_data.get("exp", 0),
+            "nextLevelExp": res_data.get("nextLevelExp", 0),
+            "expPercent": res_data.get("expPercent", 0),
+        }
+
+        emit_json({
+            "code": 0,
+            "msg": "Login success",
+            "data": {
+                "profile": profile,
+                "cookies": client_cookies
+            }
+        })
+    except Exception as e:
+        emit_json({"code": 1, "msg": f"Login failed: {str(e)}"})
+
+
+def cmd_favorites(args):
+    """Get favorite folders and list of favorite comic albums."""
+    if not HAS_JMCOMIC:
+        emit_json({"code": 1, "msg": "jmcomic not installed"})
+        return
+
+    cookies = parse_cookies_arg(args.cookies)
+    username = (args.username or "").strip()
+    password = (args.password or "").strip()
+    folder_id = str(args.folder_id or "0").strip()
+    page = int(args.page or 1)
+    order_by = args.order or "mr"
+
+    try:
+        option = create_custom_option(args.proxy, args.domain, cookies=cookies)
+        client = option.new_jm_client()
+
+        # If cookies not provided or empty, attempt login if username/password supplied
+        if not cookies and username and password:
+            try:
+                client.login(username, password)
+                cookies = dict(client.get_meta_data('cookies') or {})
+            except Exception as le:
+                emit_json({"code": 1, "msg": f"Login failed when fetching favorites: {str(le)}"})
+                return
+
+        # Fetch favorites folder
+        try:
+            fav_page = client.favorite_folder(
+                page=page,
+                order_by=order_by,
+                folder_id=folder_id
+            )
+        except Exception as fe:
+            # If failed (e.g. session expired), and credentials exist, retry login once
+            if username and password:
+                client.login(username, password)
+                fav_page = client.favorite_folder(
+                    page=page,
+                    order_by=order_by,
+                    folder_id=folder_id
+                )
+            else:
+                raise fe
+
+        # Parse folders
+        folders = []
+        raw_folders = getattr(fav_page, 'folder_list', []) or []
+        for f in raw_folders:
+            if isinstance(f, dict):
+                fid = str(f.get('FID') or f.get('0') or f.get('id') or '0')
+                fname = str(f.get('name') or f.get('2') or f.get('title') or ('默认收藏夹' if fid == '0' else f'收藏夹 {fid}'))
+                folders.append({"id": fid, "name": fname})
+
+        # Ensure default folder is present in folder list
+        if not any(f['id'] == '0' for f in folders):
+            folders.insert(0, {"id": "0", "name": "全部/默认收藏"})
+
+        # Parse comic items
+        results = []
+        for aid, ainfo in fav_page.content:
+            title = ainfo.get('name') or ainfo.get('title') or f"JM{aid}"
+            tags = ainfo.get('tags') or []
+            cover = ainfo.get('cover') or ainfo.get('image') or get_safe_cover_url(aid, size="_3x4")
+            author = ainfo.get('author') or (tags[0] if tags else "未知作者")
+            category_title = ""
+            if isinstance(ainfo.get('category'), dict):
+                category_title = ainfo['category'].get('title', '')
+            results.append({
+                "id": str(aid),
+                "title": title,
+                "author": author,
+                "tags": tags,
+                "cover": cover,
+                "category": category_title,
+                "page_count": ainfo.get('page_count', 0),
+                "pub_date": ainfo.get('pub_date', "")
+            })
+
+        total = fav_page.total if hasattr(fav_page, 'total') else len(results)
+        page_count = fav_page.page_count if hasattr(fav_page, 'page_count') else 1
+        if callable(page_count):
+            page_count = page_count()
+
+        # Extract latest cookies
+        latest_cookies = dict(client.get_meta_data('cookies') or {}) if hasattr(client, 'get_meta_data') else {}
+
+        emit_json({
+            "code": 0,
+            "data": {
+                "folder_id": folder_id,
+                "folders": folders,
+                "page": page,
+                "total_pages": max(1, page_count),
+                "total_count": total,
+                "results": results,
+                "cookies": latest_cookies
+            }
+        })
+    except Exception as e:
+        emit_json({"code": 1, "msg": f"Failed to get favorites: {str(e)}"})
+
+
+def cmd_toggle_favorite(args):
+    """Add or remove an album from favorites."""
+    if not HAS_JMCOMIC:
+        emit_json({"code": 1, "msg": "jmcomic not installed"})
+        return
+
+    album_id = str(args.album_id).strip()
+    folder_id = str(args.folder_id or "0").strip()
+    cookies = parse_cookies_arg(args.cookies)
+    username = (args.username or "").strip()
+    password = (args.password or "").strip()
+
+    try:
+        option = create_custom_option(args.proxy, args.domain, cookies=cookies)
+        client = option.new_jm_client()
+
+        if not cookies and username and password:
+            client.login(username, password)
+
+        resp = client.add_favorite_album(album_id=album_id, folder_id=folder_id)
+        msg = getattr(resp, 'res_data', {}).get('msg', '操作成功') if hasattr(resp, 'res_data') and resp.res_data else '操作成功'
+
+        emit_json({
+            "code": 0,
+            "msg": msg,
+            "data": {
+                "album_id": album_id,
+                "folder_id": folder_id
+            }
+        })
+    except Exception as e:
+        emit_json({"code": 1, "msg": f"Toggle favorite failed: {str(e)}"})
+
+
 def main():
     parser = argparse.ArgumentParser(description="JMComic CLI Bridge for Koodo Reader")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -575,6 +798,31 @@ def main():
     dl_p.add_argument("--proxy", default=None, help="HTTP/SOCKS5 proxy url")
     dl_p.add_argument("--domain", default=None, help="JM comic domain")
 
+    login_p = subparsers.add_parser("login", help="Login to JM account")
+    login_p.add_argument("--username", "-u", required=True, help="Username or email")
+    login_p.add_argument("--password", "-pwd", required=True, help="Password")
+    login_p.add_argument("--proxy", default=None, help="HTTP/SOCKS5 proxy url")
+    login_p.add_argument("--domain", default=None, help="JM comic domain")
+
+    fav_p = subparsers.add_parser("favorites", help="Get user favorite albums")
+    fav_p.add_argument("--folder_id", "-f", default="0", help="Favorite folder ID")
+    fav_p.add_argument("--page", "-p", default=1, type=int, help="Page number")
+    fav_p.add_argument("--order", "-o", default="mr", help="Order by (mr: latest, mv: views, etc.)")
+    fav_p.add_argument("--cookies", default=None, help="JSON encoded cookies dictionary")
+    fav_p.add_argument("--username", "-u", default=None, help="Username for fallback login")
+    fav_p.add_argument("--password", "-pwd", default=None, help="Password for fallback login")
+    fav_p.add_argument("--proxy", default=None, help="HTTP/SOCKS5 proxy url")
+    fav_p.add_argument("--domain", default=None, help="JM comic domain")
+
+    fav_toggle_p = subparsers.add_parser("toggle_favorite", help="Toggle album favorite status")
+    fav_toggle_p.add_argument("--album_id", "-id", required=True, help="Album ID")
+    fav_toggle_p.add_argument("--folder_id", "-f", default="0", help="Folder ID")
+    fav_toggle_p.add_argument("--cookies", default=None, help="JSON encoded cookies dictionary")
+    fav_toggle_p.add_argument("--username", "-u", default=None, help="Username for fallback login")
+    fav_toggle_p.add_argument("--password", "-pwd", default=None, help="Password for fallback login")
+    fav_toggle_p.add_argument("--proxy", default=None, help="HTTP/SOCKS5 proxy url")
+    fav_toggle_p.add_argument("--domain", default=None, help="JM comic domain")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -589,6 +837,9 @@ def main():
         "rank": cmd_rank,
         "detail": cmd_detail,
         "download": cmd_download,
+        "login": cmd_login,
+        "favorites": cmd_favorites,
+        "toggle_favorite": cmd_toggle_favorite,
     }
 
     func = dispatch.get(args.command)
