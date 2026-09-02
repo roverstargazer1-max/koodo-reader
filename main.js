@@ -38,6 +38,7 @@ const yazl = require("yazl");
 const yauzl = require("yauzl");
 const { getVoicePlugin } = require("./src/utils/plugins/main/registry");
 const { initJmcomicIpc } = require("./scripts/jmcomic/jmcomicManager");
+const { initPicaIpc } = require("./scripts/pica/picaManager");
 const configDir = app.getPath("userData");
 const dirPath = path.join(configDir, "uploads");
 const packageJson = require("./package.json");
@@ -2954,6 +2955,7 @@ const createMainWin = () => {
     }
   });
   initJmcomicIpc(ipcMain, () => mainWin);
+  initPicaIpc(ipcMain, () => mainWin);
 };
 
 const applyCorsToRendererRequests = () => {

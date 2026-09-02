@@ -82,6 +82,22 @@ const INVOKE_CHANNELS = new Set([
   "jmcomic-toggle-favorite",
   "jmcomic-download",
   "jmcomic-cancel-download",
+  "pica-update-config",
+  "pica-test-route",
+  "pica-login",
+  "pica-get-profile",
+  "pica-get-categories",
+  "pica-get-comics",
+  "pica-search",
+  "pica-get-leaderboard",
+  "pica-get-random",
+  "pica-get-detail",
+  "pica-get-episodes",
+  "pica-get-pages",
+  "pica-get-favorites",
+  "pica-toggle-favorite",
+  "pica-download",
+  "pica-cancel-download",
   "open-file-path",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);
@@ -113,6 +129,9 @@ const EVENT_CHANNELS = new Set([
   "jmcomic-download-progress",
   "jmcomic-download-finish",
   "jmcomic-download-error",
+  "pica-download-progress",
+  "pica-download-finish",
+  "pica-download-error",
 ]);
 
 const assertChannel = (set, channel) => {

@@ -1,8 +1,22 @@
-const desktopOnlyModes = new Set(["jmcomic"]);
+const desktopOnlyModes = new Set(["jmcomic", "onlineComics", "picacomic"]);
 const isDesktopRuntime =
   typeof window !== "undefined" && Boolean(window.electronAPI);
 
-const allSideMenuItems = [
+export interface SideSubMenuItem {
+  name: string;
+  icon: string;
+  mode: string;
+}
+
+export interface SideMenuItem {
+  name: string;
+  icon: string;
+  mode: string;
+  isExpandable?: boolean;
+  subItems?: SideSubMenuItem[];
+}
+
+const allSideMenuItems: SideMenuItem[] = [
   {
     name: "Books",
     icon: "home-line",
@@ -16,7 +30,20 @@ const allSideMenuItems = [
   {
     name: "Online Comics",
     icon: "image",
-    mode: "jmcomic",
+    mode: "onlineComics",
+    isExpandable: true,
+    subItems: [
+      {
+        name: "JMComic",
+        icon: "image",
+        mode: "jmcomic",
+      },
+      {
+        name: "PicaComic",
+        icon: "picture-line",
+        mode: "picacomic",
+      },
+    ],
   },
   {
     name: "Notes",
@@ -36,5 +63,8 @@ const allSideMenuItems = [
 ];
 
 export const sideMenu = allSideMenuItems.filter(
-  (item) => isDesktopRuntime || !desktopOnlyModes.has(item.mode)
+  (item) =>
+    isDesktopRuntime ||
+    process.env.NODE_ENV === "development" ||
+    !desktopOnlyModes.has(item.mode)
 );

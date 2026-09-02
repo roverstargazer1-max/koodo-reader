@@ -237,8 +237,126 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
-  padding: 12px 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 16px 0 8px 0;
+  user-select: none;
+}
+
+.jmcomic-pagination-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.04));
+  color: var(--text-color, #333);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.jmcomic-pagination-btn:hover:not(:disabled):not(.active) {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: var(--border-color, rgba(0, 0, 0, 0.22));
+}
+
+.jmcomic-pagination-btn.active {
+  background: var(--theme-color, #007aff);
+  border-color: var(--theme-color, #007aff);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: default;
+}
+
+.jmcomic-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.jmcomic-pagination-ellipsis {
+  min-width: 24px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #888);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.jmcomic-pagination-ellipsis:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--theme-color, #007aff);
+}
+
+.jmcomic-pagination-jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+}
+
+.jmcomic-pagination-input {
+  width: 50px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.18));
+  background: var(--input-bg, #ffffff);
+  color: var(--text-color, #333);
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.jmcomic-pagination-input:focus {
+  border-color: var(--theme-color, #007aff);
+}
+
+.jmcomic-pagination-input::-webkit-outer-spin-button,
+.jmcomic-pagination-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.jmcomic-pagination-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.jmcomic-pagination-jump-btn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.04));
+  color: var(--text-color, #333);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.jmcomic-pagination-jump-btn:hover {
+  background: var(--theme-color, #007aff);
+  color: #ffffff;
+  border-color: var(--theme-color, #007aff);
 }
 
 /* Detail Modal */

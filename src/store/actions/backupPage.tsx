@@ -18,6 +18,9 @@ export function handleOPDSDialog(mode: boolean) {
 export function handleJmcomicDialog(mode: boolean) {
   return { type: "HANDLE_JMCOMIC_DIALOG", payload: mode };
 }
+export function handlePicaDialog(mode: boolean) {
+  return { type: "HANDLE_PICA_DIALOG", payload: mode };
+}
 export function handleAutoImportDialog(mode: boolean) {
   return { type: "HANDLE_AUTO_IMPORT_DIALOG", payload: mode };
 }

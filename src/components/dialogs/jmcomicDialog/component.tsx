@@ -19,6 +19,156 @@ const extractPayload = (arg1: any, arg2: any) => {
   return arg1;
 };
 
+interface JmcomicPaginationProps {
+  current: number;
+  total: number;
+  onPageChange: (p: number) => void;
+  t: (key: string) => string;
+}
+
+const JmcomicPagination: React.FC<JmcomicPaginationProps> = ({
+  current,
+  total,
+  onPageChange,
+  t,
+}) => {
+  const [inputVal, setInputVal] = React.useState<string>(String(current));
+
+  React.useEffect(() => {
+    setInputVal(String(current));
+  }, [current]);
+
+  if (total <= 1) return null;
+
+  const handleJump = (target?: number) => {
+    let pageNum = target !== undefined ? target : parseInt(inputVal.trim(), 10);
+    if (isNaN(pageNum)) {
+      setInputVal(String(current));
+      return;
+    }
+    const clamped = Math.max(1, Math.min(total, pageNum));
+    if (clamped !== current) {
+      onPageChange(clamped);
+    }
+    setInputVal(String(clamped));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleJump();
+    }
+  };
+
+  // Generate page items
+  const renderPageButtons = () => {
+    const items: (number | string)[] = [];
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) items.push(i);
+    } else {
+      if (current <= 4) {
+        for (let i = 1; i <= 5; i++) items.push(i);
+        items.push("...right");
+        items.push(total);
+      } else if (current >= total - 3) {
+        items.push(1);
+        items.push("...left");
+        for (let i = total - 4; i <= total; i++) items.push(i);
+      } else {
+        items.push(1);
+        items.push("...left");
+        for (let i = current - 1; i <= current + 1; i++) items.push(i);
+        items.push("...right");
+        items.push(total);
+      }
+    }
+
+    return items.map((item, idx) => {
+      if (typeof item === "number") {
+        return (
+          <button
+            key={`page-${item}`}
+            className={`jmcomic-pagination-btn ${item === current ? "active" : ""}`}
+            onClick={() => {
+              if (item !== current) onPageChange(item);
+            }}
+          >
+            {item}
+          </button>
+        );
+      } else if (item === "...left") {
+        return (
+          <span
+            key={`ellipsis-left-${idx}`}
+            className="jmcomic-pagination-ellipsis"
+            title={t("Previous page")}
+            onClick={() => handleJump(Math.max(1, current - 5))}
+          >
+            ...
+          </span>
+        );
+      } else {
+        return (
+          <span
+            key={`ellipsis-right-${idx}`}
+            className="jmcomic-pagination-ellipsis"
+            title={t("Next page")}
+            onClick={() => handleJump(Math.min(total, current + 5))}
+          >
+            ...
+          </span>
+        );
+      }
+    });
+  };
+
+  return (
+    <div className="jmcomic-pagination">
+      <button
+        className="jmcomic-pagination-btn"
+        disabled={current <= 1}
+        onClick={() => onPageChange(current - 1)}
+        title={t("Previous page")}
+      >
+        <Trans>Previous page</Trans>
+      </button>
+
+      {renderPageButtons()}
+
+      <button
+        className="jmcomic-pagination-btn"
+        disabled={current >= total}
+        onClick={() => onPageChange(current + 1)}
+        title={t("Next page")}
+      >
+        <Trans>Next page</Trans>
+      </button>
+
+      <div className="jmcomic-pagination-jump">
+        <span><Trans>Page</Trans></span>
+        <input
+          type="number"
+          min={1}
+          max={total}
+          className="jmcomic-pagination-input"
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => handleJump()}
+        />
+        <span>/ {total}</span>
+        <button
+          className="jmcomic-pagination-jump-btn"
+          onClick={() => handleJump()}
+          title={t("Confirm")}
+        >
+          <Trans>Confirm</Trans>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 class JmcomicDialog extends React.Component<
   JmcomicDialogProps,
   JmcomicDialogState
@@ -1243,25 +1393,12 @@ class JmcomicDialog extends React.Component<
   ) {
     if (total <= 1) return null;
     return (
-      <div className="jmcomic-pagination">
-        <button
-          className="jmcomic-btn secondary"
-          disabled={current <= 1}
-          onClick={() => onPageChange(current - 1)}
-        >
-          <Trans>Previous</Trans>
-        </button>
-        <span style={{ fontSize: "13px", opacity: 0.7 }}>
-          {current} / {total}
-        </span>
-        <button
-          className="jmcomic-btn secondary"
-          disabled={current >= total}
-          onClick={() => onPageChange(current + 1)}
-        >
-          <Trans>Next</Trans>
-        </button>
-      </div>
+      <JmcomicPagination
+        current={current}
+        total={total}
+        onPageChange={onPageChange}
+        t={this.props.t}
+      />
     );
   }
 

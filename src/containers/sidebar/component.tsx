@@ -22,7 +22,10 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
       mode: "home",
       hoverMode: "",
       hoverShelfTitle: "",
+      hoverSubMode: "",
       isCollpaseShelf: false,
+      isOnlineComicsExpanded:
+        ConfigService.getReaderConfig("isOnlineComicsExpanded") !== "no",
       isOpenDelete: false,
       shelfTitle: "",
       isCollapsed:
@@ -60,9 +63,36 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
       this.setState({ isCreateShelf: false, newShelfName: "" });
     }
   }
+  handleToggleOnlineComics = (event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    const nextState = !this.state.isOnlineComicsExpanded;
+    this.setState({ isOnlineComicsExpanded: nextState });
+    ConfigService.setReaderConfig(
+      "isOnlineComicsExpanded",
+      nextState ? "yes" : "no"
+    );
+  };
   handleSidebar = (mode: string) => {
     if (mode === "jmcomic") {
+      ConfigService.setReaderConfig("lastActiveOnlineComicSource", "jmcomic");
       this.props.handleJmcomicDialog(true);
+      return;
+    }
+    if (mode === "picacomic") {
+      ConfigService.setReaderConfig("lastActiveOnlineComicSource", "picacomic");
+      this.props.handlePicaDialog(true);
+      return;
+    }
+    if (mode === "onlineComics") {
+      const lastSource =
+        ConfigService.getReaderConfig("lastActiveOnlineComicSource") || "jmcomic";
+      if (lastSource === "picacomic") {
+        this.props.handlePicaDialog(true);
+      } else {
+        this.props.handleJmcomicDialog(true);
+      }
       return;
     }
     this.setState({ mode: mode });
@@ -228,79 +258,129 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
     const renderSideMenu = () => {
       return sideMenu.map((item) => {
         const isDropTarget = this.isBookDropTarget(item.mode);
+        const isExpandable = Boolean(
+          item.isExpandable && item.subItems && item.subItems.length > 0
+        );
         return (
-          <li
-            key={item.name}
-            className={
-              (this.props.mode === item.mode
-                ? "active side-menu-item"
-                : "side-menu-item") +
-              (this.state.dropTargetShelf === item.mode
-                ? " shelf-drop-target"
-                : "")
-            }
-            id={`sidebar-${item.icon}`}
-            onClick={() => {
-              this.handleSidebar(item.mode);
-            }}
-            onMouseEnter={() => {
-              this.handleHover(item.mode);
-            }}
-            onMouseLeave={() => {
-              this.handleHover("");
-            }}
-            style={this.props.isCollapsed ? { width: 40, marginLeft: 15 } : {}}
-            {...(isDropTarget
-              ? this.getBookDragHandlers(
-                  item.mode,
-                  item.mode === "favorite"
-                    ? this.handleFavoriteDrop
-                    : this.handleTrashDrop
-                )
-              : {})}
-          >
-            {this.props.mode === item.mode ? (
-              <div className="side-menu-selector-container"></div>
-            ) : null}
-            {this.state.hoverMode === item.mode ? (
-              <div className="side-menu-hover-container"></div>
-            ) : null}
-            <div
+          <React.Fragment key={item.name}>
+            <li
               className={
-                this.props.mode === item.mode
-                  ? "side-menu-selector active-selector"
-                  : "side-menu-selector "
+                (this.props.mode === item.mode
+                  ? "active side-menu-item"
+                  : "side-menu-item") +
+                (this.state.dropTargetShelf === item.mode
+                  ? " shelf-drop-target"
+                  : "")
               }
+              id={`sidebar-${item.icon}`}
+              onClick={() => {
+                this.handleSidebar(item.mode);
+              }}
+              onMouseEnter={() => {
+                this.handleHover(item.mode);
+              }}
+              onMouseLeave={() => {
+                this.handleHover("");
+              }}
+              style={
+                this.props.isCollapsed ? { width: 40, marginLeft: 15 } : {}
+              }
+              {...(isDropTarget
+                ? this.getBookDragHandlers(
+                    item.mode,
+                    item.mode === "favorite"
+                      ? this.handleFavoriteDrop
+                      : this.handleTrashDrop
+                  )
+                : {})}
             >
+              {this.props.mode === item.mode ? (
+                <div className="side-menu-selector-container"></div>
+              ) : null}
+              {this.state.hoverMode === item.mode ? (
+                <div className="side-menu-hover-container"></div>
+              ) : null}
               <div
-                className="side-menu-icon"
-                style={this.props.isCollapsed ? {} : { marginLeft: "38px" }}
-              >
-                <span
-                  className={
-                    this.props.mode === item.mode
-                      ? `icon-${item.icon}  active-icon`
-                      : `icon-${item.icon}`
-                  }
-                  style={
-                    this.props.isCollapsed
-                      ? { position: "relative", marginLeft: "-9px" }
-                      : {}
-                  }
-                ></span>
-              </div>
-
-              <span
-                style={
-                  this.props.isCollapsed
-                    ? { display: "none", width: "70%" }
-                    : { width: "60%" }
+                className={
+                  this.props.mode === item.mode
+                    ? "side-menu-selector active-selector"
+                    : "side-menu-selector "
                 }
               >
-                {this.props.t(item.name)}
-              </span>
-            </div>
-          </li>
+                <div
+                  className="side-menu-icon"
+                  style={this.props.isCollapsed ? {} : { marginLeft: "38px" }}
+                >
+                  <span
+                    className={
+                      this.props.mode === item.mode
+                        ? `icon-${item.icon}  active-icon`
+                        : `icon-${item.icon}`
+                    }
+                    style={
+                      this.props.isCollapsed
+                        ? { position: "relative", marginLeft: "-9px" }
+                        : {}
+                    }
+                  ></span>
+                </div>
+
+                <span
+                  style={
+                    this.props.isCollapsed
+                      ? { display: "none", width: "70%" }
+                      : { width: isExpandable ? "48%" : "60%" }
+                  }
+                >
+                  {this.props.t(item.name)}
+                </span>
+
+                {isExpandable && !this.props.isCollapsed && (
+                  <span
+                    className="icon-dropdown sidebar-expand-arrow"
+                    onClick={this.handleToggleOnlineComics}
+                    style={{
+                      transform: this.state.isOnlineComicsExpanded
+                        ? "rotate(0deg)"
+                        : "rotate(-90deg)",
+                    }}
+                  ></span>
+                )}
+              </div>
+            </li>
+
+            {isExpandable &&
+              !this.props.isCollapsed &&
+              this.state.isOnlineComicsExpanded &&
+              item.subItems?.map((subItem) => (
+                <li
+                  key={subItem.name}
+                  className="side-menu-sub-item"
+                  id={`sidebar-sub-${subItem.mode}`}
+                  onClick={() => {
+                    this.handleSidebar(subItem.mode);
+                  }}
+                  onMouseEnter={() => {
+                    this.setState({ hoverSubMode: subItem.mode });
+                  }}
+                  onMouseLeave={() => {
+                    this.setState({ hoverSubMode: "" });
+                  }}
+                >
+                  {this.state.hoverSubMode === subItem.mode ? (
+                    <div className="side-menu-hover-container"></div>
+                  ) : null}
+                  <div className="side-menu-selector">
+                    <div className="side-menu-icon">
+                      <span className={`icon-${subItem.icon}`}></span>
+                    </div>
+                    <span style={{ width: "65%" }}>
+                      {this.props.t(subItem.name)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+          </React.Fragment>
         );
       });
     };

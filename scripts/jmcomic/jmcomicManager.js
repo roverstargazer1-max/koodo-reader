@@ -192,7 +192,6 @@ function installSourceEnvironment(options = {}) {
     });
   });
 }
-
 /**
  * Setup webRequest headers for 18comic images (bypass anti-hotlink)
  */
@@ -208,7 +207,6 @@ function setupJmcomicImageProxy() {
       "*://*.jm-comic2.club/*",
       "*://*.jm-comic3.club/*",
       "*://*.jmapiproxy2.cc/*",
-      "*://*.cdn-msp*.cc/*",
       "*://*.cdnhjk.net/*",
       "*://*.cdngwc.cc/*",
       "*://*.cdngwc.net/*",
@@ -232,9 +230,6 @@ function setupJmcomicImageProxy() {
   }
 }
 
-/**
- * Initialize IPC handlers for JMComic
- */
 function initJmcomicIpc(ipcMain, getMainWindow) {
   setupJmcomicImageProxy();
 

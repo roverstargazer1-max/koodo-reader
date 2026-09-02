@@ -9,6 +9,7 @@ export interface SidebarProps extends RouteComponentProps<any> {
   handleMode: (mode: string) => void;
   handleSortShelfDialog: (isOpenSortShelfDialog: boolean) => void;
   handleJmcomicDialog: (isOpen: boolean) => void;
+  handlePicaDialog: (isOpen: boolean) => void;
   handleSearch: (isSearch: boolean) => void;
   handleCollapse: (isCollapsed: boolean) => void;
   handleSortDisplay: (isSortDisplay: boolean) => void;
@@ -25,6 +26,8 @@ export interface SidebarState {
   hoverShelfTitle: string;
   isCollapsed: boolean;
   isCollpaseShelf: boolean;
+  isOnlineComicsExpanded: boolean;
+  hoverSubMode: string;
   shelfTitle: string;
   newShelfName: string;
   isOpenDelete: boolean;
