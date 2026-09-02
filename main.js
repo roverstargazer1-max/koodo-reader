@@ -1083,6 +1083,7 @@ const createMainWin = () => {
       case "mkdir":
         return fs.mkdirSync(filePath, args.options || {});
       case "read":
+      case "readFile":
         return fs.readFileSync(filePath, args.options);
       case "write":
         return fs.writeFileSync(

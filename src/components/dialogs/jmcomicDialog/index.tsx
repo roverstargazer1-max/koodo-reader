@@ -2,7 +2,7 @@ import { connect } from "react-redux";
 import { withTranslation } from "react-i18next";
 import { withRouter } from "react-router-dom";
 import { stateType } from "../../../store";
-import { handleJmcomicDialog } from "../../../store/actions";
+import { handleJmcomicDialog, handleFetchBooks } from "../../../store/actions";
 import JmcomicDialog from "./component";
 
 const mapStateToProps = (state: stateType) => {
@@ -13,6 +13,7 @@ const mapStateToProps = (state: stateType) => {
 
 const actionCreator = {
   handleJmcomicDialog,
+  handleFetchBooks,
 };
 
 export default connect(

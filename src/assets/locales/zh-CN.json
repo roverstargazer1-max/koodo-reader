@@ -1386,5 +1386,10 @@
   "Electron IPC is not available (desktop client required)": "无法连接 Electron IPC（需要桌面客户端环境）",
   "Python executable not found": "未找到 Python 解释器",
   "Installation failed": "安装失败",
-  "JMComic module not installed": "JMComic 模块未安装"
+  "JMComic module not installed": "JMComic 模块未安装",
+  "Import to Library": "导入到书库",
+  "Imported to library successfully": "成功导入到书库",
+  "No files found to import": "未找到可导入的文件",
+  "Open Folder": "打开文件夹",
+  "Open File Location": "打开文件所在位置"
 }

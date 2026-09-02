@@ -30,6 +30,7 @@ class JmcomicDialog extends React.Component<
   constructor(props: JmcomicDialogProps) {
     super(props);
     const savedConfig = this.loadConfig();
+    const savedTasks = this.loadTasks();
 
     this.state = {
       currentTab: "search",
@@ -53,7 +54,7 @@ class JmcomicDialog extends React.Component<
       selectedChapterIds: [],
       isLoadingDetail: false,
 
-      downloadTasks: {},
+      downloadTasks: savedTasks,
 
       config: savedConfig,
       availableDomains: [
@@ -81,6 +82,22 @@ class JmcomicDialog extends React.Component<
     this.removeDownloadListeners();
   }
 
+  loadTasks(): Record<string, JmDownloadTask> {
+    try {
+      return ConfigService.getObjectConfig("jmcomicDownloadTasks") || {};
+    } catch {
+      return {};
+    }
+  }
+
+  saveTasks(tasks: Record<string, JmDownloadTask>) {
+    try {
+      ConfigService.setObjectConfig("jmcomicDownloadTasks", tasks);
+    } catch (e) {
+      console.error("Failed to persist download tasks:", e);
+    }
+  }
+
   loadConfig(): JmcomicConfig {
     const raw = ConfigService.getObjectConfig("jmcomicConfig") || {};
     return {
@@ -100,6 +117,38 @@ class JmcomicDialog extends React.Component<
     ConfigService.setObjectConfig("jmcomicConfig", updated);
   }
 
+  importBookFile = async (filePath: string, fileName: string) => {
+    const ipc = getIpc();
+    try {
+      if (ipc) {
+        // Read file content as Buffer / ArrayBuffer
+        const buffer = await ipc.invoke("file-command", {
+          operation: "read",
+          path: filePath,
+        });
+        if (buffer) {
+          const arraybuffer = new Uint8Array(buffer).buffer;
+          const blob = new Blob([arraybuffer], { type: "application/x-cbz" });
+          const fileObj: any = new File([blob], fileName, {
+            type: "application/x-cbz",
+          });
+          fileObj.path = filePath;
+
+          if (typeof this.props.importBookFunc === "function") {
+            await this.props.importBookFunc(fileObj);
+          }
+          if (typeof this.props.handleFetchBooks === "function") {
+            this.props.handleFetchBooks();
+          }
+          return true;
+        }
+      }
+    } catch (err) {
+      console.error("Import file failed:", filePath, err);
+    }
+    return false;
+  };
+
   setupDownloadListeners() {
     const ipc = getIpc();
     if (ipc) {
@@ -118,19 +167,19 @@ class JmcomicDialog extends React.Component<
             percent: 0,
           };
 
-          return {
-            downloadTasks: {
-              ...prev.downloadTasks,
-              [albumId]: {
-                ...task,
-                status: percent >= 92 ? "packaging" : "downloading",
-                percent,
-                currentPhotoTitle: photo_title,
-                currentPhotoIndex: photo_index,
-                totalPhotos: total_photos,
-              },
+          const newTasks = {
+            ...prev.downloadTasks,
+            [albumId]: {
+              ...task,
+              status: percent >= 92 ? ("packaging" as const) : ("downloading" as const),
+              percent,
+              currentPhotoTitle: photo_title,
+              currentPhotoIndex: photo_index,
+              totalPhotos: total_photos,
             },
           };
+          this.saveTasks(newTasks);
+          return { downloadTasks: newTasks };
         });
       };
 
@@ -148,18 +197,21 @@ class JmcomicDialog extends React.Component<
             percent: 100,
           };
 
-          return {
-            downloadTasks: {
-              ...prev.downloadTasks,
-              [albumId]: {
-                ...task,
-                status: "completed",
-                percent: 100,
-                createdFiles: files,
-                imported: true,
-              },
+          const newTasks = {
+            ...prev.downloadTasks,
+            [albumId]: {
+              ...task,
+              title: title || task.title,
+              author: author || task.author,
+              coverUrl: cover_url || task.coverUrl,
+              status: "completed" as const,
+              percent: 100,
+              createdFiles: files,
+              imported: true,
             },
           };
+          this.saveTasks(newTasks);
+          return { downloadTasks: newTasks };
         });
 
         toast.success(
@@ -169,22 +221,10 @@ class JmcomicDialog extends React.Component<
         // Auto import into Koodo library if enabled
         if (this.state.config.autoImport && files && files.length > 0) {
           for (const item of files) {
-            try {
-              if (ipc) {
-                const buffer = await ipc.invoke("file-command", {
-                  operation: "readFile",
-                  path: item.path,
-                });
-                if (buffer) {
-                  const fileObj = new File([buffer], item.name, {
-                    type: "application/x-cbz",
-                  });
-                  await this.props.importBookFunc(fileObj);
-                }
-              }
-            } catch (err) {
-              console.error("Auto import failed:", err);
-            }
+            await this.importBookFile(item.path, item.name);
+          }
+          if (typeof this.props.handleFetchBooks === "function") {
+            this.props.handleFetchBooks();
           }
         }
       };
@@ -203,16 +243,16 @@ class JmcomicDialog extends React.Component<
             percent: 0,
           };
 
-          return {
-            downloadTasks: {
-              ...prev.downloadTasks,
-              [albumId]: {
-                ...task,
-                status: "failed",
-                errorMsg: msg,
-              },
+          const newTasks = {
+            ...prev.downloadTasks,
+            [albumId]: {
+              ...task,
+              status: "failed" as const,
+              errorMsg: msg,
             },
           };
+          this.saveTasks(newTasks);
+          return { downloadTasks: newTasks };
         });
         toast.error(`${this.props.t("Download Failed")}: ${msg || ""}`);
       };
@@ -575,20 +615,24 @@ class JmcomicDialog extends React.Component<
     const author = selectedAlbumDetail ? selectedAlbumDetail.author : "";
     const coverUrl = selectedAlbumDetail ? selectedAlbumDetail.cover : "";
 
-    this.setState((prev) => ({
-      downloadTasks: {
+    this.setState((prev) => {
+      const newTasks = {
         ...prev.downloadTasks,
         [albumId]: {
           albumId,
           title,
           author,
           coverUrl,
-          status: "pending",
+          status: "pending" as const,
           percent: 0,
         },
-      },
-      selectedAlbumId: null, // close detail modal
-    }));
+      };
+      this.saveTasks(newTasks);
+      return {
+        downloadTasks: newTasks,
+        selectedAlbumId: null, // close detail modal
+      };
+    });
 
     toast(this.props.t("Download started in background"), { icon: "📥" });
     const ipc = getIpc();
@@ -616,15 +660,17 @@ class JmcomicDialog extends React.Component<
     try {
       if (ipc) {
         await ipc.invoke("jmcomic-cancel-download", { albumId });
-        this.setState((prev) => ({
-          downloadTasks: {
+        this.setState((prev) => {
+          const newTasks = {
             ...prev.downloadTasks,
             [albumId]: {
               ...prev.downloadTasks[albumId],
-              status: "cancelled",
+              status: "cancelled" as const,
             },
-          },
-        }));
+          };
+          this.saveTasks(newTasks);
+          return { downloadTasks: newTasks };
+        });
         toast(this.props.t("Download Cancelled"));
       }
     } catch (err: any) {
@@ -982,6 +1028,46 @@ class JmcomicDialog extends React.Component<
     );
   }
 
+  deleteTask = (albumId: string) => {
+    this.setState((prev) => {
+      const copy = { ...prev.downloadTasks };
+      delete copy[albumId];
+      this.saveTasks(copy);
+      return { downloadTasks: copy };
+    });
+  };
+
+  handleManualImport = async (task: JmDownloadTask) => {
+    if (!task.createdFiles || task.createdFiles.length === 0) {
+      toast.error(this.props.t("No files found to import"));
+      return;
+    }
+    let successCount = 0;
+    for (const file of task.createdFiles) {
+      const ok = await this.importBookFile(file.path, file.name);
+      if (ok) successCount++;
+    }
+    if (successCount > 0) {
+      toast.success(
+        `${this.props.t("Imported to library successfully")}: ${task.title}`
+      );
+    } else {
+      toast.error(this.props.t("Import failed"));
+    }
+  };
+
+  handleOpenFileLocation = async (filePath?: string) => {
+    if (!filePath) return;
+    const ipc = getIpc();
+    try {
+      if (ipc) {
+        await ipc.invoke("open-file-path", { path: filePath });
+      }
+    } catch (e) {
+      console.error("Open file location failed:", e);
+    }
+  };
+
   renderDownloadsTab() {
     const { downloadTasks } = this.state;
     const taskList = Object.values(downloadTasks);
@@ -1018,6 +1104,7 @@ class JmcomicDialog extends React.Component<
                 }
               }
               this.setState({ downloadTasks: activeOnly });
+              this.saveTasks(activeOnly);
             }}
           >
             <Trans>Clear Finished</Trans>
@@ -1051,7 +1138,7 @@ class JmcomicDialog extends React.Component<
                   `${this.props.t("Packaging CBZ...")} (${task.percent}%)`}
                 {task.status === "completed" && (
                   <span style={{ color: "#34c759" }}>
-                    ✓ <Trans>Completed & Imported</Trans>
+                    ✓ <Trans>Completed</Trans>
                   </span>
                 )}
                 {task.status === "failed" && (
@@ -1075,7 +1162,7 @@ class JmcomicDialog extends React.Component<
                 </div>
               )}
             </div>
-            <div>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
               {(task.status === "downloading" ||
                 task.status === "pending") && (
                 <button
@@ -1084,6 +1171,50 @@ class JmcomicDialog extends React.Component<
                   onClick={() => this.cancelDownload(task.albumId)}
                 >
                   <Trans>Cancel</Trans>
+                </button>
+              )}
+
+              {task.status === "completed" && (
+                <>
+                  <button
+                    className="jmcomic-btn secondary"
+                    style={{ padding: "4px 8px", fontSize: "11px" }}
+                    onClick={() => this.handleManualImport(task)}
+                    title={this.props.t("Import to Library")}
+                  >
+                    <Trans>Import to Library</Trans>
+                  </button>
+                  {task.createdFiles && task.createdFiles[0] && (
+                    <button
+                      className="jmcomic-btn secondary"
+                      style={{ padding: "4px 8px", fontSize: "11px" }}
+                      onClick={() =>
+                        this.handleOpenFileLocation(task.createdFiles![0].path)
+                      }
+                      title={this.props.t("Open File Location")}
+                    >
+                      <Trans>Open Folder</Trans>
+                    </button>
+                  )}
+                  <button
+                    className="jmcomic-btn secondary"
+                    style={{ padding: "4px 8px", fontSize: "11px", opacity: 0.7 }}
+                    onClick={() => this.deleteTask(task.albumId)}
+                    title={this.props.t("Delete")}
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
+
+              {(task.status === "failed" || task.status === "cancelled") && (
+                <button
+                  className="jmcomic-btn secondary"
+                  style={{ padding: "4px 8px", fontSize: "11px", opacity: 0.7 }}
+                  onClick={() => this.deleteTask(task.albumId)}
+                  title={this.props.t("Delete")}
+                >
+                  ✕
                 </button>
               )}
             </div>

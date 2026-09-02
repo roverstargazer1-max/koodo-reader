@@ -1377,5 +1377,10 @@
   "Electron IPC is not available (desktop client required)": "Electron IPC is not available (desktop client required)",
   "Python executable not found": "Python executable not found",
   "Installation failed": "Installation failed",
-  "JMComic module not installed": "JMComic module not installed"
+  "JMComic module not installed": "JMComic module not installed",
+  "Import to Library": "Import to Library",
+  "Imported to library successfully": "Imported to library successfully",
+  "No files found to import": "No files found to import",
+  "Open Folder": "Open Folder",
+  "Open File Location": "Open File Location"
 }

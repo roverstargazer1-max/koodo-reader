@@ -58,6 +58,7 @@ export interface JmcomicConfig {
 export interface JmcomicDialogProps {
   handleJmcomicDialog: (isOpen: boolean) => void;
   importBookFunc: (file: any) => Promise<void>;
+  handleFetchBooks?: () => void;
   t: TFunction;
 }
 
