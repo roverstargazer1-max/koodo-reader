@@ -265,6 +265,12 @@ function setupJmcomicImageProxy() {
       "*://*.jm-comic.club/*",
       "*://*.jm-comic2.club/*",
       "*://*.jm-comic3.club/*",
+      "*://*.jmapiproxy2.cc/*",
+      "*://*.cdn-msp*.cc/*",
+      "*://*.cdnhjk.net/*",
+      "*://*.cdngwc.cc/*",
+      "*://*.cdngwc.net/*",
+      "*://*.cdngwc.club/*",
     ],
   };
 
@@ -339,6 +345,66 @@ function initJmcomicIpc(ipcMain, getMainWindow) {
     if (params.domain) args.push("--domain", params.domain);
 
     return runBridgeCommand("detail", args, params);
+  });
+
+  // 7. Login
+  ipcMain.handle("jmcomic-login", async (event, params = {}) => {
+    const args = [
+      "--username",
+      String(params.username || ""),
+      "--password",
+      String(params.password || ""),
+    ];
+    if (params.proxy) args.push("--proxy", params.proxy);
+    if (params.domain) args.push("--domain", params.domain);
+
+    return runBridgeCommand("login", args, params);
+  });
+
+  // 8. Get favorites
+  ipcMain.handle("jmcomic-get-favorites", async (event, params = {}) => {
+    const args = [];
+    if (params.folderId !== undefined && params.folderId !== null) {
+      args.push("--folder_id", String(params.folderId));
+    }
+    if (params.page) args.push("--page", String(params.page));
+    if (params.order) args.push("--order", params.order);
+    if (params.cookies) {
+      args.push(
+        "--cookies",
+        typeof params.cookies === "string"
+          ? params.cookies
+          : JSON.stringify(params.cookies)
+      );
+    }
+    if (params.username) args.push("--username", params.username);
+    if (params.password) args.push("--password", params.password);
+    if (params.proxy) args.push("--proxy", params.proxy);
+    if (params.domain) args.push("--domain", params.domain);
+
+    return runBridgeCommand("favorites", args, params);
+  });
+
+  // 9. Toggle favorite
+  ipcMain.handle("jmcomic-toggle-favorite", async (event, params = {}) => {
+    const args = ["--album_id", String(params.albumId)];
+    if (params.folderId !== undefined && params.folderId !== null) {
+      args.push("--folder_id", String(params.folderId));
+    }
+    if (params.cookies) {
+      args.push(
+        "--cookies",
+        typeof params.cookies === "string"
+          ? params.cookies
+          : JSON.stringify(params.cookies)
+      );
+    }
+    if (params.username) args.push("--username", params.username);
+    if (params.password) args.push("--password", params.password);
+    if (params.proxy) args.push("--proxy", params.proxy);
+    if (params.domain) args.push("--domain", params.domain);
+
+    return runBridgeCommand("toggle_favorite", args, params);
   });
 
   // 7. Download with streaming progress
