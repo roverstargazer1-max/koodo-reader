@@ -90,6 +90,7 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
     document.addEventListener("dragstart", this.handleDocumentDragStart, true);
     document.addEventListener("dragend", this.handleDocumentDragEnd, true);
     document.addEventListener("dragenter", this.handleExternalDragEnter, true);
+    document.addEventListener("dragover", this.handleDocumentDragOver, true);
     // Auto switch to configured startup shelf
     const startupShelf = ConfigService.getReaderConfig("startupShelf");
     if (startupShelf) {
@@ -113,6 +114,7 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
       this.handleExternalDragEnter,
       true
     );
+    document.removeEventListener("dragover", this.handleDocumentDragOver, true);
   }
 
   handleDocumentDragStart = (e: DragEvent) => {
@@ -128,6 +130,24 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
   };
   handleExternalDragEnter = (e: DragEvent) => {
     if (isExternalFileDragEvent(e)) {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = "copy";
+      this.handleDrag(true);
+    }
+  };
+
+  handleDocumentDragOver = (e: DragEvent) => {
+    if (isExternalFileDragEvent(e)) {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = "copy";
+      this.handleDrag(true);
+    }
+  };
+
+  handleExternalDragOver = (e: React.DragEvent) => {
+    if (isExternalFileDragEvent(e)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
       this.handleDrag(true);
     }
   };
@@ -146,9 +166,12 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
         className="manager"
         onDragEnter={(e) => {
           if (isExternalFileDragEvent(e)) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
             this.handleDrag(true);
           }
         }}
+        onDragOver={this.handleExternalDragOver}
       >
         <ProtectionOverlay />
         <Tooltip id="my-tooltip" style={{ zIndex: 25 }} />
@@ -169,6 +192,7 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            e.dataTransfer.dropEffect = "copy";
           }}
           onDrop={async (e) => {
             e.preventDefault();

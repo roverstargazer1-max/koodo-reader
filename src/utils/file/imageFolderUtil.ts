@@ -45,6 +45,34 @@ export interface FolderComicTask {
   images: ImageItem[];
 }
 
+/** Resolve an OS file path across Electron versions. */
+const getElectronFilePath = (file: any): string => {
+  if (typeof file?.path === "string" && file.path) {
+    return file.path;
+  }
+
+  try {
+    const getPathForFile = window.electronAPI?.webUtils?.getPathForFile;
+    if (typeof getPathForFile === "function") {
+      const path = getPathForFile(file);
+      return typeof path === "string" ? path : "";
+    }
+  } catch (error) {
+    // Files created in the renderer have no backing path; entry scanning can
+    // still process those items.
+    console.debug("Unable to resolve dropped file path:", error);
+  }
+  return "";
+};
+
+const isDirectoryStat = (stat: any): boolean =>
+  typeof stat?.isDirectory === "function"
+    ? stat.isDirectory()
+    : stat?.isDirectory === true;
+
+const isFileStat = (stat: any): boolean =>
+  typeof stat?.isFile === "function" ? stat.isFile() : stat?.isFile === true;
+
 /**
  * 将一组排好序的图片打包为标准的 .cbz (ZIP) 文件对象
  */
@@ -70,7 +98,7 @@ export const createCBZFromImages = async (
       buffer = await item.getData();
     } else if (item.file) {
       buffer = await item.file.arrayBuffer();
-    } else if (isElectron && item.path) {
+    } else if ((isElectron || window.electronAPI?.fs) && item.path) {
       const fs = window.electronAPI.fs;
       const nodeBuf = fs.readFileSync(item.path);
       buffer = nodeBuf.buffer.slice(
@@ -142,9 +170,9 @@ export const scanElectronImageFolder = (
         continue;
       }
 
-      if (stat.isDirectory()) {
+      if (isDirectoryStat(stat)) {
         subDirs.push(fullPath);
-      } else if (stat.isFile()) {
+      } else if (isFileStat(stat)) {
         const ext = path.extname(item).toLowerCase();
         if (isImageFile(item)) {
           currentImages.push({
@@ -284,21 +312,32 @@ export const processDroppedItems = async (
   const toastId = "import-folder-comic";
 
   // 1. Electron 环境优先通过 files[i].path 深度扫描
-  if (isElectron && dataTransfer.files && dataTransfer.files.length > 0) {
-    const fs = window.electronAPI.fs;
-    const path = window.electronAPI.path;
+  // Electron: resolve dropped paths through webUtils, with files[i].path as
+  // a compatibility fallback, before scanning the native filesystem.
+  const electronFs = window.electronAPI?.fs;
+  const electronPath = window.electronAPI?.path;
+  const canUseElectronFs = Boolean(electronFs && electronPath);
+  let electronPathCount = 0;
+  if (
+    canUseElectronFs &&
+    dataTransfer.files &&
+    dataTransfer.files.length > 0
+  ) {
+    const fs = electronFs;
+    const path = electronPath;
 
     const allComicTasks: FolderComicTask[] = [];
     const allRegularFiles: string[] = [];
 
     for (let i = 0; i < dataTransfer.files.length; i++) {
       const domFile: any = dataTransfer.files[i];
-      const filePath = domFile.path;
+      const filePath = getElectronFilePath(domFile);
       if (!filePath) continue;
+      electronPathCount++;
 
       try {
         const stat = fs.statSync(filePath);
-        if (stat.isDirectory()) {
+        if (isDirectoryStat(stat)) {
           const { comicTasks, regularBookPaths } = scanElectronImageFolder(
             filePath,
             fs,
@@ -306,7 +345,7 @@ export const processDroppedItems = async (
           );
           allComicTasks.push(...comicTasks);
           allRegularFiles.push(...regularBookPaths);
-        } else if (stat.isFile()) {
+        } else if (isFileStat(stat)) {
           const ext = path.extname(filePath).toLowerCase();
           if (supportedFormats.includes(ext)) {
             allRegularFiles.push(filePath);
@@ -351,7 +390,15 @@ export const processDroppedItems = async (
       toast.dismiss(toastId);
     }
 
-    return;
+    // A platform may expose the contained files but not the dropped
+    // directory itself. In that case no task is produced and the entry-based
+    // fallback below still needs to inspect the directory tree.
+    if (
+      electronPathCount > 0 &&
+      (allComicTasks.length > 0 || allRegularFiles.length > 0)
+    ) {
+      return;
+    }
   }
 
   // 2. Web 浏览器端环境

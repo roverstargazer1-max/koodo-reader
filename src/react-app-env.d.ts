@@ -44,6 +44,7 @@ interface ElectronAPI {
     resolve(...parts: string[]): string;
     posix: { join(...parts: string[]): string };
   };
+  webUtils: { getPathForFile(file: File): string };
   os: { platform(): string; homedir(): string };
   runtime: { platform: string; windowsStore: boolean };
   crypto: { md5(data: ArrayBuffer | ArrayBufferView): string; partialMd5(path: string): Promise<string>; fileMd5(path: string): Promise<string> };

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 const INVOKE_CHANNELS = new Set([
   "cancel-download-app",
@@ -107,6 +107,7 @@ const EVENT_CHANNELS = new Set([
   "open-note-from-link",
   "picker-finished",
   "download-app-progress",
+  "download-app-error",
   "backup-progress",
   "restore-progress",
   "jmcomic-download-progress",
@@ -277,6 +278,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   removeListener,
   fs: file,
   path: pathApi,
+  webUtils: {
+    getPathForFile: (file) =>
+      webUtils && typeof webUtils.getPathForFile === "function"
+        ? webUtils.getPathForFile(file)
+        : "",
+  },
   os: {
     platform: () => process.platform,
     homedir: () => nodeSync("os-homedir"),

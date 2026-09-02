@@ -58,12 +58,14 @@ export function isExternalFileDragEvent(
   if (!e.dataTransfer) return false;
   if (isBookDragEvent(e)) return false;
   const types = Array.from(e.dataTransfer.types);
-  if (!types.includes("Files")) return false;
-  // Internal image drags (e.g. cover) carry html/uri-list alongside Files
-  if (types.includes("text/html") || types.includes("text/uri-list")) {
-    return false;
-  }
-  return true;
+  const isElectronRuntime =
+    typeof window !== "undefined" && Boolean(window.electronAPI);
+  return (
+    types.includes("Files") ||
+    Array.from(e.dataTransfer.items || []).some((item) => item.kind === "file") ||
+    (isElectronRuntime &&
+      (types.includes("text/uri-list") || types.includes("public.file-url")))
+  );
 }
 
 export function addBooksToShelf(
