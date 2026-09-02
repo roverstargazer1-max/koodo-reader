@@ -1321,5 +1321,6 @@
   "Enter your Notion personal access token": "Enter your Notion personal access token",
   "Please set the default sync option to local in the settings, or upgrade to Pro to sync with more cloud storage": "Please set the default sync option to local in the settings, or upgrade to Pro to sync with more cloud storage",
   "Please click the Koodo Reader extension icon in the upper right corner of the browser, authorize the request to this endpoint, and try again": "Please click the Koodo Reader extension icon in the upper right corner of the browser, authorize the request to this endpoint, and try again",
-  "How to sync library across devices": "How to sync library across devices"
+  "How to sync library across devices": "How to sync library across devices",
+  "Packaging comic": "Packaging comic"
 }

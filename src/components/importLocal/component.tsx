@@ -25,6 +25,11 @@ import {
 } from "../../utils/common";
 import DatabaseService from "../../utils/storage/databaseService";
 import { BookHelper } from "../../assets/lib/kookit.min";
+import {
+  createCBZFromImages,
+  scanBrowserEntries,
+  scanElectronImageFolder,
+} from "../../utils/file/imageFolderUtil";
 
 // Convert supportedFormats to react-dropzone v14+ accept format
 // Key is MIME type, value is array of file extensions
@@ -833,59 +838,19 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
                           if (!newPath) {
                             return;
                           }
-                          //get all files in the folder
                           const fs = window.electronAPI.fs;
                           const path = window.electronAPI.path;
-                          const getAllFiles = (dirPath: string): string[] => {
-                            let files: string[] = [];
 
+                          // 扫描该文件夹（支持图片文件夹自动打包漫画，以及普通图书文件）
+                          const { comicTasks, regularBookPaths } =
+                            scanElectronImageFolder(newPath, fs, path);
+
+                          // 导入普通图书
+                          for (const filePath of regularBookPaths) {
                             try {
-                              const items = fs.readdirSync(dirPath);
-
-                              for (const item of items) {
-                                const fullPath = path.join(dirPath, item);
-                                const stat = fs.statSync(fullPath);
-
-                                if (stat.isDirectory) {
-                                  // Recursively get files from subdirectories
-                                  files = files.concat(getAllFiles(fullPath));
-                                } else if (stat.isFile) {
-                                  // Check if file has supported format
-                                  const ext = path
-                                    .extname(item)
-                                    .toLowerCase()
-                                    .substring(1);
-                                  if (supportedFormats.includes(`.${ext}`)) {
-                                    files.push(fullPath);
-                                  }
-                                }
-                              }
-                            } catch (error) {
-                              const errorMessage =
-                                error instanceof Error
-                                  ? error.message
-                                  : String(error);
-                              toast.error(errorMessage);
-                              console.error(
-                                `Error reading directory ${dirPath}:`,
-                                error
-                              );
-                            }
-
-                            return files;
-                          };
-
-                          // Get all supported book files
-                          const allFiles = getAllFiles(newPath);
-                          // Process each file
-                          for (const filePath of allFiles) {
-                            try {
-                              const path = window.electronAPI.path;
                               const fileName = path.basename(filePath);
-
                               let file: any = new File([], fileName);
                               file.path = filePath;
-
                               await this.getMd5WithBrowser(file);
                             } catch (error) {
                               const errorMessage =
@@ -899,6 +864,38 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
                               );
                             }
                           }
+
+                          // 自动打包并导入漫画文件夹
+                          const toastId = "import-folder-comic";
+                          if (comicTasks.length > 0) {
+                            for (let i = 0; i < comicTasks.length; i++) {
+                              const task = comicTasks[i];
+                              toast.loading(
+                                `${this.props.t("Packaging comic")} (${i + 1}/${comicTasks.length}): ${task.title}`,
+                                { id: toastId }
+                              );
+                              try {
+                                const cbzFile = await createCBZFromImages(
+                                  task.title,
+                                  task.images
+                                );
+                                if (cbzFile) {
+                                  await this.getMd5WithBrowser(cbzFile);
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Failed to package comic:",
+                                  task.title,
+                                  error
+                                );
+                                toast.error(
+                                  `${this.props.t("Import failed")}: ${task.title}`
+                                );
+                              }
+                            }
+                            toast.dismiss(toastId);
+                          }
+
                           this.setState({
                             isMoreOptionsVisible: false,
                           });
