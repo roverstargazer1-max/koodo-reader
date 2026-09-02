@@ -8,6 +8,7 @@ export interface SidebarProps extends RouteComponentProps<any> {
   isOpenSortShelfDialog: boolean;
   handleMode: (mode: string) => void;
   handleSortShelfDialog: (isOpenSortShelfDialog: boolean) => void;
+  handleJmcomicDialog: (isOpen: boolean) => void;
   handleSearch: (isSearch: boolean) => void;
   handleCollapse: (isCollapsed: boolean) => void;
   handleSortDisplay: (isSortDisplay: boolean) => void;

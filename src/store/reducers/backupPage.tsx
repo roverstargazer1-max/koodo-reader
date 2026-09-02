@@ -4,6 +4,7 @@ const initState = {
   isOpenTokenDialog: false,
   isOpenImportDialog: false,
   isOpenOPDSDialog: false,
+  isOpenJmcomicDialog: false,
   isOpenAutoImportDialog: false,
   isOpenSortShelfDialog: false,
   isOpenPopupOptionDialog: false,
@@ -36,6 +37,11 @@ export function backupPage(
       return {
         ...state,
         isOpenOPDSDialog: action.payload,
+      };
+    case "HANDLE_JMCOMIC_DIALOG":
+      return {
+        ...state,
+        isOpenJmcomicDialog: action.payload,
       };
     case "HANDLE_AUTO_IMPORT_DIALOG":
       return {

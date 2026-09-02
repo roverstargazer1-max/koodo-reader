@@ -670,6 +670,13 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
     this.props.handleOPDSDialog(true);
   };
 
+  // Handle JMComic import
+  handleJmcomicImport = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    this.setState({ isMoreOptionsVisible: false });
+    this.props.handleJmcomicDialog(true);
+  };
+
   // Handle auto import folder
   handleAutoImport = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the Dropzone
@@ -974,6 +981,16 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
                         <Trans>From OPDS</Trans>
                       </span>
                     </div>
+                    {isElectron && (
+                      <div
+                        className="more-option-item"
+                        onClick={this.handleJmcomicImport}
+                      >
+                        <span className="more-option-text">
+                          <Trans>Online Comics</Trans>
+                        </span>
+                      </div>
+                    )}
                     <div
                       className="more-option-item"
                       onClick={this.handleURLImport}

@@ -78,6 +78,7 @@ export type stateType = {
     isOpenLocalFileDialog: boolean;
     isOpenImportDialog: boolean;
     isOpenOPDSDialog: boolean;
+    isOpenJmcomicDialog: boolean;
     isOpenAutoImportDialog: boolean;
     isOpenSortShelfDialog: boolean;
     isOpenPopupOptionDialog: boolean;

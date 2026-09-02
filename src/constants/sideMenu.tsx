@@ -9,7 +9,11 @@ export const sideMenu = [
     icon: "heart",
     mode: "favorite",
   },
-
+  {
+    name: "Online Comics",
+    icon: "image",
+    mode: "jmcomic",
+  },
   {
     name: "Notes",
     icon: "idea-line",

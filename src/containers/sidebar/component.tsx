@@ -61,6 +61,10 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
     }
   }
   handleSidebar = (mode: string) => {
+    if (mode === "jmcomic") {
+      this.props.handleJmcomicDialog(true);
+      return;
+    }
     this.setState({ mode: mode });
     this.props.handleSelectBook(false);
     this.props.history.push(`/manager/${mode}`);

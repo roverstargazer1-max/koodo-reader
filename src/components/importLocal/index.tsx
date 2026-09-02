@@ -4,6 +4,7 @@ import {
   handleLoadingDialog,
   handleImportDialog,
   handleOPDSDialog,
+  handleJmcomicDialog,
   handleAutoImportDialog,
   handleImportBookFunc,
 } from "../../store/actions";
@@ -30,6 +31,7 @@ const actionCreator = {
   handleLoadingDialog,
   handleImportDialog,
   handleOPDSDialog,
+  handleJmcomicDialog,
   handleAutoImportDialog,
   handleImportBookFunc,
 };

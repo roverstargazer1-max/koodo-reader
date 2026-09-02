@@ -6,6 +6,7 @@ import {
   handleSelectBook,
   handleShelf,
   handleSortShelfDialog,
+  handleJmcomicDialog,
 } from "../../store/actions";
 import { handleFetchBooks } from "../../store/actions/manager";
 import { connect } from "react-redux";
@@ -31,6 +32,7 @@ const actionCreator = {
   handleSelectBook,
   handleShelf,
   handleSortShelfDialog,
+  handleJmcomicDialog,
   handleFetchBooks,
 };
 
