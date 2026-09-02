@@ -1,0 +1,498 @@
+.jmcomic-dialog-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90vw;
+  max-width: 960px;
+  height: 85vh;
+  max-height: 720px;
+  background-color: var(--card-bg, #ffffff);
+  color: var(--text-color, #2c3e50);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.jmcomic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.jmcomic-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.jmcomic-tab-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary, #666);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jmcomic-tab-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-color, #2c3e50);
+}
+
+.jmcomic-tab-btn.active {
+  background: var(--theme-color, #007aff);
+  color: #ffffff;
+}
+
+.jmcomic-badge {
+  background: #ff3b30;
+  color: white;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.jmcomic-close-btn {
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.jmcomic-close-btn:hover {
+  opacity: 1;
+}
+
+.jmcomic-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  position: relative;
+}
+
+/* Search bar */
+.jmcomic-search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.jmcomic-search-input {
+  flex: 1;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #ccc);
+  background: var(--input-bg, #f9f9f9);
+  color: var(--text-color, #333);
+  font-size: 14px;
+  outline: none;
+}
+
+.jmcomic-search-input:focus {
+  border-color: var(--theme-color, #007aff);
+}
+
+.jmcomic-select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #ccc);
+  background: var(--input-bg, #f9f9f9);
+  color: var(--text-color, #333);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.jmcomic-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: var(--theme-color, #007aff);
+  color: white;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.jmcomic-btn:hover {
+  opacity: 0.9;
+}
+
+.jmcomic-btn.secondary {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-color, #333);
+}
+
+.jmcomic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Card Grid */
+.jmcomic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.jmcomic-card {
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.jmcomic-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.jmcomic-card-cover-box {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: #eee;
+  overflow: hidden;
+  position: relative;
+}
+
+.jmcomic-card-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.jmcomic-card-info {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.jmcomic-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--text-color, #2c3e50);
+}
+
+.jmcomic-card-author {
+  font-size: 11px;
+  color: var(--text-secondary, #777);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jmcomic-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.jmcomic-tag {
+  font-size: 10px;
+  padding: 1px 5px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  color: var(--text-secondary, #555);
+}
+
+/* Pagination */
+.jmcomic-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+/* Detail Modal */
+.jmcomic-detail-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.jmcomic-detail-modal {
+  background: var(--card-bg, #ffffff);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.jmcomic-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.jmcomic-detail-content {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.jmcomic-detail-cover {
+  width: 150px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.jmcomic-detail-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jmcomic-detail-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.jmcomic-chapters-box {
+  margin-top: 10px;
+  border-top: 1px solid var(--border-color, #eee);
+  padding-top: 10px;
+}
+
+.jmcomic-chapters-list {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.jmcomic-chapter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.jmcomic-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+/* Downloads Tab */
+.jmcomic-task-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.jmcomic-task-cover {
+  width: 48px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.jmcomic-task-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jmcomic-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.jmcomic-progress-bar {
+  height: 100%;
+  background: var(--theme-color, #007aff);
+  transition: width 0.3s;
+}
+
+/* Settings Form */
+.jmcomic-form-group {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jmcomic-form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color, #333);
+}
+
+.jmcomic-form-desc {
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+}
+
+/* Spinner and Status animations */
+@keyframes jmcomic-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.jmcomic-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: jmcomic-spin 0.8s linear infinite;
+}
+
+.jmcomic-spinner.dark {
+  border-color: rgba(0, 0, 0, 0.2);
+  border-top-color: var(--theme-color, #007aff);
+}
+
+@keyframes jmcomic-pulse-anim {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(50%); }
+  100% { transform: translateX(100%); }
+}
+
+.jmcomic-pulse-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  margin: 8px 0;
+}
+
+.jmcomic-pulse-bar {
+  width: 40%;
+  height: 100%;
+  background: var(--theme-color, #007aff);
+  border-radius: 2px;
+  animation: jmcomic-pulse-anim 1.5s ease-in-out infinite;
+}
+
+.jmcomic-env-box {
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.jmcomic-env-box.success {
+  background: rgba(52, 199, 89, 0.08);
+  border-color: rgba(52, 199, 89, 0.3);
+}
+
+.jmcomic-env-box.warning {
+  background: rgba(255, 149, 0, 0.08);
+  border-color: rgba(255, 149, 0, 0.3);
+}
+
+.jmcomic-env-box.error {
+  background: rgba(255, 59, 48, 0.08);
+  border-color: rgba(255, 59, 48, 0.3);
+}
+
+.jmcomic-env-box.loading {
+  background: rgba(0, 122, 255, 0.06);
+  border-color: rgba(0, 122, 255, 0.25);
+}
+
+.jmcomic-log-details {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.jmcomic-log-details summary {
+  cursor: pointer;
+  color: var(--theme-color, #007aff);
+  font-weight: 500;
+  user-select: none;
+}
+
+.jmcomic-log-box {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 11px;
+  max-height: 140px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-color, #333);
+}
+
+
