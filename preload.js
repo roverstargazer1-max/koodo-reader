@@ -71,6 +71,14 @@ const INVOKE_CHANNELS = new Set([
   "crypto-file-md5",
   "backup-path",
   "restore-path",
+  "jmcomic-check-env",
+  "jmcomic-install-deps",
+  "jmcomic-get-domains",
+  "jmcomic-search",
+  "jmcomic-rank",
+  "jmcomic-detail",
+  "jmcomic-download",
+  "jmcomic-cancel-download",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);
 const SEND_SYNC_CHANNELS = new Set([
@@ -97,6 +105,9 @@ const EVENT_CHANNELS = new Set([
   "download-app-progress",
   "backup-progress",
   "restore-progress",
+  "jmcomic-download-progress",
+  "jmcomic-download-finish",
+  "jmcomic-download-error",
 ]);
 
 const assertChannel = (set, channel) => {

@@ -128,6 +128,7 @@
       "package.json",
       "src/assets/lib/kookit-extra.min.mjs",
       "src/utils/plugins/main/**/*.js",
+      "scripts/jmcomic/**/*",
       "main.js",
       "preload.js",
       "chat-preload.js"

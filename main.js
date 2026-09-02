@@ -30,6 +30,7 @@ const nodeCrypto = require("crypto");
 const yazl = require("yazl");
 const yauzl = require("yauzl");
 const { getVoicePlugin } = require("./src/utils/plugins/main/registry");
+const { initJmcomicIpc } = require("./scripts/jmcomic/jmcomicManager");
 const configDir = app.getPath("userData");
 const dirPath = path.join(configDir, "uploads");
 const packageJson = require("./package.json");
@@ -2861,12 +2862,32 @@ const createMainWin = () => {
       }
     }
   });
+  initJmcomicIpc(ipcMain, () => mainWin);
 };
 
 const applyCorsToRendererRequests = () => {
   const filter = {
     urls: ["http://*/*", "https://*/*"],
   };
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    filter,
+    (details, callback) => {
+      const url = details.url || "";
+      if (
+        url.includes("jmapinodeudzn.net") ||
+        url.includes("jmapiproxy") ||
+        url.includes("18comic") ||
+        url.includes("cdnhjk.net") ||
+        url.includes("cdngwc")
+      ) {
+        delete details.requestHeaders["Referer"];
+        delete details.requestHeaders["Origin"];
+        details.requestHeaders["User-Agent"] =
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+      }
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    }
+  );
   session.defaultSession.webRequest.onHeadersReceived(
     filter,
     (details, callback) => {
