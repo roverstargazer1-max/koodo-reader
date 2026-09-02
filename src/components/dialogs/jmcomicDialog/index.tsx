@@ -7,6 +7,7 @@ import JmcomicDialog from "./component";
 
 const mapStateToProps = (state: stateType) => {
   return {
+    books: state.manager.books,
     importBookFunc: state.book.importBookFunc,
   };
 };

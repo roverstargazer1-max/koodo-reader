@@ -31,6 +31,9 @@ class JmcomicDialog extends React.Component<
     super(props);
     const savedConfig = this.loadConfig();
     const savedTasks = this.loadTasks();
+    const savedAuth = this.loadAuth();
+    const savedUser = this.loadUser();
+    const savedCookies = this.loadCookies();
 
     this.state = {
       currentTab: "search",
@@ -49,12 +52,38 @@ class JmcomicDialog extends React.Component<
       rankResults: [],
       isRanking: false,
 
+      // Favorites state
+      currentUser: savedUser,
+      savedAuth: savedAuth,
+      cookies: savedCookies,
+      isLoggingIn: false,
+      loginUsernameInput: savedAuth?.username || "",
+      loginPasswordInput: savedAuth?.password || "",
+      loginRememberInput: savedAuth?.remember !== false,
+      loginErrorMsg: "",
+
+      favoriteFolders: [{ id: "0", name: "全部/默认收藏" }],
+      activeFolderId: "0",
+      favoriteOrder: "mr",
+      favoritePage: 1,
+      favoriteTotalPages: 1,
+      favoriteTotalCount: 0,
+      favoriteResults: [],
+      isFavoritesLoading: false,
+
+      isBatchMode: false,
+      selectedBatchIds: [],
+
       selectedAlbumId: null,
       selectedAlbumDetail: null,
       selectedChapterIds: [],
       isLoadingDetail: false,
+      isFavoritedDetail: false,
+      isTogglingFavorite: false,
 
       downloadTasks: savedTasks,
+      downloadQueue: [],
+      isQueueRunning: false,
 
       config: savedConfig,
       availableDomains: [
@@ -80,6 +109,30 @@ class JmcomicDialog extends React.Component<
 
   componentWillUnmount() {
     this.removeDownloadListeners();
+  }
+
+  loadAuth(): { username: string; password?: string; remember: boolean } | null {
+    try {
+      return ConfigService.getObjectConfig("jmcomicAuth") || null;
+    } catch {
+      return null;
+    }
+  }
+
+  loadUser(): any | null {
+    try {
+      return ConfigService.getObjectConfig("jmcomicUser") || null;
+    } catch {
+      return null;
+    }
+  }
+
+  loadCookies(): Record<string, string> | null {
+    try {
+      return ConfigService.getObjectConfig("jmcomicCookies") || null;
+    } catch {
+      return null;
+    }
   }
 
   loadTasks(): Record<string, JmDownloadTask> {
@@ -211,7 +264,9 @@ class JmcomicDialog extends React.Component<
             },
           };
           this.saveTasks(newTasks);
-          return { downloadTasks: newTasks };
+          return { downloadTasks: newTasks, isQueueRunning: false };
+        }, () => {
+          setTimeout(() => this.processNextInQueue(), 800);
         });
 
         toast.success(
@@ -252,7 +307,9 @@ class JmcomicDialog extends React.Component<
             },
           };
           this.saveTasks(newTasks);
-          return { downloadTasks: newTasks };
+          return { downloadTasks: newTasks, isQueueRunning: false };
+        }, () => {
+          setTimeout(() => this.processNextInQueue(), 800);
         });
         toast.error(`${this.props.t("Download Failed")}: ${msg || ""}`);
       };
@@ -262,6 +319,326 @@ class JmcomicDialog extends React.Component<
       ipc.on("jmcomic-download-error", this.errorListener);
     }
   }
+
+  isBookInLibrary = (album: JmAlbumItem | { id: string; title: string }) => {
+    const books = this.props.books || [];
+    if (!books.length) return false;
+    const albumId = String(album.id);
+    const cleanTitle = (album.title || "").toLowerCase().trim();
+    return books.some((b: any) => {
+      if (!b) return false;
+      const bName = (b.name || "").toLowerCase();
+      const bTitle = (b.title || "").toLowerCase();
+      const bKey = (b.key || "").toLowerCase();
+      if (
+        bName.includes(`jm${albumId}`) ||
+        bTitle.includes(`jm${albumId}`) ||
+        bKey.includes(`jm${albumId}`)
+      ) {
+        return true;
+      }
+      if (cleanTitle && (bName.includes(cleanTitle) || bTitle.includes(cleanTitle))) {
+        return true;
+      }
+      return false;
+    });
+  };
+
+  enqueueBatchDownloads = (albumIds: string[]) => {
+    if (!albumIds || albumIds.length === 0) return;
+    const { downloadTasks, downloadQueue } = this.state;
+    const newTasks = { ...downloadTasks };
+    const toQueue: string[] = [];
+
+    for (const aid of albumIds) {
+      if (
+        !newTasks[aid] ||
+        newTasks[aid].status === "failed" ||
+        newTasks[aid].status === "cancelled" ||
+        newTasks[aid].status === "completed"
+      ) {
+        const item =
+          this.state.favoriteResults.find((a) => a.id === aid) ||
+          this.state.searchResults.find((a) => a.id === aid) ||
+          this.state.rankResults.find((a) => a.id === aid);
+
+        newTasks[aid] = {
+          albumId: aid,
+          title: item ? item.title : `JM${aid}`,
+          author: item ? item.author : "",
+          coverUrl: item ? item.cover : "",
+          status: "pending",
+          percent: 0,
+        };
+        toQueue.push(aid);
+      }
+    }
+
+    const updatedQueue = [...downloadQueue, ...toQueue];
+    this.saveTasks(newTasks);
+    this.setState(
+      {
+        downloadTasks: newTasks,
+        downloadQueue: updatedQueue,
+        isBatchMode: false,
+        selectedBatchIds: [],
+      },
+      () => {
+        toast.success(
+          `${this.props.t("Added to Download Queue")}: ${toQueue.length} ${this.props.t("comics")}`
+        );
+        this.processNextInQueue();
+      }
+    );
+  };
+
+  processNextInQueue = async () => {
+    const { isQueueRunning, downloadQueue, downloadTasks, config } = this.state;
+    if (isQueueRunning) return;
+    if (downloadQueue.length === 0) return;
+
+    const nextAlbumId = downloadQueue[0];
+    const remainingQueue = downloadQueue.slice(1);
+
+    this.setState({
+      isQueueRunning: true,
+      downloadQueue: remainingQueue,
+    });
+
+    const task = downloadTasks[nextAlbumId];
+    if (!task || task.status === "cancelled") {
+      this.setState({ isQueueRunning: false }, () => this.processNextInQueue());
+      return;
+    }
+
+    const ipc = getIpc();
+    try {
+      if (ipc) {
+        await ipc.invoke("jmcomic-download", {
+          albumId: nextAlbumId,
+          photoIds: [],
+          combine: config.combineCbz !== false,
+          threads: config.threads || 5,
+          proxy: config.proxy,
+          domain: config.domain,
+          outputDir: config.outputDir,
+          pythonPath: config.pythonPath,
+        });
+      }
+    } catch (err: any) {
+      console.error("Queue start error:", err);
+      this.setState({ isQueueRunning: false }, () => this.processNextInQueue());
+    }
+  };
+
+  handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const {
+      loginUsernameInput,
+      loginPasswordInput,
+      loginRememberInput,
+      config,
+    } = this.state;
+
+    if (!loginUsernameInput.trim() || !loginPasswordInput.trim()) {
+      toast.error(this.props.t("Username and password are required"));
+      return;
+    }
+
+    this.setState({ isLoggingIn: true, loginErrorMsg: "" });
+    const ipc = getIpc();
+    try {
+      if (ipc) {
+        const res = await ipc.invoke("jmcomic-login", {
+          username: loginUsernameInput.trim(),
+          password: loginPasswordInput.trim(),
+          proxy: config.proxy,
+          domain: config.domain,
+          pythonPath: config.pythonPath,
+        });
+
+        if (res && res.code === 0 && res.data) {
+          const { profile, cookies } = res.data;
+          const savedAuth = {
+            username: loginUsernameInput.trim(),
+            password: loginRememberInput ? loginPasswordInput.trim() : "",
+            remember: loginRememberInput,
+          };
+          ConfigService.setObjectConfig("jmcomicAuth", savedAuth);
+          ConfigService.setObjectConfig("jmcomicUser", profile);
+          ConfigService.setObjectConfig("jmcomicCookies", cookies);
+
+          this.setState({
+            currentUser: profile,
+            savedAuth,
+            cookies,
+            loginPasswordInput: loginRememberInput ? loginPasswordInput : "",
+            isLoggingIn: false,
+          });
+
+          toast.success(
+            `${this.props.t("Welcome")}, ${profile.username || loginUsernameInput}!`
+          );
+          this.fetchFavorites(1, "0");
+        } else {
+          const errMsg = res ? res.msg : "Login failed";
+          this.setState({ loginErrorMsg: errMsg, isLoggingIn: false });
+          toast.error(errMsg);
+        }
+      }
+    } catch (err: any) {
+      this.setState({
+        loginErrorMsg: err.message || "Login error",
+        isLoggingIn: false,
+      });
+      toast.error(err.message || "Login error");
+    }
+  };
+
+  handleLogout = () => {
+    ConfigService.setObjectConfig("jmcomicUser", null);
+    ConfigService.setObjectConfig("jmcomicCookies", null);
+    const savedAuth = this.state.savedAuth;
+    if (!savedAuth?.remember) {
+      ConfigService.setObjectConfig("jmcomicAuth", null);
+      this.setState({
+        savedAuth: null,
+        loginUsernameInput: "",
+        loginPasswordInput: "",
+      });
+    }
+    this.setState({
+      currentUser: null,
+      cookies: null,
+      favoriteResults: [],
+      favoriteFolders: [{ id: "0", name: "全部/默认收藏" }],
+      isBatchMode: false,
+      selectedBatchIds: [],
+    });
+    toast(this.props.t("Logged out"));
+  };
+
+  fetchFavorites = async (page = 1, folderId?: string) => {
+    const targetFolder =
+      folderId !== undefined ? folderId : this.state.activeFolderId;
+    const { favoriteOrder, config, cookies, savedAuth } = this.state;
+    this.setState({
+      isFavoritesLoading: true,
+      favoritePage: page,
+      activeFolderId: targetFolder,
+    });
+
+    const ipc = getIpc();
+    try {
+      if (ipc) {
+        const res = await ipc.invoke("jmcomic-get-favorites", {
+          folderId: targetFolder,
+          page,
+          order: favoriteOrder,
+          cookies,
+          username: savedAuth?.username,
+          password: savedAuth?.password,
+          proxy: config.proxy,
+          domain: config.domain,
+          pythonPath: config.pythonPath,
+        });
+
+        if (res && res.code === 0 && res.data) {
+          const {
+            folders,
+            results,
+            total_count,
+            total_pages,
+            cookies: latestCookies,
+          } = res.data;
+          if (latestCookies && Object.keys(latestCookies).length > 0) {
+            this.setState({ cookies: latestCookies });
+            ConfigService.setObjectConfig("jmcomicCookies", latestCookies);
+          }
+          this.setState({
+            favoriteFolders:
+              folders && folders.length > 0
+                ? folders
+                : this.state.favoriteFolders,
+            favoriteResults: results || [],
+            favoriteTotalCount: total_count || 0,
+            favoriteTotalPages: total_pages || 1,
+          });
+        } else {
+          if (
+            res &&
+            res.msg &&
+            (res.msg.includes("401") ||
+              res.msg.includes("登录") ||
+              res.msg.includes("login"))
+          ) {
+            if (savedAuth?.password) {
+              await this.handleLogin();
+              return;
+            } else {
+              this.setState({ currentUser: null });
+              toast.error(
+                this.props.t("Session expired, please log in again.")
+              );
+            }
+          } else {
+            toast.error(res ? res.msg : "Failed to fetch favorites");
+          }
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Favorites fetch error");
+    } finally {
+      this.setState({ isFavoritesLoading: false });
+    }
+  };
+
+  handleToggleFavorite = async (albumId: string) => {
+    const {
+      cookies,
+      savedAuth,
+      config,
+      isFavoritedDetail,
+      favoriteResults,
+    } = this.state;
+    this.setState({ isTogglingFavorite: true });
+    const ipc = getIpc();
+    try {
+      if (ipc) {
+        const res = await ipc.invoke("jmcomic-toggle-favorite", {
+          albumId,
+          cookies,
+          username: savedAuth?.username,
+          password: savedAuth?.password,
+          proxy: config.proxy,
+          domain: config.domain,
+          pythonPath: config.pythonPath,
+        });
+
+        if (res && res.code === 0) {
+          const nextState = !isFavoritedDetail;
+          this.setState({ isFavoritedDetail: nextState });
+          toast.success(
+            nextState
+              ? this.props.t("Added to Favorites")
+              : this.props.t("Removed from Favorites")
+          );
+
+          if (!nextState) {
+            this.setState({
+              favoriteResults: favoriteResults.filter((a) => a.id !== albumId),
+            });
+          }
+        } else {
+          toast.error(res ? res.msg : "Operation failed");
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to toggle favorite");
+    } finally {
+      this.setState({ isTogglingFavorite: false });
+    }
+  };
 
   removeDownloadListeners() {
     const ipc = getIpc();
@@ -789,13 +1166,41 @@ class JmcomicDialog extends React.Component<
       "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='140' viewBox='0 0 100 140'><rect width='100' height='140' fill='%23eee'/><text x='50' y='70' fill='%23aaa' font-size='12' text-anchor='middle'>JMComic</text></svg>";
   };
 
-  renderAlbumCard(album: JmAlbumItem) {
+  renderAlbumCard(
+    album: JmAlbumItem,
+    isBatch = false,
+    isSelected = false,
+    onToggleSelect?: (id: string) => void
+  ) {
+    const inLibrary = this.isBookInLibrary(album);
     return (
       <div
         key={album.id}
-        className="jmcomic-card"
-        onClick={() => this.openAlbumDetail(album.id)}
+        className={`jmcomic-card ${isBatch ? "batch-mode" : ""} ${isSelected ? "selected" : ""}`}
+        onClick={() => {
+          if (isBatch && onToggleSelect) {
+            onToggleSelect(album.id);
+          } else {
+            this.openAlbumDetail(album.id);
+          }
+        }}
       >
+        {isBatch && (
+          <input
+            type="checkbox"
+            className="jmcomic-card-checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              if (onToggleSelect) onToggleSelect(album.id);
+            }}
+          />
+        )}
+        {inLibrary && (
+          <div className="jmcomic-card-in-library-badge">
+            ✓ <Trans>In Library</Trans>
+          </div>
+        )}
         <div className="jmcomic-card-cover-box">
           <img
             src={album.cover}
@@ -860,6 +1265,8 @@ class JmcomicDialog extends React.Component<
       selectedAlbumDetail,
       selectedChapterIds,
       isLoadingDetail,
+      isFavoritedDetail,
+      isTogglingFavorite,
     } = this.state;
     if (!selectedAlbumId) return null;
 
@@ -880,11 +1287,34 @@ class JmcomicDialog extends React.Component<
             <span style={{ fontWeight: "bold", fontSize: "15px" }}>
               <Trans>Comic Detail</Trans>
             </span>
-            <div
-              className="jmcomic-close-btn"
-              onClick={() => this.setState({ selectedAlbumId: null })}
-            >
-              ✕
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <button
+                className={`jmcomic-fav-btn ${isFavoritedDetail ? "favorited" : ""}`}
+                onClick={() => this.handleToggleFavorite(selectedAlbumId)}
+                disabled={isTogglingFavorite}
+                title={
+                  isFavoritedDetail
+                    ? this.props.t("Remove from Favorites")
+                    : this.props.t("Add to Favorites")
+                }
+              >
+                {isTogglingFavorite && (
+                  <span
+                    className="jmcomic-spinner dark"
+                    style={{ width: 10, height: 10 }}
+                  />
+                )}
+                {isFavoritedDetail ? "❤️" : "🤍"}{" "}
+                {isFavoritedDetail
+                  ? this.props.t("Favorited")
+                  : this.props.t("Favorite")}
+              </button>
+              <div
+                className="jmcomic-close-btn"
+                onClick={() => this.setState({ selectedAlbumId: null })}
+              >
+                ✕
+              </div>
             </div>
           </div>
 
@@ -985,7 +1415,7 @@ class JmcomicDialog extends React.Component<
                                       selectedChapterIds.filter(
                                         (id) => id !== ch.id
                                       ),
-                                  });
+                                    });
                                 }
                               }}
                             />
@@ -1024,6 +1454,334 @@ class JmcomicDialog extends React.Component<
             </>
           )}
         </div>
+      </div>
+    );
+  }
+
+  renderFavoritesTab() {
+    const {
+      currentUser,
+      isLoggingIn,
+      loginUsernameInput,
+      loginPasswordInput,
+      loginRememberInput,
+      loginErrorMsg,
+      favoriteFolders,
+      activeFolderId,
+      favoriteOrder,
+      favoritePage,
+      favoriteTotalPages,
+      favoriteTotalCount,
+      favoriteResults,
+      isFavoritesLoading,
+      isBatchMode,
+      selectedBatchIds,
+    } = this.state;
+
+    // 1. If not logged in, render Login Form
+    if (!currentUser) {
+      return (
+        <div className="jmcomic-login-container">
+          <form className="jmcomic-login-card" onSubmit={this.handleLogin}>
+            <div className="jmcomic-login-title">
+              <Trans>Log in to JMComic</Trans>
+            </div>
+            <div className="jmcomic-login-subtitle">
+              <Trans>
+                Log in with your JM account to view favorites and batch import comics
+              </Trans>
+            </div>
+
+            {loginErrorMsg && (
+              <div className="jmcomic-login-error">{loginErrorMsg}</div>
+            )}
+
+            <div className="jmcomic-form-group">
+              <label className="jmcomic-form-label">
+                <Trans>Username / Email</Trans>
+              </label>
+              <input
+                type="text"
+                className="jmcomic-search-input"
+                placeholder={this.props.t(
+                  "Enter your JM account username or email"
+                )}
+                value={loginUsernameInput}
+                onChange={(e) =>
+                  this.setState({ loginUsernameInput: e.target.value })
+                }
+                autoFocus
+              />
+            </div>
+
+            <div className="jmcomic-form-group">
+              <label className="jmcomic-form-label">
+                <Trans>Password</Trans>
+              </label>
+              <input
+                type="password"
+                className="jmcomic-search-input"
+                placeholder={this.props.t("Enter your JM account password")}
+                value={loginPasswordInput}
+                onChange={(e) =>
+                  this.setState({ loginPasswordInput: e.target.value })
+                }
+              />
+            </div>
+
+            <div
+              className="jmcomic-form-group"
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 6,
+                marginBottom: 16,
+              }}
+            >
+              <input
+                type="checkbox"
+                id="jm-remember-pwd"
+                checked={loginRememberInput}
+                onChange={(e) =>
+                  this.setState({ loginRememberInput: e.target.checked })
+                }
+              />
+              <label
+                htmlFor="jm-remember-pwd"
+                className="jmcomic-form-label"
+                style={{ marginBottom: 0, cursor: "pointer", fontSize: 13 }}
+              >
+                <Trans>Remember password (auto login next time)</Trans>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              className="jmcomic-btn"
+              style={{ width: "100%", padding: "10px", fontSize: "15px" }}
+              disabled={isLoggingIn}
+            >
+              {isLoggingIn && <span className="jmcomic-spinner" />}
+              {isLoggingIn
+                ? this.props.t("Logging in...")
+                : this.props.t("Log in")}
+            </button>
+          </form>
+        </div>
+      );
+    }
+
+    // 2. If logged in, render Profile Bar + Folder Tabs + Filter + Batch Bar + Grid
+    const handleToggleSelectId = (id: string) => {
+      this.setState((prev) => {
+        const exists = prev.selectedBatchIds.includes(id);
+        return {
+          selectedBatchIds: exists
+            ? prev.selectedBatchIds.filter((x) => x !== id)
+            : [...prev.selectedBatchIds, id],
+        };
+      });
+    };
+
+    return (
+      <div>
+        {/* User Profile Bar */}
+        <div className="jmcomic-profile-bar">
+          <div className="jmcomic-profile-user">
+            {currentUser.photo ? (
+              <img
+                src={currentUser.photo}
+                alt={currentUser.username}
+                className="jmcomic-profile-avatar"
+                referrerPolicy="no-referrer"
+                onError={this.handleImageError}
+              />
+            ) : (
+              <div className="jmcomic-profile-avatar-placeholder">
+                {(currentUser.username || "JM")[0].toUpperCase()}
+              </div>
+            )}
+            <div className="jmcomic-profile-meta">
+              <div className="jmcomic-profile-name">
+                {currentUser.username}
+              </div>
+              <div className="jmcomic-profile-badges">
+                <span className="jmcomic-profile-badge level">
+                  {currentUser.level_name || `Lv.${currentUser.level || 1}`}
+                </span>
+                {currentUser.coin !== undefined && (
+                  <span className="jmcomic-profile-badge">
+                    🪙 {currentUser.coin} <Trans>Coins</Trans>
+                  </span>
+                )}
+                <span className="jmcomic-profile-badge">
+                  ⭐ {currentUser.album_favorites || favoriteTotalCount}{" "}
+                  <Trans>Favorites</Trans>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button
+              className="jmcomic-btn secondary"
+              style={{ padding: "6px 12px", fontSize: "12px" }}
+              onClick={() => this.fetchFavorites(favoritePage, activeFolderId)}
+              disabled={isFavoritesLoading}
+            >
+              {isFavoritesLoading && <span className="jmcomic-spinner dark" />}
+              {isFavoritesLoading
+                ? this.props.t("Refreshing...")
+                : `🔄 ${this.props.t("Refresh")}`}
+            </button>
+            <button
+              className="jmcomic-btn secondary"
+              style={{ padding: "6px 12px", fontSize: "12px", opacity: 0.8 }}
+              onClick={this.handleLogout}
+            >
+              🚪 <Trans>Logout</Trans>
+            </button>
+          </div>
+        </div>
+
+        {/* Folder Tabs */}
+        {favoriteFolders && favoriteFolders.length > 1 && (
+          <div className="jmcomic-folder-tabs">
+            {favoriteFolders.map((f) => (
+              <div
+                key={f.id}
+                className={`jmcomic-folder-tab ${activeFolderId === f.id ? "active" : ""}`}
+                onClick={() => this.fetchFavorites(1, f.id)}
+              >
+                📁 {f.name}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Action / Filter Bar */}
+        <div className="jmcomic-search-bar" style={{ marginBottom: "12px" }}>
+          <select
+            className="jmcomic-select"
+            value={favoriteOrder}
+            onChange={(e: any) =>
+              this.setState({ favoriteOrder: e.target.value }, () =>
+                this.fetchFavorites(1)
+              )
+            }
+          >
+            <option value="mr">{this.props.t("Latest Added")}</option>
+            <option value="mv">{this.props.t("Most Views")}</option>
+            <option value="tf">{this.props.t("Most Likes")}</option>
+            <option value="mp">{this.props.t("Most Pictures")}</option>
+          </select>
+
+          <button
+            className={`jmcomic-btn ${isBatchMode ? "" : "secondary"}`}
+            style={{ marginLeft: "auto", fontSize: "13px" }}
+            onClick={() =>
+              this.setState((prev) => ({
+                isBatchMode: !prev.isBatchMode,
+                selectedBatchIds: [],
+              }))
+            }
+          >
+            {isBatchMode
+              ? this.props.t("Exit Batch Mode")
+              : `☑️ ${this.props.t("Batch Import")}`}
+          </button>
+        </div>
+
+        {/* Batch Selection Toolbar (when active) */}
+        {isBatchMode && (
+          <div className="jmcomic-batch-bar">
+            <div style={{ fontSize: "13px", fontWeight: 500 }}>
+              <Trans>Selected</Trans>: <strong>{selectedBatchIds.length}</strong> /{" "}
+              {favoriteResults.length} <Trans>comics</Trans>
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <button
+                className="jmcomic-btn secondary"
+                style={{ padding: "4px 10px", fontSize: "12px" }}
+                onClick={() =>
+                  this.setState({
+                    selectedBatchIds: favoriteResults.map((a) => a.id),
+                  })
+                }
+              >
+                <Trans>Select All</Trans>
+              </button>
+              <button
+                className="jmcomic-btn secondary"
+                style={{ padding: "4px 10px", fontSize: "12px" }}
+                onClick={() => {
+                  const unimported = favoriteResults
+                    .filter((a) => !this.isBookInLibrary(a))
+                    .map((a) => a.id);
+                  this.setState({ selectedBatchIds: unimported });
+                }}
+              >
+                <Trans>Select Un-imported</Trans>
+              </button>
+              <button
+                className="jmcomic-btn secondary"
+                style={{ padding: "4px 10px", fontSize: "12px" }}
+                onClick={() => this.setState({ selectedBatchIds: [] })}
+              >
+                <Trans>Deselect</Trans>
+              </button>
+              <button
+                className="jmcomic-btn"
+                style={{ padding: "5px 14px", fontSize: "13px" }}
+                disabled={selectedBatchIds.length === 0}
+                onClick={() => this.enqueueBatchDownloads(selectedBatchIds)}
+              >
+                📥 <Trans>Batch Add to Downloads</Trans> (
+                {selectedBatchIds.length})
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Comics Grid */}
+        <div className="jmcomic-grid">
+          {favoriteResults.map((album) =>
+            this.renderAlbumCard(
+              album,
+              isBatchMode,
+              selectedBatchIds.includes(album.id),
+              handleToggleSelectId
+            )
+          )}
+        </div>
+
+        {favoriteResults.length === 0 && !isFavoritesLoading && (
+          <div
+            style={{
+              padding: "60px 0",
+              textAlign: "center",
+              opacity: 0.6,
+            }}
+          >
+            <Trans>No favorite comics found in this folder</Trans>
+          </div>
+        )}
+
+        {isFavoritesLoading && (
+          <div style={{ padding: "40px 0", textAlign: "center" }}>
+            <span className="jmcomic-spinner dark" />
+            <div
+              style={{ marginTop: "10px", fontSize: "13px", opacity: 0.7 }}
+            >
+              <Trans>Loading favorite comics...</Trans>
+            </div>
+          </div>
+        )}
+
+        {this.renderPagination(favoritePage, favoriteTotalPages, (p) =>
+          this.fetchFavorites(p, activeFolderId)
+        )}
       </div>
     );
   }
@@ -1510,6 +2268,21 @@ class JmcomicDialog extends React.Component<
               🔥 <Trans>Rankings</Trans>
             </button>
             <button
+              className={`jmcomic-tab-btn ${currentTab === "favorites" ? "active" : ""}`}
+              onClick={() => {
+                this.setState({ currentTab: "favorites" }, () => {
+                  if (
+                    this.state.currentUser &&
+                    this.state.favoriteResults.length === 0
+                  ) {
+                    this.fetchFavorites(1, "0");
+                  }
+                });
+              }}
+            >
+              ⭐ <Trans>My Favorites</Trans>
+            </button>
+            <button
               className={`jmcomic-tab-btn ${currentTab === "downloads" ? "active" : ""}`}
               onClick={() => this.setState({ currentTab: "downloads" })}
             >
@@ -1573,6 +2346,8 @@ class JmcomicDialog extends React.Component<
               )}
             </>
           )}
+
+          {currentTab === "favorites" && this.renderFavoritesTab()}
 
           {currentTab === "downloads" && this.renderDownloadsTab()}
 

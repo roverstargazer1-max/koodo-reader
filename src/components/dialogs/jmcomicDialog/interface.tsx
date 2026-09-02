@@ -30,6 +30,27 @@ export interface JmAlbumDetailData {
   chapters: JmChapterItem[];
 }
 
+export interface JmUserProfile {
+  uid: string;
+  username: string;
+  fname?: string;
+  email?: string;
+  photo?: string;
+  coin?: number;
+  album_favorites?: number;
+  album_favorites_max?: number;
+  level_name?: string;
+  level?: number;
+  exp?: number;
+  nextLevelExp?: number;
+  expPercent?: number;
+}
+
+export interface JmFavoriteFolder {
+  id: string;
+  name: string;
+}
+
 export interface JmDownloadTask {
   albumId: string;
   title: string;
@@ -59,11 +80,13 @@ export interface JmcomicDialogProps {
   handleJmcomicDialog: (isOpen: boolean) => void;
   importBookFunc: (file: any) => Promise<void>;
   handleFetchBooks?: () => void;
+  books?: any[];
   t: TFunction;
 }
 
 export interface JmcomicDialogState {
-  currentTab: "search" | "rank" | "downloads" | "settings";
+  currentTab: "search" | "rank" | "favorites" | "downloads" | "settings";
+  
   // Search state
   searchQuery: string;
   searchOrder: "mr" | "mv" | "mp" | "tf";
@@ -81,14 +104,41 @@ export interface JmcomicDialogState {
   rankResults: JmAlbumItem[];
   isRanking: boolean;
 
+  // Favorites state
+  currentUser: JmUserProfile | null;
+  savedAuth: { username: string; password?: string; remember: boolean } | null;
+  cookies: Record<string, string> | null;
+  isLoggingIn: boolean;
+  loginUsernameInput: string;
+  loginPasswordInput: string;
+  loginRememberInput: boolean;
+  loginErrorMsg: string;
+
+  favoriteFolders: JmFavoriteFolder[];
+  activeFolderId: string;
+  favoriteOrder: "mr" | "mv" | "mp" | "tf";
+  favoritePage: number;
+  favoriteTotalPages: number;
+  favoriteTotalCount: number;
+  favoriteResults: JmAlbumItem[];
+  isFavoritesLoading: boolean;
+
+  // Batch Selection state in Favorites
+  isBatchMode: boolean;
+  selectedBatchIds: string[];
+
   // Detail Modal state
   selectedAlbumId: string | null;
   selectedAlbumDetail: JmAlbumDetailData | null;
   selectedChapterIds: string[];
   isLoadingDetail: boolean;
+  isFavoritedDetail: boolean;
+  isTogglingFavorite: boolean;
 
   // Download state
   downloadTasks: Record<string, JmDownloadTask>;
+  downloadQueue: string[];
+  isQueueRunning: boolean;
 
   // Settings state
   config: JmcomicConfig;
