@@ -5,7 +5,11 @@ import toast from "react-hot-toast";
 import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 import packageJson from "../../../../package.json";
 
-import { getWebsiteUrl, openExternalUrl } from "../../../utils/common";
+import {
+  compareVersions,
+  getWebsiteUrl,
+  openExternalUrl,
+} from "../../../utils/common";
 import copyTextToClipboard from "copy-text-to-clipboard";
 import { isElectron } from "react-device-detect";
 import { checkDeveloperUpdate } from "../../../utils/request/common";
@@ -33,41 +37,28 @@ class AboutSetting extends React.Component<SettingInfoProps, SettingInfoState> {
                   toast.loading(this.props.t("Checking for update") + "...", {
                     id: "checking_update",
                   });
-                  let res = await checkDeveloperUpdate();
-                  const newVersion = res.version;
-                  if (newVersion === packageJson.version) {
-                    toast.success(
-                      this.props.t("You are using the latest version"),
-                      {
-                        id: "checking_update",
-                      }
-                    );
-                  } else {
-                    toast.success(
-                      this.props.t("A new version is available") +
-                        ": " +
-                        newVersion,
-                      {
-                        id: "checking_update",
-                      }
-                    );
-
-                    let lang = "en";
-                    if (
-                      ConfigService.getReaderConfig("lang") &&
-                      ConfigService.getReaderConfig("lang").startsWith("zh")
-                    ) {
-                      lang = "zh";
-                    }
-                    setTimeout(() => {
-                      openExternalUrl(
-                        getWebsiteUrl() +
-                          "/" +
-                          lang +
-                          "/download" +
-                          "?version=developer"
+                  try {
+                    const res = await checkDeveloperUpdate();
+                    const newVersion = res.version;
+                    if (compareVersions(newVersion, packageJson.version) <= 0) {
+                      toast.success(
+                        this.props.t("You are using the latest version"),
+                        { id: "checking_update" }
                       );
-                    }, 1000);
+                    } else {
+                      toast.success(
+                        this.props.t("A new version is available") +
+                          ": " +
+                          newVersion,
+                        { id: "checking_update" }
+                      );
+                      setTimeout(() => openExternalUrl(res.html_url), 1000);
+                    }
+                  } catch (error) {
+                    console.error("Failed to check Personal releases:", error);
+                    toast.error(this.props.t("Check Failed"), {
+                      id: "checking_update",
+                    });
                   }
                 }}
               >
@@ -238,7 +229,9 @@ class AboutSetting extends React.Component<SettingInfoProps, SettingInfoState> {
           <span
             className="change-location-button"
             onClick={() => {
-              openExternalUrl("https://github.com/koodo-reader/koodo-reader");
+              openExternalUrl(
+                "https://github.com/roverstargazer1-max/koodo-reader-personal"
+              );
             }}
           >
             <Trans>Visit</Trans>

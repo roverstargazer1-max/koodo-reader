@@ -14,14 +14,46 @@ import { isElectron } from "react-device-detect";
 import TokenService from "../storage/tokenService";
 const PUBLIC_URL = "https://api.koodoreader.com";
 const CN_PUBLIC_URL = "https://api.koodoreader.cn";
+const PERSONAL_RELEASES_API =
+  "https://api.github.com/repos/roverstargazer1-max/koodo-reader-personal/releases";
+const PERSONAL_RELEASES_URL =
+  "https://github.com/roverstargazer1-max/koodo-reader-personal/releases";
 export const getPublicUrl = () => {
   return getServerRegion() === "china" ? CN_PUBLIC_URL : PUBLIC_URL;
 };
-export const checkDeveloperUpdate = async () => {
-  let res = await axios.get(
-    getPublicUrl() + `/api/update_dev?name=${navigator.language}`
+const normalizePersonalRelease = (release: any, stableVersion = "") => {
+  const version = String(release?.tag_name || release?.name || "").replace(
+    /^v/i,
+    ""
   );
-  return res.data.log;
+  if (!version) {
+    throw new Error("The GitHub release does not contain a version tag.");
+  }
+  const notes = String(release?.body || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[-*]\s+/, "").trim())
+    .filter((line) => line && !line.startsWith("#"));
+  return {
+    version,
+    stable_version: stableVersion || version,
+    stable: release?.prerelease ? "no" : "yes",
+    skippable: "yes",
+    new: notes.length ? notes : [`Release ${release.tag_name || version}`],
+    fix: [],
+    html_url: release?.html_url || PERSONAL_RELEASES_URL,
+  };
+};
+
+export const checkDeveloperUpdate = async () => {
+  const [releasesResponse, stableResponse] = await Promise.all([
+    axios.get(PERSONAL_RELEASES_API, { params: { per_page: 10 } }),
+    axios.get(PERSONAL_RELEASES_API + "/latest"),
+  ]);
+  const release = releasesResponse.data.find((item: any) => !item.draft);
+  return normalizePersonalRelease(
+    release,
+    String(stableResponse.data?.tag_name || "").replace(/^v/i, "")
+  );
 };
 export const uploadFile = async (url: string, file: any) => {
   return new Promise<boolean>((resolve) => {
@@ -37,10 +69,8 @@ export const uploadFile = async (url: string, file: any) => {
   });
 };
 export const checkStableUpdate = async () => {
-  let res = await axios.get(
-    getPublicUrl() + `/api/update?name=${navigator.language}`
-  );
-  return res.data.log;
+  const response = await axios.get(PERSONAL_RELEASES_API + "/latest");
+  return normalizePersonalRelease(response.data);
 };
 export const handleExitApp = async () => {
   toast.error(i18n.t("Authorization failed, please login again"));

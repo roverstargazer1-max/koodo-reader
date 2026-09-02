@@ -18,7 +18,14 @@ const {
 } = require("electron");
 const path = require("path");
 const { pathToFileURL } = require("url");
-const isDev = require("electron-is-dev");
+const isPackagedRuntime =
+  app.isPackaged || path.extname(__dirname).toLowerCase() === ".asar";
+const isDev = !isPackagedRuntime;
+const personalDataDir = path.join(
+  app.getPath("appData"),
+  isDev ? "KoodoReaderPersonal-dev" : "KoodoReaderPersonal"
+);
+app.setPath("userData", personalDataDir);
 const Store = require("electron-store");
 const log = require("electron-log/main");
 const os = require("os");
@@ -51,6 +58,8 @@ let dbConnection = {};
 let syncUtilCache = {};
 let pickerUtilCache = {};
 let downloadRequest = null;
+let downloadFile = null;
+let downloadFilePath = null;
 
 const RESIZE_THROTTLE_MS = 300;
 
@@ -945,7 +954,7 @@ const createTray = () => {
   tray = new Tray(trayIcon);
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "Open Koodo Reader",
+      label: "Open Koodo Reader Personal",
       click: () => {
         if (mainWin) {
           mainWin.show();
@@ -961,7 +970,7 @@ const createTray = () => {
       },
     },
   ]);
-  tray.setToolTip("Koodo Reader");
+  tray.setToolTip("Koodo Reader Personal");
   tray.setContextMenu(contextMenu);
   tray.on("click", () => {
     if (mainWin) {
@@ -1261,15 +1270,20 @@ const createMainWin = () => {
       stream.on("end", () => resolve(hash.digest("hex")));
     });
   });
-  ipcMain.handle("cancel-download-app", (event, arg) => {
-    // Implement cancellation logic here
-    // Note: In this example, we are not keeping a reference to the request,
-    // so we cannot actually abort it. This is a placeholder for demonstration.
+  ipcMain.handle("cancel-download-app", () => {
     if (downloadRequest) {
-      downloadRequest.abort();
+      downloadRequest.destroy();
       downloadRequest = null;
     }
-    event.returnValue = "cancelled";
+    if (downloadFile) {
+      downloadFile.destroy();
+      downloadFile = null;
+    }
+    if (downloadFilePath && fs.existsSync(downloadFilePath)) {
+      fs.rmSync(downloadFilePath, { force: true });
+    }
+    downloadFilePath = null;
+    return { code: 0, msg: "Download cancelled" };
   });
   // Discord RPC handlers
   ipcMain.handle("discord-rpc-update", async (event, config) => {
@@ -1284,13 +1298,13 @@ const createMainWin = () => {
         details: bookTitle,
         state: `${progressBar} ${percentage}%  |  by ${author}`,
         largeImageKey: "koodo_reader_logo",
-        largeImageText: "Koodo Reader",
+        largeImageText: "Koodo Reader Personal",
         startTimestamp: Date.now(),
         instance: false,
         buttons: [
           {
-            label: "Get Koodo Reader",
-            url: "https://koodoreader.com",
+            label: "Get Koodo Reader Personal",
+            url: "https://github.com/roverstargazer1-max/koodo-reader-personal",
           },
         ],
       });
@@ -1308,68 +1322,133 @@ const createMainWin = () => {
     }
   });
   ipcMain.handle("update-win-app", (event, config) => {
-    let fileName = `koodo-reader-installer.exe`;
-    let supportedArchs = ["x64", "ia32", "arm64"];
+    if (!config || !/^[0-9A-Za-z.-]+$/.test(String(config.version))) {
+      return { code: 1, msg: "Invalid release version" };
+    }
+    let fileName = `Koodo-Reader-Personal-${config.version}-x64-Setup.exe`;
+    let supportedArchs = ["x64"];
     //get system arch
     let arch = os.arch();
     if (!supportedArchs.includes(arch)) {
-      return;
+      return { code: 1, msg: `Unsupported Windows architecture: ${arch}` };
     }
 
-    let url = `https://dl.koodoreader.com/v${config.version}/Koodo-Reader-${config.version}-${arch}.exe`;
+    let url = `https://github.com/roverstargazer1-max/koodo-reader-personal/releases/download/v${config.version}/${fileName}`;
     const https = require("https");
     const { spawn } = require("child_process");
-    const file = fs.createWriteStream(path.join(app.getPath("temp"), fileName));
-    downloadRequest = https.get(url, (res) => {
-      const totalSize = parseInt(res.headers["content-length"], 10);
-      let downloadedSize = 0;
-      res.on("data", (chunk) => {
-        downloadedSize += chunk.length;
-        const progress = ((downloadedSize / totalSize) * 100).toFixed(2);
-        const downloadedMB = (downloadedSize / 1024 / 1024).toFixed(2);
-        const totalMB = (totalSize / 1024 / 1024).toFixed(2);
-        mainWin.webContents.send("download-app-progress", {
-          progress,
-          downloadedMB,
-          totalMB,
+    downloadFilePath = path.join(app.getPath("temp"), fileName);
+
+    let downloadFailed = false;
+    const failDownload = (error) => {
+      if (downloadFailed) return;
+      downloadFailed = true;
+      const message = error.message || String(error);
+      console.error("Failed to download Personal update:", message);
+      if (downloadFile) {
+        downloadFile.destroy();
+        downloadFile = null;
+      }
+      if (downloadFilePath && fs.existsSync(downloadFilePath)) {
+        fs.rmSync(downloadFilePath, { force: true });
+      }
+      downloadFilePath = null;
+      downloadRequest = null;
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send("download-app-error", { message });
+      }
+    };
+
+    const requestDownload = (requestUrl, redirectsRemaining = 5) => {
+      downloadRequest = https.get(requestUrl, (res) => {
+        if (
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
+          res.resume();
+          if (redirectsRemaining === 0) {
+            failDownload(new Error("Too many update download redirects"));
+            return;
+          }
+          requestDownload(
+            new URL(res.headers.location, requestUrl).toString(),
+            redirectsRemaining - 1
+          );
+          return;
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          failDownload(
+            new Error(`Update download returned HTTP ${res.statusCode}`)
+          );
+          return;
+        }
+
+        const totalSize = Number(res.headers["content-length"] || 0);
+        let downloadedSize = 0;
+        downloadFile = fs.createWriteStream(downloadFilePath);
+        downloadFile.on("error", failDownload);
+        res.on("error", failDownload);
+        res.on("data", (chunk) => {
+          downloadedSize += chunk.length;
+          const progress = totalSize
+            ? ((downloadedSize / totalSize) * 100).toFixed(2)
+            : "0.00";
+          const downloadedMB = (downloadedSize / 1024 / 1024).toFixed(2);
+          const totalMB = totalSize
+            ? (totalSize / 1024 / 1024).toFixed(2)
+            : "?";
+          if (mainWin && !mainWin.isDestroyed()) {
+            mainWin.webContents.send("download-app-progress", {
+              progress,
+              downloadedMB,
+              totalMB,
+            });
+          }
+        });
+
+        res.pipe(downloadFile);
+        downloadFile.on("finish", () => {
+          downloadFile.close();
+          downloadFile = null;
+          downloadRequest = null;
+
+          let updateExePath = downloadFilePath;
+          downloadFilePath = null;
+          if (!fs.existsSync(updateExePath)) {
+            console.error("更新包不存在:", updateExePath);
+            return;
+          }
+          // 验证文件可执行性
+          try {
+            fs.accessSync(updateExePath, fs.constants.X_OK);
+            console.info("更新包可执行性验证通过");
+          } catch (err) {
+            console.error("更新包不可执行:", err.message);
+            return;
+          }
+          try {
+            // 先退出应用，再启动安装程序，避免文件锁定导致覆盖安装失败
+            app.once("will-quit", () => {
+              const child = spawn(updateExePath, [], {
+                stdio: "ignore",
+                detached: true,
+                shell: true,
+                windowsHide: false,
+              });
+              child.unref();
+            });
+            app.quit();
+          } catch (err) {
+            console.error(`spawn 执行异常: ${err.message}`);
+          }
         });
       });
+      downloadRequest.on("error", failDownload);
+    };
 
-      res.pipe(file);
-      file.on("finish", () => {
-        console.info("\n下载完成！");
-        file.close();
-
-        let updateExePath = path.join(app.getPath("temp"), fileName);
-        if (!fs.existsSync(updateExePath)) {
-          console.error("更新包不存在:", updateExePath);
-          return;
-        }
-        // 验证文件可执行性
-        try {
-          fs.accessSync(updateExePath, fs.constants.X_OK);
-          console.info("更新包可执行性验证通过");
-        } catch (err) {
-          console.error("更新包不可执行:", err.message);
-          return;
-        }
-        try {
-          // 先退出应用，再启动安装程序，避免文件锁定导致覆盖安装失败
-          app.once("will-quit", () => {
-            const child = spawn(updateExePath, [], {
-              stdio: "ignore",
-              detached: true,
-              shell: true,
-              windowsHide: false,
-            });
-            child.unref();
-          });
-          app.quit();
-        } catch (err) {
-          console.error(`spawn 执行异常: ${err.message}`);
-        }
-      });
-    });
+    requestDownload(url);
+    return { code: 0, msg: "Update download started" };
   });
   ipcMain.handle("open-book", (event, config) => {
     let { url, isMergeWord, isAutoFullscreen, isAutoMaximize, isPreventSleep } =

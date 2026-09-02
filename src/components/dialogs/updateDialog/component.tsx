@@ -7,7 +7,6 @@ import Lottie from "lottie-react";
 import animationNew from "../../../assets/lotties/new.json";
 import {
   compareVersions,
-  getWebsiteUrl,
   openExternalUrl,
 } from "../../../utils/common";
 import { isElectron } from "react-device-detect";
@@ -20,6 +19,9 @@ import {
 import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 import toast from "react-hot-toast";
 import { isWindows } from "react-device-detect";
+
+const PERSONAL_RELEASES_URL =
+  "https://github.com/roverstargazer1-max/koodo-reader-personal/releases";
 
 class UpdateInfo extends React.Component<UpdateInfoProps, UpdateInfoState> {
   constructor(props: UpdateInfoProps) {
@@ -38,10 +40,15 @@ class UpdateInfo extends React.Component<UpdateInfoProps, UpdateInfoState> {
         return;
       }
       let res;
-      if (ConfigService.getReaderConfig("updateChannel") === "stable") {
-        res = await checkStableUpdate();
-      } else {
-        res = await checkDeveloperUpdate();
+      try {
+        if (ConfigService.getReaderConfig("updateChannel") === "stable") {
+          res = await checkStableUpdate();
+        } else {
+          res = await checkDeveloperUpdate();
+        }
+      } catch (error) {
+        console.error("Failed to check Personal releases:", error);
+        return;
       }
       const newVersion = res.version;
       const stableVersion = res.stable_version || "1.0.0";
@@ -187,6 +194,24 @@ class UpdateInfo extends React.Component<UpdateInfoProps, UpdateInfoState> {
                             );
                           }
                         );
+                        ipcRenderer.once(
+                          "download-app-error",
+                          (config: any) => {
+                            this.setState({
+                              isDownloading: false,
+                              progress: 0,
+                              downloadedMB: 0,
+                              totalMB: 0,
+                            });
+                            toast.error(
+                              config?.message || this.props.t("Download failed"),
+                              {
+                                id: "download-progress",
+                                position: "bottom-center",
+                              }
+                            );
+                          }
+                        );
                         ipcRenderer.invoke("update-win-app", {
                           version: this.state.updateLog.version,
                         });
@@ -208,22 +233,8 @@ class UpdateInfo extends React.Component<UpdateInfoProps, UpdateInfoState> {
                         }, 500);
                       }
                     } else {
-                      let lang = "en";
-                      if (
-                        ConfigService.getReaderConfig("lang") &&
-                        ConfigService.getReaderConfig("lang").startsWith("zh")
-                      ) {
-                        lang = "zh";
-                      }
                       openExternalUrl(
-                        getWebsiteUrl() +
-                          "/" +
-                          lang +
-                          "/download" +
-                          "?version=" +
-                          (this.state.updateLog.stable === "yes"
-                            ? "stable"
-                            : "developer")
+                        this.state.updateLog.html_url || PERSONAL_RELEASES_URL
                       );
                     }
                   }}
@@ -239,22 +250,8 @@ class UpdateInfo extends React.Component<UpdateInfoProps, UpdateInfoState> {
                 <div
                   className="new-version-skip"
                   onClick={() => {
-                    let lang = "en";
-                    if (
-                      ConfigService.getReaderConfig("lang") &&
-                      ConfigService.getReaderConfig("lang").startsWith("zh")
-                    ) {
-                      lang = "zh";
-                    }
                     openExternalUrl(
-                      getWebsiteUrl() +
-                        "/" +
-                        lang +
-                        "/download" +
-                        "?version=" +
-                        (this.state.updateLog.stable === "yes"
-                          ? "stable"
-                          : "developer")
+                      this.state.updateLog.html_url || PERSONAL_RELEASES_URL
                     );
                   }}
                 >
