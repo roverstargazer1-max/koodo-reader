@@ -66,7 +66,7 @@ jobs:
       - name: Build and test unpacked Electron application
         shell: pwsh
         run: |
-          yarn electron-builder --win --x64 --dir --publish never -c.win.signAndEditExecutable=true
+          yarn electron-builder --win --x64 --dir --publish never
           $sidecar = "dist/win-unpacked/resources/jmcomic-bridge/jmcomic-bridge.exe"
           if (-not (Test-Path $sidecar)) { throw "Packaged sidecar is missing" }
           $result = & $sidecar check_env | ConvertFrom-Json
@@ -74,6 +74,7 @@ jobs:
           $nativeModule = "dist/win-unpacked/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
           if (-not (Test-Path $nativeModule)) { throw "Packaged better-sqlite3 binding is missing" }
           $exe = "dist/win-unpacked/Koodo Reader Personal.exe"
+          $env:ELECTRON_RUN_AS_NODE = $null
           $process = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
           Start-Sleep -Seconds 10
           $process.Refresh()
@@ -81,7 +82,7 @@ jobs:
           Stop-Process -Id $process.Id -Force
 
       - name: Build NSIS and portable packages
-        run: yarn electron-builder --win nsis portable --x64 --publish never -c.win.signAndEditExecutable=true
+        run: yarn electron-builder --win nsis portable --x64 --publish never
 
       - name: Create SHA-256 manifest
         shell: pwsh
