@@ -21,6 +21,30 @@ class BookList extends React.Component<BookListProps, BookListState> {
   UNSAFE_componentWillMount() {
     this.props.handleFetchBooks();
   }
+  componentDidMount() {
+    window.addEventListener("keydown", this.handleKeyDown);
+  }
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this.handleKeyDown);
+  }
+  handleKeyDown = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
+    if (e.key === "Delete" || e.key === "Backspace") {
+      if (this.state.fullBooksData.length > 0) {
+        e.preventDefault();
+        this.props.handleDeleteDialog(true);
+      }
+    }
+  };
   async UNSAFE_componentWillReceiveProps(nextProps: Readonly<BookListProps>) {
     if (nextProps.deletedBooks !== this.props.deletedBooks) {
       let fullBooksData: BookModel[] = [];

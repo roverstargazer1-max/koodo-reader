@@ -23,6 +23,21 @@ class DeleteDialog extends React.Component<
         ConfigService.getReaderConfig("isDisableTrashBin") === "yes",
     };
   }
+  componentDidMount() {
+    window.addEventListener("keydown", this.handleKeyDown);
+  }
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this.handleKeyDown);
+  }
+  handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      this.handleComfirm();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      this.handleCancel();
+    }
+  };
   handleCancel = () => {
     this.props.handleDeleteDialog(false);
   };
@@ -50,7 +65,10 @@ class DeleteDialog extends React.Component<
     });
   };
   deleteBookFromShelf = () => {
-    if (this.props.isSelectBook) {
+    if (
+      this.props.isSelectBook ||
+      (this.props.selectedBooks && this.props.selectedBooks.length > 0)
+    ) {
       this.props.selectedBooks.forEach((item) => {
         ConfigService.deleteFromMapConfig(
           this.props.shelfTitle,
@@ -60,7 +78,7 @@ class DeleteDialog extends React.Component<
       });
       this.props.handleSelectedBooks([]);
       this.props.handleFetchBooks();
-      this.props.handleSelectBook(!this.props.isSelectBook);
+      this.props.handleSelectBook(false);
       this.props.handleDeleteDialog(false);
       toast.success(this.props.t("Deletion successful"), {
         id: "delete-books",
@@ -102,7 +120,10 @@ class DeleteDialog extends React.Component<
     this.props.handleFetchNotes();
   };
   deleteBooks = () => {
-    if (this.props.isSelectBook) {
+    if (
+      this.props.isSelectBook ||
+      (this.props.selectedBooks && this.props.selectedBooks.length > 0)
+    ) {
       this.deleteSelectedBook();
     } else {
       this.deleteCurrentBook();
@@ -115,7 +136,7 @@ class DeleteDialog extends React.Component<
     });
     this.props.handleSelectedBooks([]);
     this.props.handleFetchBooks();
-    this.props.handleSelectBook(!this.props.isSelectBook);
+    this.props.handleSelectBook(false);
   };
   deleteCurrentBook = () => {
     ConfigService.setListConfig(this.props.currentBook.key, "deletedBooks");
@@ -163,6 +184,13 @@ class DeleteDialog extends React.Component<
     });
   };
   render() {
+    const isMultiple =
+      this.props.isSelectBook ||
+      (this.props.selectedBooks && this.props.selectedBooks.length > 0);
+    const selectedCount = this.props.selectedBooks
+      ? this.props.selectedBooks.length
+      : 0;
+
     return (
       <div className="delete-dialog-container">
         {this.props.mode === "shelf" && !this.state.isDeleteShelfBook ? (
@@ -181,15 +209,15 @@ class DeleteDialog extends React.Component<
         {this.props.mode === "trash" ? null : (
           <div className="delete-dialog-book">
             <div className="delete-dialog-book-title">
-              {this.props.isSelectBook ? (
+              {isMultiple && selectedCount > 0 ? (
                 <Trans
                   i18nKey="Total books"
-                  count={this.props.selectedBooks.length}
+                  count={selectedCount}
                 >
-                  {"Total " + this.props.selectedBooks.length + " books"}
+                  {"Total " + selectedCount + " books"}
                 </Trans>
               ) : (
-                this.props.currentBook.name
+                this.props.currentBook?.name || ""
               )}
             </div>
           </div>

@@ -101,11 +101,13 @@ class BookList extends React.Component<BookListProps, BookListState> {
 
     window.addEventListener("mousemove", this.handleGlobalMouseMove);
     window.addEventListener("mouseup", this.handleGlobalMouseUp);
+    window.addEventListener("keydown", this.handleKeyDown);
   }
 
   componentWillUnmount() {
     window.removeEventListener("mousemove", this.handleGlobalMouseMove);
     window.removeEventListener("mouseup", this.handleGlobalMouseUp);
+    window.removeEventListener("keydown", this.handleKeyDown);
 
     // 清理滚动监听器
     this.cleanupScrollListener();
@@ -454,6 +456,38 @@ class BookList extends React.Component<BookListProps, BookListState> {
     if (!this.isSelecting) return;
     this.isSelecting = false;
     this.setState({ selectionBox: null });
+  };
+
+  handleKeyDown = (e: KeyboardEvent) => {
+    // 1. 如果当前打开了删除确认弹窗，不重复触发
+    if (this.props.isOpenDeleteDialog) return;
+
+    // 2. 如果焦点在输入框、文本框、选择框或富文本中，不拦截按键
+    const target = e.target as HTMLElement;
+    if (
+      target &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable ||
+        target.closest("input") ||
+        target.closest("textarea") ||
+        target.closest("select"))
+    ) {
+      return;
+    }
+
+    // 3. 响应 Delete / Backspace 键触发二次确认删除弹窗
+    if (e.key === "Delete" || e.key === "Backspace") {
+      if (this.props.selectedBooks && this.props.selectedBooks.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!this.props.isSelectBook) {
+          this.props.handleSelectBook(true);
+        }
+        this.props.handleDeleteDialog(true);
+      }
+    }
   };
 
   renderBookList = (books: Book[], bookMode: string) => {

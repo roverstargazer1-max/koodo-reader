@@ -20,6 +20,7 @@ const mappropsToProps = (state: stateType) => {
     isSelectBook: state.manager.isSelectBook,
 
     selectedBooks: state.manager.selectedBooks,
+    isOpenDeleteDialog: state.book.isOpenDeleteDialog,
   };
 };
 const actionCreator = {
