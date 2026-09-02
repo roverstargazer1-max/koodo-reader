@@ -118,8 +118,18 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
       toast(this.props.t("Duplicate book"));
       return;
     }
-    toast.success(this.props.t("Addition successful"));
+    toast.success(
+      bookKeys.length > 1
+        ? `${this.props.t("Addition successful")} (${added})`
+        : this.props.t("Addition successful")
+    );
     this.props.handleFetchBooks();
+    if (typeof this.props.handleSelectedBooks === "function") {
+      this.props.handleSelectedBooks([]);
+    }
+    if (typeof this.props.handleSelectBook === "function") {
+      this.props.handleSelectBook(false);
+    }
     this.props.handleShelf(shelfTitle);
     this.props.handleMode("shelf");
     this.setState({ mode: "" });
@@ -139,8 +149,18 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
       toast(this.props.t("Duplicate book"));
       return;
     }
-    toast.success(this.props.t("Addition successful"));
+    toast.success(
+      bookKeys.length > 1
+        ? `${this.props.t("Addition successful")} (${added})`
+        : this.props.t("Addition successful")
+    );
     this.props.handleFetchBooks();
+    if (typeof this.props.handleSelectedBooks === "function") {
+      this.props.handleSelectedBooks([]);
+    }
+    if (typeof this.props.handleSelectBook === "function") {
+      this.props.handleSelectBook(false);
+    }
     this.props.handleShelf("");
     this.props.handleMode("favorite");
     this.setState({ mode: "favorite" });
@@ -160,8 +180,18 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
       toast(this.props.t("Duplicate book in trash bin"));
       return;
     }
-    toast.success(this.props.t("Deletion successful"));
+    toast.success(
+      bookKeys.length > 1
+        ? `${this.props.t("Deletion successful")} (${moved})`
+        : this.props.t("Deletion successful")
+    );
     this.props.handleFetchBooks();
+    if (typeof this.props.handleSelectedBooks === "function") {
+      this.props.handleSelectedBooks([]);
+    }
+    if (typeof this.props.handleSelectBook === "function") {
+      this.props.handleSelectBook(false);
+    }
     this.props.handleShelf("");
     this.props.handleMode("trash");
     this.setState({ mode: "trash" });

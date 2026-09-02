@@ -6,6 +6,33 @@ export function setBookDragData(e: React.DragEvent, bookKeys: string[]): void {
   if (!e.dataTransfer) return;
   e.dataTransfer.setData(BOOK_DRAG_TYPE, JSON.stringify(bookKeys));
   e.dataTransfer.effectAllowed = "copy";
+
+  if (bookKeys.length > 1) {
+    try {
+      const badge = document.createElement("div");
+      badge.className = "book-drag-multi-badge";
+      badge.style.position = "absolute";
+      badge.style.top = "-9999px";
+      badge.style.left = "-9999px";
+      badge.style.padding = "6px 14px";
+      badge.style.background = "var(--theme-color, #007aff)";
+      badge.style.color = "#ffffff";
+      badge.style.borderRadius = "20px";
+      badge.style.fontSize = "13px";
+      badge.style.fontWeight = "bold";
+      badge.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.35)";
+      badge.style.zIndex = "99999";
+      badge.style.pointerEvents = "none";
+      badge.innerText = `📚 ${bookKeys.length}`;
+      document.body.appendChild(badge);
+      e.dataTransfer.setDragImage(badge, 20, 20);
+      setTimeout(() => {
+        if (badge.parentNode) {
+          badge.parentNode.removeChild(badge);
+        }
+      }, 0);
+    } catch (_) {}
+  }
 }
 
 export function parseBookDragData(e: React.DragEvent | DragEvent): string[] {
@@ -43,49 +70,60 @@ export function addBooksToShelf(
   bookKeys: string[],
   shelfTitle: string
 ): number {
-  const shelfList = ConfigService.getAllMapConfig("shelfList");
-  const existing = new Set<string>(shelfList[shelfTitle] || []);
+  const shelfList = ConfigService.getAllMapConfig("shelfList") || {};
+  const currentList = Array.isArray(shelfList[shelfTitle])
+    ? [...shelfList[shelfTitle]]
+    : [];
+  const existing = new Set<string>(currentList);
   let added = 0;
   for (const key of bookKeys) {
     if (existing.has(key)) continue;
-    ConfigService.setMapConfig(shelfTitle, key, "shelfList");
+    currentList.unshift(key);
     existing.add(key);
     added++;
+  }
+  if (added > 0) {
+    shelfList[shelfTitle] = currentList;
+    ConfigService.setAllMapConfig(shelfList, "shelfList");
   }
   return added;
 }
 
 export function addBooksToFavorite(bookKeys: string[]): number {
-  const existing = new Set<string>(
-    ConfigService.getAllListConfig("favoriteBooks")
-  );
+  const favoriteList = ConfigService.getAllListConfig("favoriteBooks") || [];
+  const existing = new Set<string>(favoriteList);
   const deleted = new Set<string>(
-    ConfigService.getAllListConfig("deletedBooks")
+    ConfigService.getAllListConfig("deletedBooks") || []
   );
   let added = 0;
   for (const key of bookKeys) {
     if (existing.has(key)) continue;
-    ConfigService.setListConfig(key, "favoriteBooks");
+    favoriteList.unshift(key);
+    existing.add(key);
     if (deleted.has(key)) {
       ConfigService.deleteListConfig(key, "deletedBooks");
     }
-    existing.add(key);
     added++;
+  }
+  if (added > 0) {
+    ConfigService.setAllListConfig(favoriteList, "favoriteBooks");
   }
   return added;
 }
 
 export function moveBooksToTrash(bookKeys: string[]): number {
-  const existing = new Set<string>(
-    ConfigService.getAllListConfig("deletedBooks")
-  );
+  const deletedList = ConfigService.getAllListConfig("deletedBooks") || [];
+  const existing = new Set<string>(deletedList);
   let moved = 0;
   for (const key of bookKeys) {
     if (existing.has(key)) continue;
-    ConfigService.setListConfig(key, "deletedBooks");
-    ConfigService.deleteListConfig(key, "favoriteBooks");
+    deletedList.unshift(key);
     existing.add(key);
+    ConfigService.deleteListConfig(key, "favoriteBooks");
     moved++;
+  }
+  if (moved > 0) {
+    ConfigService.setAllListConfig(deletedList, "deletedBooks");
   }
   return moved;
 }

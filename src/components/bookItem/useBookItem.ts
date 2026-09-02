@@ -241,15 +241,15 @@ export function useBookItem(props: BookItemSharedProps) {
 
   const handleBookDragStart = useCallback(
     (e: React.DragEvent) => {
-      const keys =
-        isSelectBook &&
+      const isCurrentSelected =
+        selectedBooks &&
         selectedBooks.length > 0 &&
-        selectedBooks.includes(book.key)
-          ? selectedBooks
-          : [book.key];
+        selectedBooks.includes(book.key);
+
+      const keys = isCurrentSelected ? selectedBooks : [book.key];
       setBookDragData(e, keys);
     },
-    [book.key, isSelectBook, selectedBooks]
+    [book.key, selectedBooks]
   );
 
   return {

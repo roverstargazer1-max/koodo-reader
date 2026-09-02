@@ -337,8 +337,8 @@ class BookList extends React.Component<BookListProps, BookListState> {
     }
 
     const isCardClick = !!target.closest(".book-selectable-item");
-    // 如果点击在卡片上，且非批量模式、非 Ctrl/Shift 键，则保留卡片的默认点击/拖拽行为
-    if (isCardClick && !this.props.isSelectBook && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    // 如果点击在卡片上（无论是否处于多选状态），只要未按下 Ctrl/Shift 键，均保留卡片的默认点击选中与拖拽行为，防止误触发框选并冲掉已选中的书籍集合
+    if (isCardClick && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       return;
     }
 

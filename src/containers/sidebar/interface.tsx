@@ -13,6 +13,7 @@ export interface SidebarProps extends RouteComponentProps<any> {
   handleCollapse: (isCollapsed: boolean) => void;
   handleSortDisplay: (isSortDisplay: boolean) => void;
   handleSelectBook: (isSelectBook: boolean) => void;
+  handleSelectedBooks?: (selectedBooks: string[]) => void;
   handleShelf: (shelfTitle: string) => void;
   handleFetchBooks: () => void;
   t: (title: string) => string;
