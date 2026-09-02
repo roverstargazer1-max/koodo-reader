@@ -12,6 +12,8 @@ export interface BookListProps extends RouteComponentProps<any> {
   noteSortCode: { sort: number; order: number };
   handleMode: (mode: string) => void;
   handleDeleteDialog: (isShow: boolean) => void;
+  handleSelectBook: (isSelectBook: boolean) => void;
+  handleSelectedBooks: (selectedBooks: string[]) => void;
   isOpenDeleteDialog?: boolean;
   handleFetchBooks: () => void;
 }

@@ -163,14 +163,31 @@ export function useBookItem(props: BookItemSharedProps) {
     (event?: React.MouseEvent) => {
       if (isSelectBook) {
         if (event?.shiftKey) {
+          // Shift+单击：区间选中
           handleShiftSelect();
-        } else {
+        } else if (event?.ctrlKey || event?.metaKey) {
+          // Ctrl+单击：切换当前项的选中状态（toggle）
           handleSelectedBooks(
             isSelected
               ? selectedBooks.filter((item) => item !== book.key)
               : [...selectedBooks, book.key]
           );
+        } else {
+          // 普通单击（Windows 风格）：
+          //   - 若已选中该本 → toggle 取消选中
+          //   - 若未选中该本 → 仅选中该本，清除其他所有选中
+          handleSelectedBooks(
+            isSelected
+              ? selectedBooks.filter((item) => item !== book.key)
+              : [book.key]
+          );
         }
+        return;
+      }
+      // 非多选模式下 Ctrl+单击：进入多选模式并选中该本，不打开图书
+      if (event?.ctrlKey || event?.metaKey) {
+        handleSelectBook(true);
+        handleSelectedBooks([book.key]);
         return;
       }
       handleReadingBook(book);
@@ -184,6 +201,7 @@ export function useBookItem(props: BookItemSharedProps) {
       handleShiftSelect,
       handleReadingBook,
       handleSelectedBooks,
+      handleSelectBook,
     ]
   );
 

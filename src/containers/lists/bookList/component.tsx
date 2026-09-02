@@ -42,6 +42,9 @@ class BookList extends React.Component<BookListProps, BookListState> {
   private startSelectionKeys: string[] = [];
   private isModifierActive = false;
   private isToggleMode = false;
+  // 标记当前 mousedown→mouseup 之间是否发生了真正的拖拽（距离 ≥ 4px）
+  // 用于区分「点击空白取消选中」与「框选拖拽」
+  private isDragging = false;
 
   constructor(props: BookListProps) {
     super(props);
@@ -347,6 +350,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
     }
 
     this.isSelecting = true;
+    this.isDragging = false; // 每次 mousedown 时重置拖拽标志
     this.isModifierActive = e.ctrlKey || e.metaKey || e.shiftKey;
     this.isToggleMode = e.ctrlKey || e.metaKey;
     this.startSelectionKeys = [...(this.props.selectedBooks || [])];
@@ -371,6 +375,9 @@ class BookList extends React.Component<BookListProps, BookListState> {
     const dragDistance = Math.hypot(currentX - startX, currentY - startY);
     // 只有拖拽距离超过 4px 才正式激活框选（防止轻微手抖误触）
     if (dragDistance < 4) return;
+
+    // 标记本次 mousedown→mouseup 确实发生了拖拽
+    this.isDragging = true;
 
     if (!this.props.isSelectBook) {
       this.props.handleSelectBook(true);
@@ -456,7 +463,19 @@ class BookList extends React.Component<BookListProps, BookListState> {
 
   handleGlobalMouseUp = () => {
     if (!this.isSelecting) return;
+
+    // 如果本次是纯点击（未发生拖拽 && 无修饰键），视为「点击空白区域取消全部选中」
+    if (
+      !this.isDragging &&
+      !this.isModifierActive &&
+      (this.props.selectedBooks?.length ?? 0) > 0
+    ) {
+      this.props.handleSelectedBooks([]);
+      this.props.handleSelectBook(false);
+    }
+
     this.isSelecting = false;
+    this.isDragging = false;
     this.setState({ selectionBox: null });
   };
 
@@ -479,7 +498,33 @@ class BookList extends React.Component<BookListProps, BookListState> {
       return;
     }
 
-    // 3. 响应 Delete / Backspace 键触发二次确认删除弹窗
+    // 3. Escape：退出多选模式，清除所有选中
+    if (e.key === "Escape") {
+      if (this.props.isSelectBook || (this.props.selectedBooks?.length ?? 0) > 0) {
+        e.preventDefault();
+        this.props.handleSelectedBooks([]);
+        this.props.handleSelectBook(false);
+      }
+      return;
+    }
+
+    // 4. Ctrl+A：全选当前列表所有图书
+    if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+      e.preventDefault();
+      const allKeys = Array.from(
+        document.querySelectorAll(".book-selectable-item"),
+        (el) => el.getAttribute("data-book-key") ?? ""
+      ).filter(Boolean);
+      if (allKeys.length > 0) {
+        if (!this.props.isSelectBook) {
+          this.props.handleSelectBook(true);
+        }
+        this.props.handleSelectedBooks(allKeys);
+      }
+      return;
+    }
+
+    // 5. 响应 Delete / Backspace 键触发二次确认删除弹窗
     if (e.key === "Delete" || e.key === "Backspace") {
       if (this.props.selectedBooks && this.props.selectedBooks.length > 0) {
         e.preventDefault();

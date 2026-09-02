@@ -38,6 +38,15 @@ class BookList extends React.Component<BookListProps, BookListState> {
     ) {
       return;
     }
+    // Escape：清除选中，退出多选模式
+    if (e.key === "Escape") {
+      if (this.props.isSelectBook || (this.props.selectedBooks?.length ?? 0) > 0) {
+        e.preventDefault();
+        this.props.handleSelectedBooks([]);
+        this.props.handleSelectBook(false);
+      }
+      return;
+    }
     if (e.key === "Delete" || e.key === "Backspace") {
       if (this.state.fullBooksData.length > 0) {
         e.preventDefault();

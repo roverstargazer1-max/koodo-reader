@@ -4,6 +4,8 @@ import {
   handleMode,
   handleShelf,
   handleDeleteDialog,
+  handleSelectBook,
+  handleSelectedBooks,
 } from "../../../store/actions";
 import { stateType } from "../../../store";
 import BookList from "./component";
@@ -28,5 +30,7 @@ const actionCreator = {
   handleShelf,
   handleDeleteDialog,
   handleFetchBooks,
+  handleSelectBook,
+  handleSelectedBooks,
 };
 export default connect(mappropsToProps, actionCreator)(BookList as any);
