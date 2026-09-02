@@ -66,7 +66,8 @@ const BookCardItem: React.FC<BookCardProps> = (props) => {
   return (
     <>
       <div
-        className="book-list-item"
+        className={`book-list-item book-selectable-item${props.isSelected ? " book-item-selected" : ""}`}
+        data-book-key={props.book.key}
         draggable
         onDragStart={handleBookDragStart}
         onContextMenu={(event) => {

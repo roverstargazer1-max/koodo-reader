@@ -21,7 +21,15 @@ export interface BookListProps extends RouteComponentProps<any> {
   handleShelf: (shelfTitle: string) => void;
   handleDeleteDialog: (isShow: boolean) => void;
   handleLoadMore: (isLoadMore: boolean) => void;
+  handleSelectBook: (isSelectBook: boolean) => void;
+  handleSelectedBooks: (selectedBooks: string[]) => void;
   t: (title: string) => string;
+}
+export interface SelectionBox {
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
 }
 export interface BookListState {
   favoriteBooks: number;
@@ -31,4 +39,5 @@ export interface BookListState {
   fullBooksData: BookModel[];
   cardScale: number;
   readingStatusFilter: string;
+  selectionBox: SelectionBox | null;
 }

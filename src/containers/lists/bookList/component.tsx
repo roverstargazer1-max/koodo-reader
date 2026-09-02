@@ -14,6 +14,7 @@ import Book from "../../../models/Book";
 import { isElectron } from "react-device-detect";
 import DatabaseService from "../../../utils/storage/databaseService";
 import { throttle } from "../../../utils/common";
+import { isRectOverlap, Rect } from "../../../utils/reader/selectionUtil";
 declare var window: any;
 let currentBookMode = "home";
 function getBookCountPerPage() {
@@ -35,6 +36,10 @@ class BookList extends React.Component<BookListProps, BookListState> {
   private visibilityChangeHandler: ((event: Event) => void) | null = null;
   private resizeHandler: (() => void) | null = null;
   private readingFinishedHandler: ((config: any) => void) | null = null;
+  private isSelecting = false;
+  private startSelectionKeys: string[] = [];
+  private isModifierActive = false;
+  private isToggleMode = false;
 
   constructor(props: BookListProps) {
     super(props);
@@ -50,6 +55,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
       fullBooksData: [], // 存储从数据库加载的完整书籍数据
       cardScale: parseFloat(ConfigService.getReaderConfig("cardScale") || "1"),
       readingStatusFilter: "",
+      selectionBox: null,
     };
   }
   UNSAFE_componentWillMount() {
@@ -92,9 +98,15 @@ class BookList extends React.Component<BookListProps, BookListState> {
 
     // 初始加载完整的书籍数据
     await this.loadFullBooksData();
+
+    window.addEventListener("mousemove", this.handleGlobalMouseMove);
+    window.addEventListener("mouseup", this.handleGlobalMouseUp);
   }
 
   componentWillUnmount() {
+    window.removeEventListener("mousemove", this.handleGlobalMouseMove);
+    window.removeEventListener("mouseup", this.handleGlobalMouseUp);
+
     // 清理滚动监听器
     this.cleanupScrollListener();
 
@@ -308,6 +320,142 @@ class BookList extends React.Component<BookListProps, BookListState> {
     });
   };
 
+  handleContainerMouseDown = (e: React.MouseEvent) => {
+    // 仅响应鼠标左键 (button === 0)
+    if (e.button !== 0) return;
+
+    const target = e.target as HTMLElement;
+    // 如果点击的是滚动条、按钮、下拉菜单、输入框或卡片上的操作图标/右键菜单触发区，则不启动框选
+    if (
+      target.closest("button") ||
+      target.closest("select") ||
+      target.closest("input") ||
+      target.closest(".book-selected-icon") ||
+      target.closest(".book-download-action")
+    ) {
+      return;
+    }
+
+    const isCardClick = !!target.closest(".book-selectable-item");
+    // 如果点击在卡片上，且非批量模式、非 Ctrl/Shift 键，则保留卡片的默认点击/拖拽行为
+    if (isCardClick && !this.props.isSelectBook && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      return;
+    }
+
+    this.isSelecting = true;
+    this.isModifierActive = e.ctrlKey || e.metaKey || e.shiftKey;
+    this.isToggleMode = e.ctrlKey || e.metaKey;
+    this.startSelectionKeys = [...(this.props.selectedBooks || [])];
+
+    this.setState({
+      selectionBox: {
+        startX: e.clientX,
+        startY: e.clientY,
+        currentX: e.clientX,
+        currentY: e.clientY,
+      },
+    });
+  };
+
+  handleGlobalMouseMove = (e: MouseEvent) => {
+    if (!this.isSelecting || !this.state.selectionBox) return;
+
+    const { startX, startY } = this.state.selectionBox;
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    const dragDistance = Math.hypot(currentX - startX, currentY - startY);
+    // 只有拖拽距离超过 4px 才正式激活框选（防止轻微手抖误触）
+    if (dragDistance < 4) return;
+
+    if (!this.props.isSelectBook) {
+      this.props.handleSelectBook(true);
+    }
+
+    this.setState({
+      selectionBox: {
+        startX,
+        startY,
+        currentX,
+        currentY,
+      },
+    });
+
+    const boxLeft = Math.min(startX, currentX);
+    const boxTop = Math.min(startY, currentY);
+    const boxRight = Math.max(startX, currentX);
+    const boxBottom = Math.max(startY, currentY);
+
+    const selectionRect: Rect = {
+      left: boxLeft,
+      top: boxTop,
+      right: boxRight,
+      bottom: boxBottom,
+      width: boxRight - boxLeft,
+      height: boxBottom - boxTop,
+    };
+
+    // 获取所有当前 DOM 渲染的书籍卡片并进行碰撞检测（触摸即选）
+    const bookElements = document.querySelectorAll(".book-selectable-item");
+    const hitKeys: string[] = [];
+
+    bookElements.forEach((el) => {
+      const bookKey = el.getAttribute("data-book-key");
+      if (!bookKey) return;
+      const domRect = el.getBoundingClientRect();
+      const itemRect: Rect = {
+        left: domRect.left,
+        top: domRect.top,
+        right: domRect.right,
+        bottom: domRect.bottom,
+        width: domRect.width,
+        height: domRect.height,
+      };
+
+      if (isRectOverlap(selectionRect, itemRect)) {
+        hitKeys.push(bookKey);
+      }
+    });
+
+    let nextSelectedKeys: string[] = [];
+    if (this.isToggleMode) {
+      // Ctrl/Cmd: 反选/加选
+      const startSet = new Set(this.startSelectionKeys);
+      const hitSet = new Set(hitKeys);
+      const combined = new Set<string>();
+
+      // 如果原本有且当前被框中，则排除（反选）
+      // 如果原本没有但当前被框中，则加入
+      for (const k of this.startSelectionKeys) {
+        if (!hitSet.has(k)) {
+          combined.add(k);
+        }
+      }
+      for (const k of hitKeys) {
+        if (!startSet.has(k)) {
+          combined.add(k);
+        }
+      }
+      nextSelectedKeys = Array.from(combined);
+    } else if (this.isModifierActive) {
+      // Shift: 增量并集
+      nextSelectedKeys = Array.from(
+        new Set([...this.startSelectionKeys, ...hitKeys])
+      );
+    } else {
+      // 普通拉框
+      nextSelectedKeys = hitKeys;
+    }
+
+    this.props.handleSelectedBooks(nextSelectedKeys);
+  };
+
+  handleGlobalMouseUp = () => {
+    if (!this.isSelecting) return;
+    this.isSelecting = false;
+    this.setState({ selectionBox: null });
+  };
+
   renderBookList = (books: Book[], bookMode: string) => {
     if (books.length === 0 && !this.props.isSearch) {
       return <Redirect to="/manager/empty" />;
@@ -475,7 +623,10 @@ class BookList extends React.Component<BookListProps, BookListState> {
               : {}
           }
         >
-          <div className="book-list-container">
+          <div
+            className="book-list-container"
+            onMouseDown={this.handleContainerMouseDown}
+          >
             <ul
               className="book-list-item-box"
               ref={this.scrollContainer}
@@ -485,6 +636,17 @@ class BookList extends React.Component<BookListProps, BookListState> {
             >
               {this.renderBookList(books, bookMode)}
             </ul>
+            {this.state.selectionBox && (
+              <div
+                className="book-selection-marquee"
+                style={{
+                  left: `${Math.min(this.state.selectionBox.startX, this.state.selectionBox.currentX)}px`,
+                  top: `${Math.min(this.state.selectionBox.startY, this.state.selectionBox.currentY)}px`,
+                  width: `${Math.abs(this.state.selectionBox.currentX - this.state.selectionBox.startX)}px`,
+                  height: `${Math.abs(this.state.selectionBox.currentY - this.state.selectionBox.startY)}px`,
+                }}
+              />
+            )}
           </div>
         </div>
       </>

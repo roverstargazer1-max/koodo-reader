@@ -27,6 +27,36 @@
   flex-wrap: wrap;
   align-content: flex-start;
   user-select: text;
+  position: relative;
+}
+
+.book-selection-marquee {
+  position: fixed;
+  border: 1.5px solid var(--theme-color, #1890ff);
+  background-color: rgba(24, 144, 255, 0.15);
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: 4px;
+}
+
+.book-item-selected {
+  position: relative;
+}
+
+.book-list-item.book-item-selected .book-item-cover {
+  box-shadow: 0 0 0 3px var(--theme-color, #1890ff), 0 4px 12px rgba(24, 144, 255, 0.3) !important;
+  border-radius: 4px;
+}
+
+.book-list-cover-item.book-item-selected .book-cover-item-cover {
+  box-shadow: 0 0 0 3px var(--theme-color, #1890ff), 0 4px 12px rgba(24, 144, 255, 0.3) !important;
+  border-radius: 4px;
+}
+
+.book-list-item-container.book-item-selected {
+  background-color: rgba(24, 144, 255, 0.08);
+  border-radius: 6px;
+  box-shadow: 0 0 0 1.5px var(--theme-color, #1890ff);
 }
 
 .booklist-shelf-list {
