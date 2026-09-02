@@ -1,187 +1,114 @@
-<div align="left">
+# Koodo Reader Personal
 
-简体中文 | [हिंदी](./README_hi.md) |[Português](./README_pt.md) | [English](./README.md) | [Indonesian](./README_id.md)
+简体中文 | [English](./README.md)
 
-</div>
+Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书库项目，衍生自 [Koodo Reader](https://github.com/koodo-reader/koodo-reader)，保留原项目的阅读和书库能力，并通过 [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python) 提供内置桌面端在线漫画工作流。
 
-<div align="center">
-  <img src="https://dl.koodoreader.com/screenshots/logo.png" width="96px" height="96px"/>
-</div>
+本仓库不是 Koodo Reader 官方发行版。首个独立版本为 `v0.1.0`。
 
-<h1 align="center">
-  Koodo Reader
-</h1>
+## 与上游的主要差异
 
-<h3 align="center">
-  一个跨平台的电子书阅读器
-</h3>
+- 内置 JMComic 桌面面板：搜索、排行、详情、账号登录、收藏夹、章节选择、下载、取消、CBZ 打包和自动入库。
+- 维护 Personal 版本的书库多选和批量交互。
+- 源码环境使用项目私有 `.venv`，固定 `jmcomic==2.7.5`。
+- Windows 安装版和便携版内置 PyInstaller `onedir` sidecar，使用时不需要安装 Python。
+- Personal、Personal 开发版与原 Koodo Reader 使用相互独立的本地数据目录。
 
-<div align="center">
-
-[下载客户端](https://koodoreader.com/zh) | [在线预览](https://web.koodoreader.com) | [开发计划](https://koodoreader.com/zh/roadmap) | [帮助文档](https://koodoreader.com/zh/document) | [插件列表](https://koodoreader.com/zh/plugin)
-
-</div>
-
-## 预览
-
-<div align="center">
-  <br/>
-  <br/>
-  <img src="https://dl.koodoreader.com/screenshots/7.png" width="800px">
-  <br/>
-  <br/>
-  <img src="https://dl.koodoreader.com/screenshots/8.png" width="800px">
-  <br/>
-  <br/>
-</div>
-
-## 特色
-
-- 支持阅读格式：
-  - EPUB (**.epub**)
-  - PDF (**.pdf**)
-  - Kindle (**.azw3**, **.mobi**, **.azw**)
-  - 纯文本 (**.txt**)
-  - 漫画 (**.cbr**, **.cbz**, **.cbt**, **.cb7**)
-  - 富文本 (**.md**, **.docx**)
-  - FB2 (**.fb2**)
-  - 超文本 (**.html**, **.xml**, **.xhtml**, **.mhtml**, **.htm**)
-- 支持 **Windows**，**macOS**，**Linux** ，**安卓** ，**iOS** 和 **网页版**
-- 利用 **OneDrive**, **Google Drive**, **Dropbox**, **iCloud**, **MEGA**, **pCloud**, **阿里云盘**, **百度网盘**, **115 网盘**, **Box**, **Yandex Disk**, **FTP**, **SFTP**, **SMB**, **Docker**, **WebDAV**, **对象存储** 实现数据多端同步和备份
-- 轻松从 **OneDrive**, **Google Drive**, **MEGA**, **阿里云盘**, **百度网盘**, **115 网盘**, **Box**, **Yandex Disk**, **FTP**, **SFTP**, **SMB**, **WebDAV**, **对象存储** 导入图书
-- 使用您的自定义 AI 模型，实现 AI 翻译、AI 词典、AI 总结与 AI 百科
-- 与 **KOReader** 同步图书阅读进度
-- 将笔记与高亮同步至 **Readwise**、**Notion**、**Obsidian**、**Joplin** 等三方平台
-- 支持本地 MDX 词典查词
-- 自动同步生词到 **Anki** 与**欧路词典**
-- 通过密码、PIN 码、Windows Hello、Touch ID 等多重方式保护您的图书库
-- 一键导出全部图书
-- 一键导出笔记与高亮，支持 **CSV**、**Markdown**、**HTML**、**TXT** 等格式
-- 隐私优先，不使用任何追踪服务，不主动上传您的阅读数据与隐私信息
-- 支持 **OPDS** 协议，并可将您的书库以 **OPDS** 形式分享
-- 支持浏览器扩展，可将网页文章剪藏到您的书库
-- 内置 50+ 翻译、词典及听书插件，并支持自定义插件
-- 支持竖排图书阅读
-- 支持阅读统计功能
-- 内置 **Paddle** 与 **Tesseract** OCR 引擎
-- 支持图书库快照与版本控制
-- 双页模式，单页模式，滚动模式
-- 听书功能，翻译功能，词典功能，触控屏支持，批量导入图书
-- 支持目录，书签，笔记，高亮，书架，标签
-- 自定义字体，字体大小，行间距，段落间距，阅读背景色，文字颜色，屏幕亮度，文字下划线、斜体、文字阴影、字体粗细
-- 黑夜模式和主题色设置
-
-## 使用方法
-
-### 桌面端：[下载](https://koodoreader.com/zh/download)
-
-### 网页版：[前往](https://web.koodoreader.com)
-
-### 安卓版：[下载](https://koodoreader.com/zh/download)
-
-### iOS 版：[下载](https://koodoreader.com/zh/download)
-
-### 浏览器拓展：[下载](https://www.koodoreader.com/zh/use-extension)
-
-### 使用 Scoop 安装：
-
-```shell
-scoop bucket add extras
-scoop install extras/koodo-reader
-```
-
-### 使用 Winget 安装：
-
-```shell
-winget install AppByTroye.KoodoReader
-```
-
-### 使用 Flathub 安装：
-
-```shell
-flatpak install flathub io.github.troyeguo.koodo-reader
-```
-
-### 使用 Snap Store 安装：
-
-```shell
-sudo snap install koodo-reader
-```
-
-### 使用 Homebrew 安装：
-
-```shell
-brew install --cask koodo-reader
-```
-
-### 使用 Docker 安装：
-
-[部署教程](https://koodoreader.com/zh/deploy-docker)
+在线漫画是桌面端能力，在 Web 构建中不会显示入口。
 
 ## 截图
 
-<div align="center">
-  <b>图书列表</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/1.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>图书展示</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/5.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>列表模式</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/2.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>封面模式</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/3.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>阅读菜单</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/6.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>黑夜模式</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/4.png" width="800px"></kbd>
-  <br/>
-  <br/>
-</div>
+### 在线漫画面板
 
-## 运行源码
+![在线漫画面板](./docs/screenshots/jmcomic-panel.jpg)
 
-> [!NOTE]
-> 本仓库仅包含桌面版与网页版的源代码，不涉及移动端源码。我们所有项目均未使用任何基于 GPL 或 AGPL 协议发布的第三方库，因此不受相关开源协议传染性条款的约束，亦无公开移动版源代码的义务。此外，项目早期由外部贡献者提交的代码现已全部重写或移除，我们对自有代码的处理无需征得他人同意。本项目采用 AGPL 开源协议，该协议主要约束基于本项目代码进行二次开发的衍生作品，而非限制版权所有者自身的权利。作为完整版权持有者，我们有权自主决定是否以及以何种方式公开源代码。
+## Windows 下载
 
-请确保您电脑已配置好 yarn，git 的运行环境。
+请从 [GitHub Releases](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) 下载最新 NSIS 安装包或 portable EXE。每个 Release 同时提供 `SHA256SUMS.txt`。
 
-1. 将项目源码下载到本地
+`v0.1.0` 只支持 Windows 10/11 x64。当前构建未进行代码签名，Windows SmartScreen 可能显示“无法识别的应用”提示；运行前请核对 SHA-256。
 
-   ```
-   git clone https://github.com/koodo-reader/koodo-reader.git
-   ```
+## 源码快速启动
 
-2. cd 到项目文件夹，运行以下代码进入客户端模式
+先安装 Git、Node.js 22、Python 3.12 x64 和 Corepack，然后执行：
 
-   ```
-   yarn
-   yarn dev
-   ```
+```powershell
+git clone https://github.com/roverstargazer1-max/koodo-reader-personal.git
+cd koodo-reader-personal
+corepack enable
+yarn setup
+yarn dev
+```
 
-3. 运行以下代码进入网页模式
+`yarn setup` 会检查 Node/Yarn、严格按 `yarn.lock` 安装、创建根目录 `.venv`、安装完整 Python 运行时锁并执行 `check_env`。`yarn dev` 启动 React 和 Electron 前会再次检查环境。
 
-   ```
-   yarn
-   yarn start
-   ```
+开发环境基线：
+
+- Node.js 22
+- Yarn 1.22.22
+- Python 3.12 x64
+- Windows 10/11 x64
+
+常用验证命令：
+
+```powershell
+yarn check:env
+yarn test:jmcomic-runtime
+yarn typecheck
+yarn build
+```
+
+构建 sidecar、NSIS 安装包和便携版：
+
+```powershell
+yarn package:win
+```
+
+## 运行时结构
+
+源码模式优先使用用户明确选择的兼容 Python，否则使用项目 `.venv`。系统 Python 只用于创建或修复 `.venv`。
+
+打包模式固定启动：
+
+```text
+resources/jmcomic-bridge/jmcomic-bridge.exe
+```
+
+JavaScript 调度代码位于 `app.asar`；sidecar 由 electron-builder 的 `extraResources` 放在 ASAR 外。bridge 要求 JMComic `2.7.5`，版本不一致时 `check_env` 会返回可操作的错误。
+
+## 数据目录与迁移
+
+- Personal 正式版：`%APPDATA%\KoodoReaderPersonal`
+- Personal 开发版：`%APPDATA%\KoodoReaderPersonal-dev`
+- 为兼容现有同步继续使用云端目录：`KoodoReader`
+- 为兼容现有链接继续使用深链协议：`koodo-reader://`
+
+迁移时先在旧版中创建完整备份，再在 Koodo Reader Personal 中恢复。两个应用共用 `KoodoReader` 云同步目录时不要同时写入。详细步骤见[数据迁移](./docs/data-migration.md)。
+
+## 环境排错
+
+**`yarn dev` 提示环境缺失**
+
+执行 `yarn setup`。如果找不到 Python，请安装 Python 3.12 x64，并确保 Python Launcher 可用。
+
+**JMComic 版本不一致**
+
+源码模式重新执行 `yarn setup`；打包模式从完整的 GitHub Release 重新安装，并核对校验和。
+
+**看不到在线漫画入口**
+
+该入口只在 Electron 桌面应用显示，Web 版本不包含此能力。
+
+**安装版或便携版启动异常**
+
+核对 `SHA256SUMS.txt`，确认下载文件完整，并检查安全软件是否隔离了 `resources\jmcomic-bridge` 下的文件。
+
+## 已验证平台
+
+发布流水线在 Windows Server 2022 x64 上验证 Node.js 22、Yarn 1.22.22、Python 3.12、React 生产构建、unpacked Electron 应用和打包 sidecar 的直接执行。Windows 10/11 x64 安装版与便携版冒烟测试是发布前验收项。
+
+## 上游与许可证
+
+本项目基于 Koodo Reader，并保留仓库根目录的 AGPL-3.0 许可证。JMComic-Crawler-Python 作为固定版本的 MIT 依赖使用，其源码没有复制进本仓库。详见[第三方声明](./THIRD_PARTY_NOTICES.md)和 [ADR 0003](./docs/adr/0003-reproducible-python-runtime-and-windows-sidecar.md)。
+
+使用内容服务时，请遵守服务条款以及账号和所在地适用规则。

@@ -1,245 +1,114 @@
-<div align="left">
+# Koodo Reader Personal
 
-[简体中文](./README_cn.md) | [हिंदी](./README_hi.md)
-|[Português](./README_pt.md) | [Indonesian](./README_id.md) | English | [Türkçe](./README_tr.md)
+[简体中文](./README_cn.md) | English
 
-</div>
+Koodo Reader Personal is an independently maintained, Windows-first personal library derived from [Koodo Reader](https://github.com/koodo-reader/koodo-reader). It keeps the upstream reading and library experience and adds built-in desktop workflows powered by [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python).
 
-<div align="center" >
-  <img src="https://dl.koodoreader.com/screenshots/logo.png" width="96px" height="96px"/>
-</div>
+This repository is not the official Koodo Reader distribution. The first independent release is `v0.1.0`.
 
-<h1 align="center">
-  Koodo Reader
-</h1>
+## What Is Different
 
-<h3 align="center">
-  A cross-platform ebook reader
-</h3>
-<div align="center">
+- Built-in desktop panel for JMComic search, ranking, details, account login, favorites, chapter selection, downloads, cancellation, CBZ packaging, and automatic library import.
+- Library selection and batch interactions maintained for this Personal edition.
+- Reproducible source setup with a private `.venv` and `jmcomic==2.7.5`.
+- Windows packages include a PyInstaller `onedir` sidecar, so installed and portable builds do not need Python.
+- Personal and upstream Koodo installations use separate local data directories.
 
-[Download](https://koodoreader.com/en) | [Preview](https://web.koodoreader.com) | [Roadmap](https://koodoreader.com/en/roadmap) | [Document](https://koodoreader.com/en/document) | [Plugins](https://koodoreader.com/en/plugin)
+The online-comics panel is a desktop-only capability and is hidden in the web build.
 
-</div>
+## Screenshots
 
-## Preview
+### Online comics
 
-<div align="center">
-  <br/>
-  <br/>
-  <img src="https://dl.koodoreader.com/screenshots/7.png" width="800px">
-  <br/>
-  <br/>
-  <img src="https://dl.koodoreader.com/screenshots/8.png" width="800px">
-  <br/>
-  <br/>
-</div>
+![Online comics panel](./docs/screenshots/jmcomic-panel.jpg)
 
-## Features
+## Windows Download
 
-- Format support:
-  - EPUB (**.epub**)
-  - PDF (**.pdf**)
-  - DRM-free Mobipocket (**.mobi**) and Kindle (**.azw3**, **.azw**)
-  - Plain-text (**.txt**)
-  - FictionBook (**.fb2**)
-  - Comic book archive (**.cbr**, **.cbz**, **.cbt**, **.cb7**)
-  - Rich text (**.md**, **.docx**)
-  - HyperText (**.html**, **.xml**, **.xhtml**, **.mhtml**, **.htm**)
-- Platform support: **Windows**, **macOS**, **Linux**, **Android**, **iOS** and **Web**
-- Sync and backup your data with **OneDrive**, **Google Drive**, **Dropbox**, **iCloud**, **MEGA**, **pCloud**, **Yandex Disk**, **Box**, **FTP**, **SFTP**, **WebDAV**, **SMB**, or **Object Storage**
-- Easily import books from **OneDrive**, **Google Drive**, **MEGA**, **Yandex Disk**, **Box**, **FTP**, **SFTP**, **WebDAV**, **SMB**, or **Object Storage**
-- Use your custom AI model to power AI Translation, AI Dictionary, AI Summarization, and AI Encyclopedia
-- Sync reading progress with **KOReader**
-- Sync notes and highlights to **Readwise**, **Notion**, **Obsidian**, **Joplin**, and more
-- Support local MDX dictionary lookup
-- Automatically sync words to **Anki** and **Eudic**
-- Protect your library with password, PIN, Windows Hello, Touch ID, and more
-- One-click export of all books
-- One-click export of notes and highlights, supporting **CSV**, **Markdown**, **HTML**, **TXT**, and **PDF**
-- Privacy-first design: no tracking services, and no proactive uploading of your reading data or personal information
-- Support **OPDS** protocol and share your library as an **OPDS** feed
-- Support browser extension to save anything on the web to your library
-- Built-in 50+ plugins for translation, dictionaries, and text-to-speech, with support for custom plugins
-- Support vertical layout book
-- Support reading statistics
-- Built-in **Paddle** and **Tesseract** OCR engines
-- Support library snapshots and version control
-- Single-column, two-column or continuous scrolling layouts
-- Text-to-speech, translation, dictionary, touch screen support, and batch import
-- Add bookmarks, notes, and highlights to your books
-- Adjust font size, font family, line-spacing, paragraph spacing, background color, text color, margins, and brightness
-- Night mode and theme color
-- Text highlighting, underline, boldness, italics, and shadow
+Download the latest NSIS installer or portable executable from [GitHub Releases](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest). Each release includes `SHA256SUMS.txt`.
 
-## Installation
+`v0.1.0` targets Windows 10/11 x64. Packages are unsigned, so Windows SmartScreen may show an unrecognized-app prompt. Verify the SHA-256 checksum before running a download.
 
-### Desktop version: [Download](https://koodoreader.com/en/download)
+## Source Quick Start
 
-### Web version：[Visit](https://web.koodoreader.com)
+Install Git, Node.js 22, Python 3.12 x64, and Corepack, then run:
 
-### Android version：[Download](https://koodoreader.com/en/download)
-
-### iOS version：[Download](https://koodoreader.com/en/download)
-
-### Browser extension：[Download](https://www.koodoreader.com/en/use-extension)
-
-### Install with Scoop:
-
-```shell
-scoop bucket add extras
-scoop install extras/koodo-reader
+```powershell
+git clone https://github.com/roverstargazer1-max/koodo-reader-personal.git
+cd koodo-reader-personal
+corepack enable
+yarn setup
+yarn dev
 ```
 
-### Install with Winget:
+`yarn setup` verifies Node/Yarn, installs `yarn.lock`, creates the repository-local `.venv`, installs the exact Python runtime lock, and runs `check_env`. `yarn dev` checks the environment again before starting React and Electron.
 
-```shell
-winget install AppByTroye.KoodoReader
+Required development baseline:
+
+- Node.js 22
+- Yarn 1.22.22
+- Python 3.12 x64
+- Windows 10/11 x64
+
+Useful checks:
+
+```powershell
+yarn check:env
+yarn test:jmcomic-runtime
+yarn typecheck
+yarn build
 ```
 
-### Install with Flathub:
+Build the Windows sidecar and both release packages with:
 
-```shell
-flatpak install flathub io.github.troyeguo.koodo-reader
+```powershell
+yarn package:win
 ```
 
-### Install with Snap Store:
+## Runtime Layout
 
-```shell
-sudo snap install koodo-reader
+Source mode uses a configured compatible Python when one is explicitly selected; otherwise it uses `.venv`. A system Python is used only to create or repair `.venv`.
+
+Packaged mode always launches:
+
+```text
+resources/jmcomic-bridge/jmcomic-bridge.exe
 ```
 
-### Install with Homebrew:
+The JavaScript dispatcher remains in `app.asar`; the sidecar is placed outside ASAR with electron-builder `extraResources`. The bridge requires JMComic `2.7.5` and reports a version mismatch through `check_env`.
 
-```shell
-brew install --cask koodo-reader
-```
+## Data And Migration
 
-### Install with Docker:
+- Personal release data: `%APPDATA%\KoodoReaderPersonal`
+- Personal development data: `%APPDATA%\KoodoReaderPersonal-dev`
+- Cloud synchronization folder retained for compatibility: `KoodoReader`
+- Deep-link protocol retained for compatibility: `koodo-reader://`
 
-[Installation Guide](https://koodoreader.com/en/deploy-docker)
+To migrate, create a complete backup in the old application and restore that backup in Koodo Reader Personal. Do not run two applications against the shared `KoodoReader` cloud folder at the same time. See [Data Migration](./docs/data-migration.md).
 
-## Screenshot
+## Troubleshooting
 
-<div align="center">
-  <b>Book list</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/1.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>Book display</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/5.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>List mode</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/2.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>Cover mode</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/3.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>Reader menu</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/6.png" width="800px"></kbd>
-  <br/>
-  <br/>
-  <b>Dark mode</b>
-  <br/>
-  <br/>
-  <kbd><img src="https://dl.koodoreader.com/screenshots/4.png" width="800px"></kbd>
-  <br/>
-</div>
+**`yarn dev` says the environment is missing**
 
-## Develop
+Run `yarn setup`. If Python is not detected, install Python 3.12 x64 and ensure the Python launcher is available.
 
-Make sure that you have installed yarn and git
+**JMComic version mismatch**
 
-1. Download the repo
+In source mode, rerun `yarn setup`. In a packaged build, reinstall from a complete GitHub Release and verify its checksum.
 
-   ```
-   git clone https://github.com/koodo-reader/koodo-reader.git
-   ```
+**The online-comics entry is absent**
 
-2. Enter desktop mode
+It is available in the Electron desktop application only, not the web build.
 
-   ```
-   yarn
-   yarn dev
-   ```
+**A portable or installer build does not start**
 
-3. Enter web mode
+Verify `SHA256SUMS.txt`, extract or download the complete artifact, and check whether security software quarantined files under `resources\jmcomic-bridge`.
 
-   ```
-   yarn
-   yarn start
-   ```
+## Verified Platform
 
-## Translation
+The release pipeline verifies Windows Server 2022 x64 with Node.js 22, Yarn 1.22.22, Python 3.12, the React production build, the unpacked Electron application, and direct execution of the packaged sidecar. Windows 10/11 x64 installer and portable smoke tests remain release-gate checks.
 
-### Edit current language
+## Upstream And License
 
-1. Select your target language from the following list.
+This project is based on Koodo Reader and keeps the repository's AGPL-3.0 license. JMComic-Crawler-Python is consumed as a pinned MIT-licensed dependency; its source is not copied into this repository. See [Third-Party Notices](./THIRD_PARTY_NOTICES.md) and [ADR 0003](./docs/adr/0003-reproducible-python-runtime-and-windows-sidecar.md).
 
-2. Click the view button to examine the source file. The untranslated terms are listed at the bottom of each file.
-
-3. Translate the terms to your target language based on the given English reference
-
-4. Submit the translation file or just translation snippets based on the amount of your translation to [this link](https://github.com/koodo-reader/koodo-reader/issues/new?assignees=&labels=submit+translation&projects=&template=submit_translation.yml). Pull request is also welcomed.
-
-| Language(A-Z)   | Code  | View                                    |
-| --------------- | ----- | --------------------------------------- |
-| Amharic         | am    | [View](./src/assets/locales/am.json)    |
-| Arabic          | ar    | [View](./src/assets/locales/ar.json)    |
-| Armenian        | hy    | [View](./src/assets/locales/hy.json)    |
-| Bengali         | bn    | [View](./src/assets/locales/bn.json)    |
-| Bulgarian       | bg    | [View](./src/assets/locales/bg.json)    |
-| Chinese (CN)    | zh-CN | [View](./src/assets/locales/zh-CN.json) |
-| Chinese (MO)    | zh-MO | [View](./src/assets/locales/zh-MO.json) |
-| Chinese (TW)    | zh-TW | [View](./src/assets/locales/zh-TW.json) |
-| Czech           | cs    | [View](./src/assets/locales/cs.json)    |
-| Danish          | da    | [View](./src/assets/locales/da.json)    |
-| Dutch           | nl    | [View](./src/assets/locales/nl.json)    |
-| English         | en    | [View](./src/assets/locales/en.json)    |
-| Finnish         | fi    | [View](./src/assets/locales/fi.json)    |
-| French          | fr    | [View](./src/assets/locales/fr.json)    |
-| German          | de    | [View](./src/assets/locales/de.json)    |
-| Greek           | el    | [View](./src/assets/locales/el.json)    |
-| Hindi           | hi    | [View](./src/assets/locales/hi.json)    |
-| Hungarian       | hu    | [View](./src/assets/locales/hu.json)    |
-| Indonesian      | id    | [View](./src/assets/locales/id.json)    |
-| Interlingue     | ie    | [View](./src/assets/locales/ie.json)    |
-| Irish           | ga    | [View](./src/assets/locales/ga.json)    |
-| Italian         | it    | [View](./src/assets/locales/it.json)    |
-| Japanese        | ja    | [View](./src/assets/locales/ja.json)    |
-| Korean          | ko    | [View](./src/assets/locales/ko.json)    |
-| Persian         | fa    | [View](./src/assets/locales/fa.json)    |
-| Polish          | pl    | [View](./src/assets/locales/pl.json)    |
-| Portuguese      | pt    | [View](./src/assets/locales/pt.json)    |
-| Portuguese (BR) | pt-BR | [View](./src/assets/locales/pt-BR.json) |
-| Romanian        | ro    | [View](./src/assets/locales/ro.json)    |
-| Russian         | ru    | [View](./src/assets/locales/ru.json)    |
-| Slovenian       | sl    | [View](./src/assets/locales/sl.json)    |
-| Spanish         | es    | [View](./src/assets/locales/es.json)    |
-| Swedish         | sv    | [View](./src/assets/locales/sv.json)    |
-| Tamil           | ta    | [View](./src/assets/locales/ta.json)    |
-| Thai            | th    | [View](./src/assets/locales/th.json)    |
-| Tagalog         | tl    | [View](./src/assets/locales/tl.json)    |
-| Tibetan         | bo    | [View](./src/assets/locales/bo.json)    |
-| Turkish         | tr    | [View](./src/assets/locales/tr.json)    |
-| Ukrainian       | uk    | [View](./src/assets/locales/uk.json)    |
-| Vietnamese      | vi    | [View](./src/assets/locales/vi.json)    |
-
-### Add new language
-
-1. If you can't find your target language from the above list, download the English source file from [this link](./src/assets/locales/en.json).
-
-2. When you're finished translating, submit the source file to [this link](https://github.com/koodo-reader/koodo-reader/issues/new?assignees=&labels=submit+translation&projects=&template=submit_translation.yml). Pull requests are also welcome.
+Use content services in accordance with their terms and the rules that apply to your account and location.

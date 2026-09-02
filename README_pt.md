@@ -1,3 +1,5 @@
+> **Koodo Reader Personal:** This repository is an independently maintained derivative of Koodo Reader. Personal releases currently support Windows x64 only. Current project documentation: [English](./README.md) | [简体中文](./README_cn.md).
+
 <div align="left">
 
 [简体中文](./README_cn.md) | [हिंदी](./README_hi.md) | Português | [English](./README.md) | [Indonesian](./README_id.md)

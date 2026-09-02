@@ -2,8 +2,8 @@
 
 - **状态**: Accepted (已确认)
 - **日期**: 2026-09-02
-- **关联代码库**: f:\AI\Project\koodo-reader、JMComic-Crawler-Python
-- **前置 ADR**: [ADR 0001: JMComic 搜索与下载集成设计与决策记录](file:///f:/AI/Project/koodo-reader/docs/adr/0001-jmcomic-search-and-download-integration.md)
+- **关联代码库**: Koodo Reader Personal、JMComic-Crawler-Python
+- **前置 ADR**: [ADR 0001: JMComic 搜索与下载集成设计与决策记录](./0001-jmcomic-search-and-download-integration.md)
 
 ---
 

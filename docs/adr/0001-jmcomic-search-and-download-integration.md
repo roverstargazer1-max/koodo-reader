@@ -1,8 +1,8 @@
 ﻿# ADR 0001: JMComic 搜索与下载集成设计与决策记录
 
-- **状态**: Accepted (已确认)
+- **状态**: Accepted, partially superseded by [ADR 0003](./0003-reproducible-python-runtime-and-windows-sidecar.md)
 - **日期**: 2026-09-02
-- **关联代码库**: f:\AI\Project\koodo-reader、JMComic-Crawler-Python
+- **关联代码库**: Koodo Reader Personal、JMComic-Crawler-Python
 
 ---
 
@@ -28,6 +28,8 @@ Koodo Reader 作为一款全功能的跨平台电子书阅读器，原生支持 
 - **理由**: 最轻量无常驻端口占用，便于实时流式捕获下载进度和错误状态。
 
 ### 决策 3: Python 运行环境与依赖管理 (Python Environment & Dependencies)
+
+> 此决策已由 ADR 0003 取代：源码使用项目 `.venv`，发布版使用内置 sidecar。
 - **决策**: 采用 **系统 Python 自动检测 + 自定义路径配置 + 环境自检与依赖安装引导**。
 - **细节**:
   - 默认检测系统 PATH 中的 python / python3；
@@ -70,6 +72,8 @@ Koodo Reader 作为一款全功能的跨平台电子书阅读器，原生支持 
 - **决策**: 通过 Electron 主进程统一拦截注入合法 Referer 请求头并路由代理，结合本地图片缓存策略，保证封面瀑布流顺畅加载无防盗链阻断。
 
 ### 决策 10: 代码组织与打包分发 (Code Organization & Packaging)
+
+> 此决策的打包部分已由 ADR 0003 取代：Python bridge 不进入 ASAR，PyInstaller `onedir` 由 `extraResources` 放在 ASAR 外。
 - **决策**:
   - 桥接脚本位于 scripts/jmcomic/jm_bridge.py；
   - 前端 UI 位于 src/components/dialogs/jmcomicDialog/；
