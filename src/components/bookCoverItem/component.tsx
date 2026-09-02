@@ -37,6 +37,7 @@ const BookCoverItem: React.FC<BookCoverProps> = (props) => {
     isFavoriteBook,
     isTopBook,
     setIsFavorite,
+    isBlurred,
   } = useBookItem(props);
 
   const handleMoreAction = (event: any) => {
@@ -144,7 +145,7 @@ const BookCoverItem: React.FC<BookCoverProps> = (props) => {
           (props.book.format === "PDF" &&
             ConfigService.getReaderConfig("isDisablePDFCover") === "yes") ? (
             <div
-              className="book-item-image"
+              className={`book-item-image${isBlurred ? " book-cover-blurred" : ""}`}
               style={{ width: "120px", height: "170px" }}
             >
               <EmptyCover
@@ -172,7 +173,7 @@ const BookCoverItem: React.FC<BookCoverProps> = (props) => {
                   ? { width: "100%" }
                   : { height: "100%" }
               }
-              className="book-item-image"
+              className={`book-item-image${isBlurred ? " book-cover-blurred" : ""}`}
               onLoad={(res: any) => {
                 if (
                   res.target.naturalHeight / res.target.naturalWidth >

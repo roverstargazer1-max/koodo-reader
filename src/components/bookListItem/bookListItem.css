@@ -11,9 +11,14 @@
   /* height: 74px; */
   opacity: 1;
   cursor: pointer;
-  /* overflow: hidden; */
+  overflow: hidden;
   border-radius: 1px;
   display: inline-block;
+}
+
+.book-cover-blurred {
+  filter: blur(12px) !important;
+  transform: scale(1.08);
 }
 
 .book-item-list-title {

@@ -29,6 +29,10 @@
 .book-item-image {
   border-radius: 2px;
 }
+.book-cover-blurred {
+  filter: blur(12px) !important;
+  transform: scale(1.08);
+}
 .book-item-title {
   width: 80%;
   margin-left: 10%;

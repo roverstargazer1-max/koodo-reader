@@ -37,6 +37,7 @@ const BookListItem: React.FC<BookItemProps> = (props) => {
     isFavoriteBook,
     isTopBook,
     setIsFavorite,
+    isBlurred,
   } = useBookItem(props);
 
   const handleMoreAction = (event: any) => {
@@ -90,7 +91,10 @@ const BookListItem: React.FC<BookItemProps> = (props) => {
               setIsHover(false);
             }}
           >
-            <div className="book-item-image" style={{ height: "65px" }}>
+            <div
+              className={`book-item-image${isBlurred ? " book-cover-blurred" : ""}`}
+              style={{ height: "65px" }}
+            >
               <EmptyCover
                 {...{
                   format: props.book.format,
@@ -123,7 +127,7 @@ const BookListItem: React.FC<BookItemProps> = (props) => {
               src={cover}
               alt=""
               draggable={false}
-              className="book-item-image"
+              className={`book-item-image${isBlurred ? " book-cover-blurred" : ""}`}
               style={{ width: "100%" }}
               onLoad={(res: any) => {
                 if (

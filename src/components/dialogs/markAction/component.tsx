@@ -43,7 +43,27 @@ class MarkAction extends React.Component<MarkActionProps> {
     this.props.handleActionDialog(false);
   };
 
+  handleToggleBlur = () => {
+    const key = this.props.currentBook.key;
+    const isBlurred =
+      ConfigService.getAllListConfig("blurredBooks").indexOf(key) > -1;
+    if (isBlurred) {
+      ConfigService.deleteListConfig(key, "blurredBooks");
+    } else {
+      ConfigService.setListConfig(key, "blurredBooks");
+    }
+    toast.success(this.props.t("Modification successful"));
+    this.props.handleRefreshBookCover(key);
+    this.props.handleFetchBooks();
+    this.props.handleMarkAction(false);
+    this.props.handleActionDialog(false);
+  };
+
   render() {
+    const isBlurred =
+      ConfigService.getAllListConfig("blurredBooks").indexOf(
+        this.props.currentBook.key
+      ) > -1;
     return (
       <div
         className="action-dialog-container"
@@ -64,7 +84,7 @@ class MarkAction extends React.Component<MarkActionProps> {
                     (this.props.isExceed ? -SUBMENU_GAP : SUBMENU_GAP),
                   this.props.top + SUBMENU_TOP_OFFSET,
                   CONTEXT_MENU_WIDTH,
-                  estimateMenuHeight(2)
+                  estimateMenuHeight(3)
                 );
                 return {
                   position: "fixed",
@@ -96,6 +116,21 @@ class MarkAction extends React.Component<MarkActionProps> {
           >
             <p className="action-name">
               <Trans>Mark as unread</Trans>
+            </p>
+          </div>
+          <div
+            className="action-dialog-edit"
+            style={{ paddingLeft: "0px" }}
+            onClick={() => {
+              this.handleToggleBlur();
+            }}
+          >
+            <p className="action-name">
+              {isBlurred ? (
+                <Trans>Unblur cover</Trans>
+              ) : (
+                <Trans>Blur cover</Trans>
+              )}
             </p>
           </div>
         </div>

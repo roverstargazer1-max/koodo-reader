@@ -302,6 +302,11 @@ class NavigationPanel extends React.Component<
       handleNavSearchState: this.handleNavSearchState,
       handleSearchList: this.handleSearchList,
     };
+    const isBlurred =
+      this.props.currentBook &&
+      ConfigService.getAllListConfig("blurredBooks").indexOf(
+        this.props.currentBook.key
+      ) > -1;
     return (
       <div
         className="navigation-panel"
@@ -367,9 +372,15 @@ class NavigationPanel extends React.Component<
               ></span>
 
               {this.state.isCoverExist ? (
-                <img className="book-cover" src={this.state.cover} alt="" />
+                <img
+                  className={`book-cover${isBlurred ? " book-cover-blurred" : ""}`}
+                  src={this.state.cover}
+                  alt=""
+                />
               ) : (
-                <div className="book-cover">
+                <div
+                  className={`book-cover${isBlurred ? " book-cover-blurred" : ""}`}
+                >
                   <EmptyCover
                     {...{
                       format: this.props.currentBook.format,

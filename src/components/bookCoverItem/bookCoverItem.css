@@ -45,6 +45,10 @@
   align-items: center;
   border-radius: 3px;
 }
+.book-cover-blurred {
+  filter: blur(12px) !important;
+  transform: scale(1.08);
+}
 .book-cover-item-title {
   width: 240px;
   margin-top: 10px;

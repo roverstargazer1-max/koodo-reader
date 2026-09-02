@@ -392,6 +392,50 @@ class SelectBook extends React.Component<BookListProps, BookListState> {
                 >
                   <Trans>Delete pre-cache</Trans>
                 </span>
+                <span
+                  className="book-manage-title select-book-action"
+                  onClick={() => {
+                    if (
+                      this.props.selectedBooks &&
+                      this.props.selectedBooks.length > 0
+                    ) {
+                      this.props.selectedBooks.forEach((item) => {
+                        ConfigService.setListConfig(item, "blurredBooks");
+                      });
+                      this.props.handleSelectBook(false);
+                      this.props.handleSelectedBooks([]);
+                      this.props.handleFetchBooks &&
+                        this.props.handleFetchBooks();
+                      toast.success(this.props.t("Modification successful"));
+                    } else {
+                      toast(this.props.t("Nothing to modify"));
+                    }
+                  }}
+                >
+                  <Trans>Blur cover</Trans>
+                </span>
+                <span
+                  className="book-manage-title select-book-action"
+                  onClick={() => {
+                    if (
+                      this.props.selectedBooks &&
+                      this.props.selectedBooks.length > 0
+                    ) {
+                      this.props.selectedBooks.forEach((item) => {
+                        ConfigService.deleteListConfig(item, "blurredBooks");
+                      });
+                      this.props.handleSelectBook(false);
+                      this.props.handleSelectedBooks([]);
+                      this.props.handleFetchBooks &&
+                        this.props.handleFetchBooks();
+                      toast.success(this.props.t("Modification successful"));
+                    } else {
+                      toast(this.props.t("Nothing to modify"));
+                    }
+                  }}
+                >
+                  <Trans>Unblur cover</Trans>
+                </span>
               </div>
             </div>
 

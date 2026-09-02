@@ -34,6 +34,7 @@ const BookCardItem: React.FC<BookCardProps> = (props) => {
     getPercentage,
     isFavoriteBook,
     isTopBook,
+    isBlurred,
   } = useBookItem(props);
 
   const handleMoreAction = (event: any) => {
@@ -109,6 +110,7 @@ const BookCardItem: React.FC<BookCardProps> = (props) => {
           (props.book.format === "PDF" &&
             ConfigService.getReaderConfig("isDisablePDFCover") === "yes") ? (
             <div
+              className={isBlurred ? "book-cover-blurred" : ""}
               style={{
                 width:
                   105 *
@@ -149,7 +151,7 @@ const BookCardItem: React.FC<BookCardProps> = (props) => {
               src={cover}
               alt=""
               draggable={false}
-              className="book-item-image"
+              className={`book-item-image${isBlurred ? " book-cover-blurred" : ""}`}
               style={
                 direction === "horizontal" ||
                 ConfigService.getReaderConfig("isDisableCrop") === "yes"

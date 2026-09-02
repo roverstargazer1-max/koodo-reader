@@ -37,6 +37,9 @@ export function useBookItem(props: BookItemSharedProps) {
   const [isFavorite, setIsFavorite] = useState(
     ConfigService.getAllListConfig("favoriteBooks").indexOf(book.key) > -1
   );
+  const [isBlurred, setIsBlurred] = useState(
+    ConfigService.getAllListConfig("blurredBooks").indexOf(book.key) > -1
+  );
   const [left, setLeft] = useState(0);
   const [top, setTop] = useState(0);
   const [direction, setDirection] = useState("horizontal");
@@ -66,6 +69,12 @@ export function useBookItem(props: BookItemSharedProps) {
         newCover = newCover + "?t=" + Date.now();
       }
       if (!cancelled) {
+        setIsFavorite(
+          ConfigService.getAllListConfig("favoriteBooks").indexOf(book.key) > -1
+        );
+        setIsBlurred(
+          ConfigService.getAllListConfig("blurredBooks").indexOf(book.key) > -1
+        );
         setCover(newCover);
         setIsCoverExist(newIsCoverExist);
         setIsBookOffline(newIsBookOffline);
@@ -105,6 +114,9 @@ export function useBookItem(props: BookItemSharedProps) {
       if (!cancelled) {
         setIsFavorite(
           ConfigService.getAllListConfig("favoriteBooks").indexOf(book.key) > -1
+        );
+        setIsBlurred(
+          ConfigService.getAllListConfig("blurredBooks").indexOf(book.key) > -1
         );
         setCover(newCover);
         setIsCoverExist(newIsCoverExist);
@@ -274,6 +286,8 @@ export function useBookItem(props: BookItemSharedProps) {
     // state
     isFavorite,
     setIsFavorite,
+    isBlurred,
+    setIsBlurred,
     left,
     setLeft,
     top,

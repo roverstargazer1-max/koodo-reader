@@ -63,6 +63,11 @@ class DetailDialog extends React.Component<
         );
       });
     };
+    const isBlurred =
+      this.props.currentBook &&
+      ConfigService.getAllListConfig("blurredBooks").indexOf(
+        this.props.currentBook.key
+      ) > -1;
     return (
       <div className="download-desk-container">
         <div
@@ -76,10 +81,14 @@ class DetailDialog extends React.Component<
           <div style={{ position: "relative" }}>
             <div className="detail-cover-container">
               {this.state.isCoverExist ? (
-                <img src={this.state.cover} alt="" className="detail-cover" />
+                <img
+                  src={this.state.cover}
+                  alt=""
+                  className={`detail-cover${isBlurred ? " book-cover-blurred" : ""}`}
+                />
               ) : (
                 <div
-                  className="detail-cover"
+                  className={`detail-cover${isBlurred ? " book-cover-blurred" : ""}`}
                   style={{ width: "125px", height: "170px" }}
                 >
                   <EmptyCover
