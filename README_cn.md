@@ -48,12 +48,12 @@ Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书�
 
 ## 下载与安装 (Windows)
 
-从 [GitHub Releases 页面](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) 获取最新版本（当前版本：**`v0.2.2`**）：
+从 [GitHub Releases 页面](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) 获取最新版本（当前版本：**`v0.2.3`**）：
 
 | 文件类型 | 适用对象与特点 | 下载指引 |
 | :--- | :--- | :--- |
-| **安装版 (Setup)**<br>`Koodo-Reader-Personal-0.2.2-x64-Setup.exe` | **推荐日常使用**。<br>支持自动覆盖升级，内嵌完整 Python Sidecar 运行时，开箱即用。 | [点击下载 Setup 安装包](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
-| **便携版 (Portable)**<br>`Koodo-Reader-Personal-0.2.2-x64-Portable.exe` | **适合 U 盘或免安装场景**。<br>单文件独立运行，无需安装，解压即用。 | [点击下载 Portable 单文件](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| **安装版 (Setup)**<br>`Koodo-Reader-Personal-0.2.3-x64-Setup.exe` | **推荐日常使用**。<br>支持自动覆盖升级，内嵌完整 Python Sidecar 运行时，开箱即用。 | [点击下载 Setup 安装包](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| **便携版 (Portable)**<br>`Koodo-Reader-Personal-0.2.3-x64-Portable.exe` | **适合 U 盘或免安装场景**。<br>单文件独立运行，无需安装，解压即用。 | [点击下载 Portable 单文件](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
 
 > **安全提示**：当前安装包未采购昂贵商业代码签名证书，首次运行可能会弹出 Windows SmartScreen “Windows 已保护你的电脑” 提示，点击 **「更多信息」** -> **「仍要运行」** 即可。每个 Release 页面均附带 `SHA256SUMS.txt` 供校验完整性。
 
