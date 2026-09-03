@@ -99,6 +99,10 @@ const INVOKE_CHANNELS = new Set([
   "pica-download",
   "pica-cancel-download",
   "open-file-path",
+  "select-save-path",
+  "export-share-package",
+  "inspect-share-package",
+  "import-share-package",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);
 const SEND_SYNC_CHANNELS = new Set([
@@ -132,6 +136,9 @@ const EVENT_CHANNELS = new Set([
   "pica-download-progress",
   "pica-download-finish",
   "pica-download-error",
+  "open-share-package",
+  "share-export-progress",
+  "share-import-progress",
 ]);
 
 const assertChannel = (set, channel) => {

@@ -73,3 +73,9 @@ export function handleFetchDefaultSyncOption() {
     dispatch(handleDefaultSyncOption(defaultSyncOption));
   };
 }
+export function handleExportShareDialog(mode: boolean, data?: any) {
+  return { type: "HANDLE_EXPORT_SHARE_DIALOG", payload: { mode, data } };
+}
+export function handleImportShareDialog(mode: boolean, data?: any) {
+  return { type: "HANDLE_IMPORT_SHARE_DIALOG", payload: { mode, data } };
+}

@@ -39,12 +39,8 @@ class MetadataDialog extends React.Component<
       return;
     }
 
-    if (!this.props.isAuthed) {
-      toast(this.props.t("Please upgrade to Pro to use this feature"));
-      this.props.handleSetting(true);
-      this.props.handleSettingMode("account");
-      return;
-    }
+    // TODO(personal-local): 图书元数据 - 待接入豆瓣/Google Books 直连 API
+    // 参考文档: docs/plan/LOCAL_REFACTOR_ROADMAP.md #3.5
 
     this.setState({
       isLoading: true,
@@ -114,7 +110,6 @@ class MetadataDialog extends React.Component<
       <div className="metadata-dialog-container edit-dialog-container">
         <div className="metadata-dialog-title">
           <Trans>Get metadata</Trans>
-          <span style={{ fontSize: "13px", color: "#f16464" }}> (Pro)</span>
         </div>
 
         {/* Search inputs */}

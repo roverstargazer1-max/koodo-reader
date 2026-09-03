@@ -24,6 +24,7 @@ export interface BookListProps extends RouteComponentProps<any> {
   handleLoadMore: (isLoadMore: boolean) => void;
   handleSelectBook: (isSelectBook: boolean) => void;
   handleSelectedBooks: (selectedBooks: string[]) => void;
+  handleExportShareDialog: (isOpen: boolean, data?: any) => void;
   t: (title: string) => string;
 }
 export interface SelectionBox {

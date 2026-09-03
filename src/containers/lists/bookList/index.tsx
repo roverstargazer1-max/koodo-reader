@@ -7,6 +7,7 @@ import {
   handleLoadMore,
   handleSelectBook,
   handleSelectedBooks,
+  handleExportShareDialog,
 } from "../../../store/actions";
 import { stateType } from "../../../store";
 import { withTranslation } from "react-i18next";
@@ -36,6 +37,7 @@ const actionCreator = {
   handleLoadMore,
   handleSelectBook,
   handleSelectedBooks,
+  handleExportShareDialog,
 };
 export default connect(
   mappropsToProps,

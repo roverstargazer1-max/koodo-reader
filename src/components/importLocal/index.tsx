@@ -7,6 +7,7 @@ import {
   handleJmcomicDialog,
   handleAutoImportDialog,
   handleImportBookFunc,
+  handleImportShareDialog,
 } from "../../store/actions";
 import { handleReadingBook } from "../../store/actions";
 import { stateType } from "../../store";
@@ -34,6 +35,7 @@ const actionCreator = {
   handleJmcomicDialog,
   handleAutoImportDialog,
   handleImportBookFunc,
+  handleImportShareDialog,
 };
 export default connect(
   mapStateToProps,

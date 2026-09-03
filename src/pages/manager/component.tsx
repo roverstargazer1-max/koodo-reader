@@ -11,6 +11,9 @@ import OPDSDialog from "../../components/dialogs/opdsDialog";
 import JmcomicDialog from "../../components/dialogs/jmcomicDialog";
 import PicaDialog from "../../components/dialogs/picaDialog";
 import AutoImportDialog from "../../components/dialogs/autoImportDialog";
+import ExportShareDialog from "../../components/dialogs/exportShareDialog";
+import ImportShareDialog from "../../components/dialogs/importShareDialog";
+import { isElectron } from "react-device-detect";
 import { ManagerProps, ManagerState } from "./interface";
 import { Trans } from "react-i18next";
 import SettingDialog from "../../components/dialogs/settingDialog";
@@ -101,6 +104,18 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
         this.props.handleShelf(startupShelf);
         this.props.handleMode("shelf");
         this.props.history.push("/manager/shelf");
+      }
+    }
+    if (isElectron) {
+      const ipcRenderer = window.electronAPI;
+      ipcRenderer.on("open-share-package", (filePath: string) => {
+        if (filePath && filePath.endsWith(".kpack")) {
+          this.props.handleImportShareDialog(true, { filePath });
+        }
+      });
+      const startupFile = ipcRenderer.sendSync("check-file-data");
+      if (startupFile && startupFile.endsWith(".kpack")) {
+        this.props.handleImportShareDialog(true, { filePath: startupFile });
       }
     }
   }
@@ -200,6 +215,16 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
             e.preventDefault();
             e.stopPropagation();
             this.handleDrag(false);
+            const droppedFiles = Array.from(e.dataTransfer.files || []);
+            const kpackFile = droppedFiles.find((f: any) => {
+              const p = (f as any).path || f.name;
+              return p && p.toLowerCase().endsWith(".kpack");
+            });
+            if (kpackFile) {
+              const filePath = (kpackFile as any).path || kpackFile.name;
+              this.props.handleImportShareDialog(true, { filePath });
+              return;
+            }
             await processDroppedItems(
               e.dataTransfer,
               this.props.importBookFunc,
@@ -230,6 +255,8 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
             this.props.handleAutoImportDialog(false);
             this.props.handleShowPopupNote(false);
             this.props.handleSortShelfDialog(false);
+            this.props.handleExportShareDialog(false);
+            this.props.handleImportShareDialog(false);
             this.props.handleSetting(false);
             this.handleDrag(false);
           }}
@@ -241,6 +268,8 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
             this.props.isOpenPicaDialog ||
             this.props.isOpenAutoImportDialog ||
             this.props.isOpenSortShelfDialog ||
+            this.props.isOpenExportShareDialog ||
+            this.props.isOpenImportShareDialog ||
             this.props.isShowNew ||
             this.props.isShowSupport ||
             this.props.isOpenDeleteDialog ||
@@ -289,6 +318,8 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
         {this.props.isOpenPicaDialog && <PicaDialog />}
         {this.props.isOpenAutoImportDialog && <AutoImportDialog />}
         {this.props.isOpenSortShelfDialog && <SortShelfDialog />}
+        {this.props.isOpenExportShareDialog && <ExportShareDialog />}
+        {this.props.isOpenImportShareDialog && <ImportShareDialog />}
         {this.props.isSettingOpen && <SettingDialog />}
         {this.props.isDetailDialog && <DetailDialog />}
         {(!books || books.length === 0) && this.state.totalBooks ? null : (

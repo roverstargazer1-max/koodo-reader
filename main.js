@@ -843,6 +843,12 @@ if (!singleInstance) {
     if (deepLink) {
       handleCallback(deepLink);
     }
+    const kpackFile = argv.find(
+      (arg) => typeof arg === "string" && arg.endsWith(".kpack")
+    );
+    if (kpackFile && mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send("open-share-package", kpackFile);
+    }
   });
 }
 if (filePath && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -2596,6 +2602,489 @@ const createMainWin = () => {
       configFiles: configBuffers,
     };
   });
+  // 选择保存路径（支持 .kpack）
+  ipcMain.handle("select-save-path", async (event, config) => {
+    const dialogOptions = {
+      title: config && config.title ? config.title : "Save Share Package",
+      defaultPath:
+        config && config.defaultPath ? config.defaultPath : "share.kpack",
+      filters: (config && config.filters) || [
+        { name: "Koodo Share Package (*.kpack)", extensions: ["kpack"] },
+        { name: "All Files (*.*)", extensions: ["*"] },
+      ],
+    };
+    const result = await dialog.showSaveDialog(dialogOptions);
+    if (result.canceled) return null;
+    return result.filePath;
+  });
+
+  // 流式导出分享包 (.kpack)
+  ipcMain.handle("export-share-package", async (event, config) => {
+    if (!config || typeof config !== "object") {
+      throw new TypeError("Invalid share package export config");
+    }
+    const { targetFilePath, manifest, books, includeNotes, notes, dataPath } =
+      config;
+    if (
+      !targetFilePath ||
+      typeof targetFilePath !== "string" ||
+      !manifest ||
+      !Array.isArray(books) ||
+      !dataPath ||
+      typeof dataPath !== "string"
+    ) {
+      throw new TypeError("Invalid export-share-package arguments");
+    }
+
+    const sendProgress = (percent) => {
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send("share-export-progress", { percent });
+      }
+    };
+
+    const finalPath = targetFilePath.endsWith(".kpack")
+      ? targetFilePath
+      : targetFilePath + ".kpack";
+    const tempPath = finalPath + ".tmp";
+
+    try {
+      const parentDir = path.dirname(finalPath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+
+      await new Promise((resolve, reject) => {
+        const zip = new yazl.ZipFile();
+        zip.level = 6;
+        const output = fs.createWriteStream(tempPath);
+
+        const errored = (err) => {
+          try {
+            output.destroy();
+          } catch (_) {}
+          reject(err);
+        };
+        output.on("error", errored);
+        zip.outputStream.on("error", errored);
+        zip.on("error", errored);
+        output.on("close", resolve);
+
+        // 1. 写入 manifest.json
+        const manifestBuffer = Buffer.from(
+          JSON.stringify(manifest, null, 2),
+          "utf8"
+        );
+        zip.addBuffer(manifestBuffer, "manifest.json");
+
+        // 2. 写入 notes.json（若包含笔记）
+        if (includeNotes && Array.isArray(notes) && notes.length > 0) {
+          const notesBuffer = Buffer.from(
+            JSON.stringify(notes, null, 2),
+            "utf8"
+          );
+          zip.addBuffer(notesBuffer, "notes/notes.json");
+        }
+
+        // 3. 收集并添加图书文件与封面文件
+        let totalBytes = manifestBuffer.length;
+        let writtenBytes = 0;
+        const entriesToAdd = [];
+
+        for (const book of books) {
+          const format = (book.format || "epub").toLowerCase();
+          const internalBookPath = path.join(
+            dataPath,
+            "book",
+            `${book.key}.${format}`
+          );
+          let sourceBookPath = internalBookPath;
+          if (
+            !fs.existsSync(sourceBookPath) &&
+            book.path &&
+            fs.existsSync(book.path)
+          ) {
+            sourceBookPath = book.path;
+          }
+          if (fs.existsSync(sourceBookPath)) {
+            try {
+              totalBytes += fs.statSync(sourceBookPath).size;
+            } catch (_) {}
+            entriesToAdd.push({
+              source: sourceBookPath,
+              entryName: `books/${book.key}.${format}`,
+            });
+          }
+
+          const coverPath = path.join(dataPath, "cover", `${book.key}.png`);
+          if (fs.existsSync(coverPath)) {
+            try {
+              totalBytes += fs.statSync(coverPath).size;
+            } catch (_) {}
+            entriesToAdd.push({
+              source: coverPath,
+              entryName: `covers/${book.key}.png`,
+            });
+          }
+        }
+
+        for (const entry of entriesToAdd) {
+          zip.addFile(entry.source, entry.entryName);
+        }
+
+        zip.end();
+        zip.outputStream.on("data", (chunk) => {
+          writtenBytes += chunk.length;
+        });
+
+        zip.outputStream.pipe(output);
+
+        const report = setInterval(() => {
+          const percent = totalBytes
+            ? Math.min(100, Math.round((writtenBytes / totalBytes) * 100))
+            : 100;
+          sendProgress(percent);
+        }, 100);
+
+        zip.outputStream.on("end", () => {
+          clearInterval(report);
+        });
+      });
+
+      let tempStat;
+      try {
+        tempStat = fs.statSync(tempPath);
+      } catch (_) {
+        throw new Error("Share package output file was not created");
+      }
+      if (fs.existsSync(finalPath)) {
+        fs.unlinkSync(finalPath);
+      }
+      fs.renameSync(tempPath, finalPath);
+      sendProgress(100);
+      return { ok: true, filePath: finalPath, size: tempStat.size };
+    } catch (error) {
+      try {
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+      } catch (_) {}
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("export-share-package failed:", message);
+      return { ok: false, error: message };
+    }
+  });
+
+  // 预览检查分享包 (.kpack)
+  ipcMain.handle("inspect-share-package", async (event, config) => {
+    if (!config || typeof config !== "object" || !config.filePath) {
+      throw new TypeError("Invalid inspect-share-package arguments");
+    }
+    const { filePath } = config;
+    if (!fs.existsSync(filePath)) {
+      return { ok: false, error: "File not found" };
+    }
+
+    try {
+      const stat = fs.statSync(filePath);
+      const manifest = await new Promise((resolve, reject) => {
+        yauzl.open(
+          filePath,
+          { lazyEntries: true, autoClose: true },
+          (err, zf) => {
+            if (err) return reject(err);
+            let foundManifest = false;
+
+            zf.on("entry", (entry) => {
+              if (entry.fileName === "manifest.json") {
+                foundManifest = true;
+                zf.openReadStream(entry, (readErr, stream) => {
+                  if (readErr) return reject(readErr);
+                  const chunks = [];
+                  stream.on("data", (c) => chunks.push(c));
+                  stream.on("error", reject);
+                  stream.on("end", () => {
+                    try {
+                      const content = Buffer.concat(chunks).toString("utf8");
+                      resolve(JSON.parse(content));
+                    } catch (e) {
+                      reject(e);
+                    }
+                  });
+                });
+              } else {
+                zf.readEntry();
+              }
+            });
+
+            zf.on("end", () => {
+              if (!foundManifest) {
+                reject(
+                  new Error("Not a valid share package: missing manifest.json")
+                );
+              }
+            });
+            zf.on("error", reject);
+            zf.readEntry();
+          }
+        );
+      });
+
+      return {
+        ok: true,
+        filePath,
+        totalSize: stat.size,
+        manifest,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("inspect-share-package failed:", message);
+      return { ok: false, error: message };
+    }
+  });
+
+  // 流式导入分享包 (.kpack)
+  ipcMain.handle("import-share-package", async (event, config) => {
+    if (!config || typeof config !== "object") {
+      throw new TypeError("Invalid import-share-package arguments");
+    }
+    const { filePath, dataPath, existingBookNames } = config;
+    if (
+      !filePath ||
+      typeof filePath !== "string" ||
+      !dataPath ||
+      typeof dataPath !== "string"
+    ) {
+      throw new TypeError("Invalid arguments for import-share-package");
+    }
+    if (!fs.existsSync(filePath)) {
+      return { ok: false, error: "Share package file not found" };
+    }
+
+    const sendProgress = (percent) => {
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send("share-import-progress", { percent });
+      }
+    };
+
+    try {
+      const bookDir = path.join(dataPath, "book");
+      const coverDir = path.join(dataPath, "cover");
+      if (!fs.existsSync(bookDir)) fs.mkdirSync(bookDir, { recursive: true });
+      if (!fs.existsSync(coverDir)) fs.mkdirSync(coverDir, { recursive: true });
+
+      // 第一步：读取 manifest.json 和 notes/notes.json
+      const meta = await new Promise((resolve, reject) => {
+        yauzl.open(
+          filePath,
+          { lazyEntries: true, autoClose: true },
+          (err, zf) => {
+            if (err) return reject(err);
+            let manifest = null;
+            let rawNotes = [];
+
+            zf.on("entry", (entry) => {
+              if (entry.fileName === "manifest.json") {
+                zf.openReadStream(entry, (readErr, stream) => {
+                  if (readErr) return reject(readErr);
+                  const chunks = [];
+                  stream.on("data", (c) => chunks.push(c));
+                  stream.on("error", reject);
+                  stream.on("end", () => {
+                    try {
+                      manifest = JSON.parse(
+                        Buffer.concat(chunks).toString("utf8")
+                      );
+                    } catch (e) {
+                      return reject(e);
+                    }
+                    zf.readEntry();
+                  });
+                });
+              } else if (entry.fileName === "notes/notes.json") {
+                zf.openReadStream(entry, (readErr, stream) => {
+                  if (readErr) return reject(readErr);
+                  const chunks = [];
+                  stream.on("data", (c) => chunks.push(c));
+                  stream.on("error", reject);
+                  stream.on("end", () => {
+                    try {
+                      rawNotes = JSON.parse(
+                        Buffer.concat(chunks).toString("utf8")
+                      );
+                    } catch (e) {
+                      return reject(e);
+                    }
+                    zf.readEntry();
+                  });
+                });
+              } else {
+                zf.readEntry();
+              }
+            });
+
+            zf.on("end", () => {
+              if (!manifest) {
+                return reject(new Error("Missing manifest.json in share package"));
+              }
+              resolve({ manifest, rawNotes });
+            });
+            zf.on("error", reject);
+            zf.readEntry();
+          }
+        );
+      });
+
+      const { manifest, rawNotes } = meta;
+      const existingNameSet = new Set(
+        Array.isArray(existingBookNames) ? existingBookNames : []
+      );
+
+      // 计算重命名（如果重名，添加（1）、（2）...）
+      const getRenamedTitle = (title) => {
+        if (!existingNameSet.has(title)) {
+          existingNameSet.add(title);
+          return title;
+        }
+        let index = 1;
+        let candidate = `${title}（${index}）`;
+        while (existingNameSet.has(candidate)) {
+          index++;
+          candidate = `${title}（${index}）`;
+        }
+        existingNameSet.add(candidate);
+        return candidate;
+      };
+
+      const keyMap = {}; // originalKey -> newKey
+      const newBooks = [];
+      let renamedCount = 0;
+
+      for (const b of manifest.books || []) {
+        const origKey = b.originalKey || b.key;
+        const newKey = nodeCrypto.randomUUID().replace(/-/g, "");
+        keyMap[origKey] = newKey;
+
+        const originalTitle = b.name || "Untitled";
+        const finalTitle = getRenamedTitle(originalTitle);
+        if (finalTitle !== originalTitle) {
+          renamedCount++;
+        }
+
+        const format = (b.format || "epub").toLowerCase();
+        const targetBookPath = path.join(bookDir, `${newKey}.${format}`);
+        const targetCoverPath = path.join(coverDir, `${newKey}.png`);
+
+        newBooks.push({
+          key: newKey,
+          name: finalTitle,
+          author: b.author || "",
+          description: b.description || "",
+          md5: b.md5 || "",
+          cover: targetCoverPath,
+          format: format,
+          publisher: b.publisher || "",
+          size: b.size || 0,
+          page: 0,
+          path: targetBookPath,
+          charset: b.charset || "utf-8",
+        });
+      }
+
+      // 重新映射 notes 的 bookKey 与 key
+      const newNotes = [];
+      for (const note of rawNotes || []) {
+        const mappedBookKey = keyMap[note.bookKey];
+        if (mappedBookKey) {
+          newNotes.push({
+            ...note,
+            key: nodeCrypto.randomUUID().replace(/-/g, ""),
+            bookKey: mappedBookKey,
+          });
+        }
+      }
+
+      // 第二步：流式解压 book 与 cover 文件到本地目录
+      await new Promise((resolve, reject) => {
+        yauzl.open(
+          filePath,
+          { lazyEntries: true, autoClose: true },
+          (err, zf) => {
+            if (err) return reject(err);
+            const total = zf.entryCount || 1;
+            let count = 0;
+
+            const next = () => {
+              count++;
+              sendProgress(Math.min(99, Math.round((count / total) * 100)));
+              zf.readEntry();
+            };
+
+            zf.on("entry", (entry) => {
+              const name = entry.fileName;
+              if (name.startsWith("books/")) {
+                const baseName = path.basename(name);
+                const dotIdx = baseName.indexOf(".");
+                const origKey = dotIdx > 0 ? baseName.slice(0, dotIdx) : baseName;
+                const ext = dotIdx > 0 ? baseName.slice(dotIdx + 1) : "epub";
+                const mappedKey = keyMap[origKey];
+                if (mappedKey) {
+                  const targetFile = path.join(
+                    bookDir,
+                    `${mappedKey}.${ext.toLowerCase()}`
+                  );
+                  zf.openReadStream(entry, (readErr, readStream) => {
+                    if (readErr) return reject(readErr);
+                    const writeStream = fs.createWriteStream(targetFile);
+                    writeStream.on("close", next);
+                    writeStream.on("error", reject);
+                    readStream.on("error", reject);
+                    readStream.pipe(writeStream);
+                  });
+                  return;
+                }
+              } else if (name.startsWith("covers/")) {
+                const baseName = path.basename(name);
+                const dotIdx = baseName.indexOf(".");
+                const origKey = dotIdx > 0 ? baseName.slice(0, dotIdx) : baseName;
+                const mappedKey = keyMap[origKey];
+                if (mappedKey) {
+                  const targetCover = path.join(coverDir, `${mappedKey}.png`);
+                  zf.openReadStream(entry, (readErr, readStream) => {
+                    if (readErr) return reject(readErr);
+                    const writeStream = fs.createWriteStream(targetCover);
+                    writeStream.on("close", next);
+                    writeStream.on("error", reject);
+                    readStream.on("error", reject);
+                    readStream.pipe(writeStream);
+                  });
+                  return;
+                }
+              }
+              next();
+            });
+
+            zf.on("end", resolve);
+            zf.on("error", reject);
+            zf.readEntry();
+          }
+        );
+      });
+
+      sendProgress(100);
+      return {
+        ok: true,
+        books: newBooks,
+        notes: newNotes,
+        shelfName: manifest.shelfName || null,
+        renamedCount,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("import-share-package failed:", message);
+      return { ok: false, error: message };
+    }
+  });
+
   ipcMain.handle("set-always-on-top", async (event, config) => {
     store.set("isAlwaysOnTop", config.isAlwaysOnTop);
     if (mainWin && !mainWin.isDestroyed()) {
@@ -3130,6 +3619,14 @@ app.on("window-all-closed", () => {
 });
 app.on("open-file", (e, pathToFile) => {
   filePath = pathToFile;
+  if (
+    pathToFile &&
+    pathToFile.endsWith(".kpack") &&
+    mainWin &&
+    !mainWin.isDestroyed()
+  ) {
+    mainWin.webContents.send("open-share-package", pathToFile);
+  }
 });
 // Register protocol handler
 app.setAsDefaultProtocolClient("koodo-reader");

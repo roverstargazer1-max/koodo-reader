@@ -24,6 +24,8 @@ import {
   handleReadingState,
   handleShowPopupNote,
   handleSortShelfDialog,
+  handleExportShareDialog,
+  handleImportShareDialog,
   handleShelf,
   handleMode,
 } from "../../store/actions";
@@ -59,6 +61,8 @@ const mapStateToProps = (state: stateType) => {
     isOpenAutoImportDialog: state.backupPage.isOpenAutoImportDialog,
     isOpenSortShelfDialog: state.backupPage.isOpenSortShelfDialog,
     isOpenLocalFileDialog: state.backupPage.isOpenLocalFileDialog,
+    isOpenExportShareDialog: state.backupPage.isOpenExportShareDialog,
+    isOpenImportShareDialog: state.backupPage.isOpenImportShareDialog,
   };
 };
 const actionCreator = {
@@ -84,6 +88,8 @@ const actionCreator = {
   handleJmcomicDialog,
   handlePicaDialog,
   handleAutoImportDialog,
+  handleExportShareDialog,
+  handleImportShareDialog,
   handleReadingState,
   handleShowPopupNote,
   handleShelf,

@@ -684,6 +684,23 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
     this.props.handleAutoImportDialog(true);
   };
 
+  // Handle share package import (.kpack)
+  handleSharePackageImport = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    this.setState({ isMoreOptionsVisible: false });
+    if (!isElectron) return;
+    const ipcRenderer = window.electronAPI;
+    const filePath = await ipcRenderer.invoke("select-file", {
+      filters: [
+        { name: "Koodo Share Package (*.kpack)", extensions: ["kpack"] },
+        { name: "All Files (*.*)", extensions: ["*"] },
+      ],
+    });
+    if (filePath) {
+      this.props.handleImportShareDialog(true, { filePath });
+    }
+  };
+
   // Handle URL import
   handleURLImport = async (e?: React.MouseEvent, externalUrl?: string) => {
     e?.stopPropagation();
@@ -1006,6 +1023,16 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
                       >
                         <span className="more-option-text">
                           <Trans>Auto import folder</Trans>
+                        </span>
+                      </div>
+                    )}
+                    {isElectron && (
+                      <div
+                        className="more-option-item"
+                        onClick={this.handleSharePackageImport}
+                      >
+                        <span className="more-option-text">
+                          <Trans>Import share package</Trans>
                         </span>
                       </div>
                     )}

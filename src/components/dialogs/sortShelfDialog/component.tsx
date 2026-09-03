@@ -7,6 +7,7 @@ import { ReactSortable } from "react-sortablejs";
 import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 import toast from "react-hot-toast";
 import DeletePopup from "../deletePopup";
+import DatabaseService from "../../../utils/storage/databaseService";
 class SortShelfDialog extends React.Component<
   SortShelfDialogProps,
   SortShelfDialogState
@@ -186,6 +187,36 @@ class SortShelfDialog extends React.Component<
                     <span className="sort-shelf-label">
                       {this.props.t(item.name)}
                     </span>
+                    <span
+                      className="icon-share"
+                      title={this.props.t("Share shelf")}
+                      onClick={async () => {
+                        const shelfMap =
+                          ConfigService.getAllMapConfig("shelfList") || {};
+                        const bookKeys: string[] = shelfMap[item.name] || [];
+                        if (bookKeys.length === 0) {
+                          toast(this.props.t("Nothing to export"));
+                          return;
+                        }
+                        const books = await DatabaseService.getRecordsByKeys(
+                          bookKeys,
+                          "books"
+                        );
+                        if (books.length > 0) {
+                          this.props.handleExportShareDialog(true, {
+                            books,
+                            shelfName: item.name,
+                          });
+                        } else {
+                          toast(this.props.t("Nothing to export"));
+                        }
+                      }}
+                      style={{
+                        fontSize: "17px",
+                        marginRight: "15px",
+                        cursor: "pointer",
+                      }}
+                    ></span>
                     <span
                       className="icon-trash-line "
                       onClick={async () => {

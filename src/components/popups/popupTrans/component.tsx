@@ -243,12 +243,6 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
     }
   };
   handleChangeService(target: string) {
-    if (target === "official-ai-trans-plugin" && !this.props.isAuthed) {
-      toast(this.props.t("Please upgrade to Pro to use this feature"));
-      this.props.handleSetting(true);
-      this.props.handleSettingMode("account");
-      return;
-    }
     this.setState({ transService: target }, () => {
       ConfigService.setReaderConfig("transService", target);
       let plugin = this.props.plugins.find(
@@ -310,12 +304,6 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
                   >
                     <span className={`icon-${item.icon} trans-icon`}></span>
                     {this.props.t(item.displayName)}
-                    {item.key === "official-ai-trans-plugin" && (
-                      <span style={{ fontSize: "13px", color: "#f16464" }}>
-                        {" "}
-                        (Pro)
-                      </span>
-                    )}
                   </div>
                 );
               })}

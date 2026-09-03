@@ -3,7 +3,7 @@ export const driveList = [
     label: "WebDAV",
     value: "webdav",
     icon: "icon-webdav",
-    isPro: true,
+    isPro: false,
     support: ["desktop", "browser", "phone"],
     scoped: false,
     needExtension: true,
@@ -12,7 +12,7 @@ export const driveList = [
     label: "S3 Compatible",
     value: "s3compatible",
     icon: "icon-s3compatible",
-    isPro: true,
+    isPro: false,
     support: ["desktop", "browser", "phone"],
     scoped: false,
     needExtension: true,
@@ -21,124 +21,23 @@ export const driveList = [
     label: "Docker",
     value: "docker",
     icon: "icon-docker",
-    isPro: true,
+    isPro: false,
     support: ["desktop", "browser", "phone"],
-    scoped: true,
-  },
-  {
-    label: "OneDrive",
-    value: "microsoft",
-    icon: "icon-onedrive",
-    isPro: true,
-    support: ["desktop", "browser", "phone"],
-    scoped: true,
-  },
-  {
-    label: "Google Drive",
-    value: "google",
-    icon: "icon-googledrive",
-    isPro: true,
-    support: ["desktop", "browser", "phone"],
-    scoped: false,
-  },
-  {
-    label: "Dropbox",
-    value: "dropbox",
-    icon: "icon-dropbox",
-    isPro: true,
-    support: ["desktop", "browser", "phone"],
-    scoped: true,
-  },
-  {
-    label: "iCloud",
-    value: "icloud",
-    icon: "icon-icloud",
-    isPro: true,
-    support: ["desktop", "phone"],
     scoped: true,
   },
   {
     label: "Local folder",
     value: "folder",
     icon: "icon-local",
-    isPro: true,
+    isPro: false,
     support: ["desktop"],
     scoped: true,
   },
   {
-    label: "Dubox",
-    value: "dubox",
-    icon: "icon-dubox",
-    isPro: true,
-    support: ["desktop", "phone"],
-    scoped: false,
-  },
-
-  {
-    label: "Box",
-    value: "boxnet",
-    icon: "icon-box",
-    isPro: true,
-    support: ["desktop", "browser", "phone"],
-    scoped: false,
-  },
-
-  {
-    label: "MEGA",
-    value: "mega",
-    icon: "icon-mega",
-    isPro: true,
-    support: ["desktop", "browser"],
-    scoped: false,
-  },
-  {
-    label: "Aliyun Drive",
-    value: "adrive",
-    icon: "icon-adrive",
-    isPro: true,
-    support: ["desktop", "phone"],
-    scoped: false,
-  },
-  {
-    label: "Yandex Disk",
-    value: "yandex",
-    icon: "icon-yandex",
-    isPro: true,
-    support: ["desktop", "phone"],
-    scoped: false,
-  },
-  {
-    label: "115 Yun",
-    value: "yiyiwu",
-    icon: "icon-yiyiwu",
-    isPro: true,
-    support: ["desktop", "phone"],
-    scoped: false,
-  },
-
-  {
-    label: "pCloud",
-    value: "pcloud",
-    icon: "icon-pcloud",
-    isPro: true,
-    support: ["desktop", "phone"],
-    scoped: true,
-  },
-
-  {
-    label: "OneDrive (full access)",
-    value: "microsoft_exp",
-    icon: "icon-onedrive",
-    isPro: true,
-    support: ["desktop", "browser", "phone"],
-    scoped: false,
-  },
-
-  {
     label: "FTP",
     value: "ftp",
     icon: "icon-ftp",
-    isPro: true,
+    isPro: false,
     support: ["desktop"],
     scoped: false,
   },
@@ -146,11 +45,12 @@ export const driveList = [
     label: "SFTP",
     value: "sftp",
     icon: "icon-sftp",
-    isPro: true,
+    isPro: false,
     support: ["desktop"],
     scoped: false,
   },
 ];
+
 interface ConfigItem {
   label: string;
   value: string;
@@ -164,6 +64,7 @@ interface ConfigItem {
 interface DriveInputConfig {
   [key: string]: ConfigItem[];
 }
+
 export const driveInputConfig: DriveInputConfig = {
   webdav: [
     {
@@ -211,28 +112,6 @@ export const driveInputConfig: DriveInputConfig = {
       label: "Password",
       value: "password",
       type: "password",
-      required: true,
-    },
-  ],
-  mega: [
-    {
-      label: "Email",
-      value: "email",
-      type: "text",
-      required: true,
-    },
-    {
-      label: "Password",
-      value: "password",
-      type: "password",
-      required: true,
-    },
-  ],
-  boxnet: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
       required: true,
     },
   ],
@@ -359,78 +238,6 @@ export const driveInputConfig: DriveInputConfig = {
       type: "text",
       required: false,
       note: "Enter 1 to enable, leave empty to disable. Required for some S3 storage services that are not compatible with virtual host style URL",
-    },
-  ],
-  google: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  microsoft: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  microsoft_exp: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  dropbox: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  yandex: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  dubox: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  yiyiwu: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  pcloud: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
-    },
-  ],
-  adrive: [
-    {
-      label: "Token",
-      value: "token",
-      type: "text",
-      required: true,
     },
   ],
 };

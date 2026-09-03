@@ -23,6 +23,8 @@ export interface ManagerProps extends RouteComponentProps<any> {
   isOpenJmcomicDialog: boolean;
   isOpenPicaDialog: boolean;
   isOpenAutoImportDialog: boolean;
+  isOpenExportShareDialog: boolean;
+  isOpenImportShareDialog: boolean;
   importBookFunc: (file: any) => Promise<void>;
   handleFetchBooks: () => void;
   handleFetchPlugins: () => void;
@@ -44,6 +46,8 @@ export interface ManagerProps extends RouteComponentProps<any> {
   handleJmcomicDialog: (isOpen: boolean) => void;
   handlePicaDialog: (isOpen: boolean) => void;
   handleAutoImportDialog: (isOpen: boolean) => void;
+  handleExportShareDialog: (isOpen: boolean, data?: any) => void;
+  handleImportShareDialog: (isOpen: boolean, data?: any) => void;
   handleReadingState: (isReading: boolean) => void;
   handleSetting: (isSettingOpen: boolean) => void;
   handleShelf: (shelfTitle: string) => void;

@@ -169,6 +169,12 @@
     "npmRebuild": false,
     "fileAssociations": [
       {
+        "ext": "kpack",
+        "icon": "assets/icons/epub",
+        "role": "Viewer",
+        "mimeType": "application/x-koodo-share"
+      },
+      {
         "ext": "epub",
         "icon": "assets/icons/epub",
         "role": "Viewer",

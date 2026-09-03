@@ -1,0 +1,134 @@
+.export-share-dialog-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  max-width: 90vw;
+  background-color: var(--primary-background-color, #ffffff);
+  color: var(--text-color, #333333);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.export-share-dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--title-color, #111111);
+}
+
+.export-share-dialog-info {
+  font-size: 14px;
+  color: var(--sub-title-color, #666666);
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.export-share-book-list {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  background-color: var(--second-background-color, #f9f9f9);
+}
+
+.export-share-book-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px dashed var(--border-color, #eeeeee);
+}
+
+.export-share-book-item:last-child {
+  border-bottom: none;
+}
+
+.export-share-book-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+  font-weight: 500;
+}
+
+.export-share-book-meta {
+  font-size: 12px;
+  color: #999;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.export-share-option-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.export-share-option-row input[type="checkbox"] {
+  cursor: pointer;
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--main-color, #0288d1);
+}
+
+.export-share-option-label {
+  font-size: 14px;
+  color: var(--text-color, #333333);
+}
+
+.export-share-button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.export-share-btn-cancel,
+.export-share-btn-confirm {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.export-share-btn-cancel {
+  background-color: var(--second-background-color, #f0f0f0);
+  color: var(--text-color, #555555);
+}
+
+.export-share-btn-cancel:hover {
+  background-color: var(--hover-color, #e4e4e4);
+}
+
+.export-share-btn-confirm {
+  background-color: var(--main-color, #0288d1);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.export-share-btn-confirm:hover {
+  opacity: 0.9;
+}
+
+.export-share-btn-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

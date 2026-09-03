@@ -63,15 +63,6 @@ class ImportDialog extends React.Component<
       this.props.handleSettingMode("sync");
       return;
     }
-    if (
-      driveList.find((item) => item.value === event.target.value)?.isPro &&
-      !this.props.isAuthed
-    ) {
-      toast(this.props.t("Please upgrade to Pro to use this feature"));
-      this.props.handleSetting(true);
-      this.props.handleSettingMode("account");
-      return;
-    }
     if (event.target.value === "add") {
       toast(
         this.props.t(
@@ -400,51 +391,10 @@ class ImportDialog extends React.Component<
                     key={item.value}
                     className={`cloud-drive-item `}
                     onClick={() => {
-                      if (item.isPro && !this.props.isAuthed) {
-                        toast(
-                          this.props.t(
-                            "Please upgrade to Pro to use this feature"
-                          )
-                        );
-                        this.props.handleSetting(true);
-                        this.props.handleSettingMode("account");
-                        return;
-                      }
-
                       if (!this.props.dataSourceList.includes(item.value)) {
                         this.props.handleSetting(true);
                         this.props.handleSettingMode("sync");
                         this.props.handleSettingDrive(item.value);
-                        let settingDrive = item.value;
-                        if (
-                          settingDrive === "dropbox" ||
-                          settingDrive === "yandex" ||
-                          settingDrive === "yiyiwu" ||
-                          settingDrive === "dubox" ||
-                          settingDrive === "google" ||
-                          settingDrive === "boxnet" ||
-                          settingDrive === "pcloud" ||
-                          settingDrive === "adrive" ||
-                          settingDrive === "microsoft_exp" ||
-                          settingDrive === "microsoft"
-                        ) {
-                          openInBrowser(
-                            new SyncUtil(settingDrive, {}).getAuthUrl(
-                              getServerRegion() === "china" &&
-                                (settingDrive === "microsoft" ||
-                                  settingDrive === "microsoft_exp" ||
-                                  settingDrive === "dubox" ||
-                                  settingDrive === "yiyiwu" ||
-                                  settingDrive === "adrive")
-                                ? KookitConfig.ThirdpartyConfig.cnCallbackUrl
-                                : KookitConfig.ThirdpartyConfig.callbackUrl
-                            )
-                          );
-                        }
-                        return;
-                      }
-                      if (item.value === "google") {
-                        this.handleGooglePicker();
                         return;
                       }
                       this.setState({
@@ -456,7 +406,7 @@ class ImportDialog extends React.Component<
                     }}
                   >
                     <span className="cloud-drive-label">
-                      {this.props.t(item.label) + (item.isPro ? " (Pro)" : "")}
+                      {this.props.t(item.label)}
                     </span>
                     <span className="icon-dropdown import-dialog-more-file"></span>
                   </div>

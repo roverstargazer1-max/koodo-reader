@@ -12,14 +12,12 @@ import { resetUserRequest } from "./user";
 import { resetThirdpartyRequest } from "./thirdparty";
 import { isElectron } from "react-device-detect";
 import TokenService from "../storage/tokenService";
-const PUBLIC_URL = "https://api.koodoreader.com";
-const CN_PUBLIC_URL = "https://api.koodoreader.cn";
 const PERSONAL_RELEASES_API =
   "https://api.github.com/repos/roverstargazer1-max/koodo-reader-personal/releases";
 const PERSONAL_RELEASES_URL =
   "https://github.com/roverstargazer1-max/koodo-reader-personal/releases";
 export const getPublicUrl = () => {
-  return getServerRegion() === "china" ? CN_PUBLIC_URL : PUBLIC_URL;
+  return "";
 };
 const normalizePersonalRelease = (release: any, stableVersion = "") => {
   const version = String(release?.tag_name || release?.name || "").replace(
@@ -266,18 +264,12 @@ export const chatStream = async (
   });
 };
 export const getNotification = async () => {
-  let deviceUuid = await TokenService.getFingerprint();
-  const res = await axios.post(
-    "https://api.koodoreader.com/api/get_notification",
-    {
-      device_uuid: deviceUuid,
-    }
-  );
-  // {
-  // 	"result": "ok",
-  // 	"unread": 0
-  // }
-  return res;
+  return {
+    data: {
+      result: "ok",
+      unread: 0,
+    },
+  };
 };
 export const parseWithSystemOCR = async (imageBase64: string) => {
   if (!isElectron) {

@@ -144,17 +144,8 @@ class ConvertDialog extends React.Component<
                 className="lang-setting-dropdown"
                 value={getDefaultOcrEngine(this.props.currentBook)}
                 onChange={(event) => {
-                  if (
-                    event.target.value === "official-ai-ocr" &&
-                    !this.props.isAuthed
-                  ) {
-                    toast(
-                      this.props.t("Please upgrade to Pro to use this feature")
-                    );
-                    this.props.handleSetting(true);
-                    this.props.handleSettingMode("account");
-                    return;
-                  }
+                  // TODO(personal-local): OCR - 待接入离线/本地 OCR 或自定义 OCR API
+                  // 参考文档: docs/plan/LOCAL_REFACTOR_ROADMAP.md #3.6
                   ConfigService.setReaderConfig(
                     this.props.currentBook.description.indexOf("scanned") > -1
                       ? "scannedOcrEngine"
@@ -219,7 +210,7 @@ class ConvertDialog extends React.Component<
                       key={item.value}
                       className="lang-setting-option"
                     >
-                      {this.props.t(item.label) + (item.isPro ? " (Pro)" : "")}
+                      {this.props.t(item.label)}
                     </option>
                   ))}
               </select>

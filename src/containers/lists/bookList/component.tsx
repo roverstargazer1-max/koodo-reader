@@ -667,6 +667,34 @@ class BookList extends React.Component<BookListProps, BookListState> {
                 title="Adjust cover size"
               />
             )}
+            {this.props.shelfTitle && books.length > 0 && (
+              <div
+                className="book-list-share-shelf-btn"
+                onClick={() => {
+                  this.props.handleExportShareDialog(true, {
+                    books,
+                    shelfName: this.props.shelfTitle,
+                  });
+                }}
+                style={{
+                  cursor: "pointer",
+                  marginRight: "14px",
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  color: "var(--main-color, #0288d1)",
+                  fontWeight: 500,
+                  userSelect: "none",
+                }}
+                title={this.props.t("Share shelf")}
+              >
+                <span
+                  className="icon-share"
+                  style={{ marginRight: "4px", fontSize: "14px" }}
+                />
+                <Trans>Share shelf</Trans>
+              </div>
+            )}
             <div className="book-list-total-page">
               <Trans i18nKey="Total books" count={books.length}>
                 {"Total " + books.length + " books"}

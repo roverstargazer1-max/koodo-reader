@@ -224,12 +224,8 @@ class TextToSpeech extends React.Component<
   };
   handleMultiRoleToggle = (enabled: boolean) => {
     if (enabled) {
-      if (!this.props.isAuthed) {
-        toast(this.props.t("Please upgrade to Pro to use this feature"));
-        this.props.handleSetting(true);
-        this.props.handleSettingMode("account");
-        return;
-      }
+      // TODO(personal-local): AI 多角色朗读 - 待接入自定义 TTS API
+      // 参考文档: docs/plan/LOCAL_REFACTOR_ROADMAP.md #3.4
       ConfigService.setListConfig(
         this.props.currentBook.key,
         "multiRoleVoiceBooks"
@@ -299,13 +295,6 @@ class TextToSpeech extends React.Component<
       return;
     }
 
-    if (engine === "official-ai-voice-plugin") {
-      if (!this.props.isAuthed) {
-        toast(this.props.t("Please upgrade to Pro to use this feature"));
-        return;
-      }
-      await fetchUserInfo();
-    }
 
     const plugin = this.props.plugins.find((item) => item.key === engine);
     if (!plugin) {
@@ -484,11 +473,6 @@ class TextToSpeech extends React.Component<
 
     const currentIndex = this.state.currentIndex;
 
-    // 鉴权检查（AI 语音）
-    if (newVoiceEngine === "official-ai-voice-plugin" && !this.props.isAuthed) {
-      toast(this.props.t("Please upgrade to Pro to use this feature"));
-      return;
-    }
 
     // 停止系统语音
     window.speechSynthesis && window.speechSynthesis.cancel();
@@ -560,7 +544,7 @@ class TextToSpeech extends React.Component<
     if ((ConfigService.getReaderConfig("animation") || "none") !== "none") {
       await sleep(1000);
     }
-    let nodeList = [];
+    let nodeList: any[] = [];
     let nodeTextList = (await this.props.htmlBook.rendition.audioText()).filter(
       (item: string) => item && item.trim()
     );
@@ -1135,17 +1119,6 @@ class TextToSpeech extends React.Component<
                 return;
               }
               const newEngine = voice.plugin || "system";
-              if (
-                newEngine === "official-ai-voice-plugin" &&
-                !this.props.isAuthed
-              ) {
-                toast(
-                  this.props.t("Please upgrade to Pro to use this feature")
-                );
-                this.props.handleSetting(true);
-                this.props.handleSettingMode("account");
-                return;
-              }
               ConfigService.setReaderConfig("voiceEngine", newEngine);
               if (
                 voice.plugin === "official-ai-voice-plugin" &&
@@ -1240,7 +1213,6 @@ class TextToSpeech extends React.Component<
         >
           <span style={{ width: "calc(100% - 50px)" }}>
             <Trans>AI multi-role speech</Trans>
-            <span style={{ fontSize: "13px", color: "#f16464" }}> (Pro)</span>
           </span>
 
           <span

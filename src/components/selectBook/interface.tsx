@@ -15,6 +15,7 @@ export interface BookListProps extends RouteComponentProps<any> {
   handleDeleteDialog: (isShow: boolean) => void;
   handleSelectBook: (isSelectBook: boolean) => void;
   handleSelectedBooks: (selectedBooks: string[]) => void;
+  handleExportShareDialog: (isOpen: boolean, data?: any) => void;
   handleFetchBooks?: () => void;
 }
 export interface BookListState {

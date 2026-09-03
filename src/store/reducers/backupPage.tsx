@@ -13,10 +13,14 @@ const initState = {
   dataSourceList: [],
   loginOptionList: [],
   defaultSyncOption: "",
+  isOpenExportShareDialog: false,
+  exportShareData: null,
+  isOpenImportShareDialog: false,
+  importShareData: null,
 };
 export function backupPage(
   state = initState,
-  action: { type: string; payload: boolean }
+  action: { type: string; payload: any }
 ) {
   switch (action.type) {
     case "HANDLE_BACKUP":
@@ -88,6 +92,18 @@ export function backupPage(
       return {
         ...state,
         defaultSyncOption: action.payload,
+      };
+    case "HANDLE_EXPORT_SHARE_DIALOG":
+      return {
+        ...state,
+        isOpenExportShareDialog: action.payload.mode,
+        exportShareData: action.payload.data || null,
+      };
+    case "HANDLE_IMPORT_SHARE_DIALOG":
+      return {
+        ...state,
+        isOpenImportShareDialog: action.payload.mode,
+        importShareData: action.payload.data || null,
       };
     default:
       return state;

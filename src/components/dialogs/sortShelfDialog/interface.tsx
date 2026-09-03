@@ -2,6 +2,7 @@ import { RouteComponentProps } from "react-router-dom";
 
 export interface SortShelfDialogProps extends RouteComponentProps<any> {
   handleSortShelfDialog: (isOpenSortShelfDialog: boolean) => void;
+  handleExportShareDialog: (isOpen: boolean, data?: any) => void;
   t: (title: string) => string;
   handleShelf: (shelfTitle: string) => void;
   handleMode: (mode: string) => void;

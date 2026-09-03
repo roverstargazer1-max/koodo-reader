@@ -15,6 +15,7 @@ export interface ImportLocalProps extends RouteComponentProps<any> {
   handleOPDSDialog: (isOpen: boolean) => void;
   handleJmcomicDialog: (isOpen: boolean) => void;
   handleAutoImportDialog: (isOpen: boolean) => void;
+  handleImportShareDialog: (isOpen: boolean, data?: any) => void;
   handleImportBookFunc: (importBookFunc: (file: any) => Promise<void>) => void;
   handleReadingBook: (book: BookModel) => void;
   t: (title: string) => string;

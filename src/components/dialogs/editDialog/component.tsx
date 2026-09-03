@@ -178,19 +178,12 @@ class EditDialog extends React.Component<EditDialogProps, EditDialogState> {
               opacity: 0.8,
             }}
             onClick={() => {
-              if (!this.props.isAuthed) {
-                toast(
-                  this.props.t("Please upgrade to Pro to use this feature")
-                );
-                this.props.handleSetting(true);
-                this.props.handleSettingMode("account");
-                return;
-              }
+              // TODO(personal-local): 图书元数据 - 待接入直连元数据抓取
+              // 参考文档: docs/plan/LOCAL_REFACTOR_ROADMAP.md #3.5
               this.setState({ isMetadataDialogOpen: true });
             }}
           >
             <Trans>Get metadata</Trans>
-            <span style={{ fontSize: "13px", color: "#f16464" }}> (Pro)</span>
           </div>
         </div>
 

@@ -227,57 +227,15 @@ export function handleFetchBooks() {
 }
 export function handleFetchUserInfo() {
   return async (dispatch: Dispatch) => {
-    let response = await fetchUserInfo();
-    let userInfo: any = null;
-    if (response.code === 200) {
-      userInfo = response.data;
-      ConfigService.setReaderConfig(
-        "isEnableKoodoSync",
-        userInfo.is_enable_koodo_sync || "no"
-      );
-      if (
-        userInfo.is_enable_koodo_sync === "yes" &&
-        userInfo.default_sync_option &&
-        userInfo.default_sync_token
-      ) {
-        if (
-          ConfigService.getItem("defaultSyncOption") ===
-          userInfo.default_sync_option
-        ) {
-          let encryptedToken = await TokenService.getToken(
-            userInfo.default_sync_option + "_token"
-          );
-          if (encryptedToken !== userInfo.default_sync_token) {
-            await TokenService.setToken(
-              userInfo.default_sync_option + "_token",
-              userInfo.default_sync_token
-            );
-          }
-        }
-      }
-    }
-    if (
-      userInfo &&
-      userInfo.valid_until < parseInt(new Date().getTime() / 1000 + "")
-    ) {
-      dispatch(handleShowSupport(true));
-    }
-    if (userInfo && userInfo.valid_until && userInfo.token_valid_until) {
-      if (
-        userInfo.valid_until > 0 &&
-        userInfo.token_valid_until > 0 &&
-        userInfo.valid_until > userInfo.token_valid_until
-      ) {
-        let userRequest = await getUserRequest();
-        await userRequest.refreshUserToken();
-        resetReaderRequest();
-        resetUserRequest();
-        resetThirdpartyRequest();
-      }
-    }
-
-    dispatch(handleUserInfo(userInfo));
-    return userInfo;
+    const localUserInfo = {
+      username: "Local User",
+      email: "local@offline.app",
+      type: "pro",
+      is_enable_koodo_sync: "no",
+      valid_until: 9999999999,
+    };
+    dispatch(handleUserInfo(localUserInfo));
+    return localUserInfo;
   };
 }
 export function handleFetchPlugins() {
@@ -540,17 +498,7 @@ export function handleFetchPlugins() {
 }
 export function handleFetchAuthed() {
   return (dispatch: Dispatch) => {
-    try {
-      TokenService.getToken("is_authed").then((value) => {
-        let isAuthed = value === "yes";
-        if (isAuthed && !ConfigService.getItem("serverRegion")) {
-          ConfigService.setItem("serverRegion", "global");
-        }
-        dispatch(handleAuthed(isAuthed));
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    dispatch(handleAuthed(true));
   };
 }
 export function handleFetchBookSortCode() {

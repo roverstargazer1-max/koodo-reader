@@ -171,8 +171,7 @@ class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
       if (
         !ConfigService.getAllListConfig("wordDefinitionBooks").includes(
           this.props.currentBook.key
-        ) ||
-        !this.props.isAuthed
+        )
       ) {
         return;
       }

@@ -10,7 +10,6 @@ import {
   getWebsiteUrl,
   openExternalUrl,
 } from "../../../utils/common";
-import copyTextToClipboard from "copy-text-to-clipboard";
 import { isElectron } from "react-device-detect";
 import { checkDeveloperUpdate } from "../../../utils/request/common";
 declare var window: any;
@@ -83,7 +82,7 @@ class AboutSetting extends React.Component<SettingInfoProps, SettingInfoState> {
             }}
           >
             {[
-              {value:"",label: "Please select"},
+              { value: "", label: "Please select" },
               { value: "dev", label: "Developer version" },
               { value: "stable", label: "Stable version" },
             ].map((item) => (
@@ -118,111 +117,13 @@ class AboutSetting extends React.Component<SettingInfoProps, SettingInfoState> {
             <span
               className="change-location-button"
               onClick={async () => {
-                window
-                  .electronAPI
-                  .invoke("open-console", "ping");
+                window.electronAPI.invoke("open-console", "ping");
               }}
             >
               <Trans>View</Trans>
             </span>
           </div>
         )}
-        <div className="setting-dialog-new-title">
-          <Trans>Document</Trans>
-
-          <span
-            className="change-location-button"
-            onClick={async () => {
-              if (
-                ConfigService.getReaderConfig("lang") &&
-                ConfigService.getReaderConfig("lang").startsWith("zh")
-              ) {
-                openExternalUrl(getWebsiteUrl() + "/zh/document");
-              } else {
-                openExternalUrl(getWebsiteUrl() + "/en/document");
-              }
-            }}
-          >
-            <Trans>Visit</Trans>
-          </span>
-        </div>
-        <div className="setting-dialog-new-title">
-          <Trans>Support</Trans>
-
-          <span
-            className="change-location-button"
-            onClick={async () => {
-              if (
-                ConfigService.getReaderConfig("lang") &&
-                ConfigService.getReaderConfig("lang").startsWith("zh")
-              ) {
-                openExternalUrl(getWebsiteUrl() + "/zh/support");
-              } else {
-                openExternalUrl(getWebsiteUrl() + "/en/support");
-              }
-            }}
-          >
-            <Trans>Visit</Trans>
-          </span>
-        </div>
-        <div className="setting-dialog-new-title">
-          <Trans>Shortcuts</Trans>
-
-          <span
-            className="change-location-button"
-            onClick={async () => {
-              if (
-                ConfigService.getReaderConfig("lang") &&
-                ConfigService.getReaderConfig("lang").startsWith("zh")
-              ) {
-                openExternalUrl(getWebsiteUrl() + "/zh/use-shortcut");
-              } else {
-                openExternalUrl(getWebsiteUrl() + "/en/use-shortcut");
-              }
-            }}
-          >
-            <Trans>Visit</Trans>
-          </span>
-        </div>
-        <div className="setting-dialog-new-title">
-          <Trans>Our website</Trans>
-
-          <span
-            className="change-location-button"
-            onClick={() => {
-              openExternalUrl(getWebsiteUrl());
-            }}
-          >
-            <Trans>Visit</Trans>
-          </span>
-        </div>
-        <div className="setting-dialog-new-title">
-          <Trans>Send email</Trans>
-
-          <span
-            className="change-location-button"
-            onClick={() => {
-              copyTextToClipboard("feedback@koodoreader.com");
-              toast.success(this.props.t("Email copied to clipboard"));
-            }}
-          >
-            <Trans>Copy</Trans>
-          </span>
-        </div>
-        <div className="setting-dialog-new-title">
-          <Trans>Translation</Trans>
-
-          <span
-            className="change-location-button"
-            onClick={() => {
-              openExternalUrl(
-                "https://github.com/koodo-reader/koodo-reader#translation"
-              );
-            }}
-          >
-            <Trans>Visit</Trans>
-          </span>
-        </div>
         <div className="setting-dialog-new-title">
           <Trans>GitHub repository</Trans>
 

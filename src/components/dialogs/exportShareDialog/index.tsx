@@ -1,26 +1,22 @@
-import {
-  handleSortShelfDialog,
-  handleExportShareDialog,
-  handleMode,
-  handleShelf,
-} from "../../../store/actions";
+import { handleExportShareDialog } from "../../../store/actions";
 import { connect } from "react-redux";
 import { withTranslation } from "react-i18next";
 import { stateType } from "../../../store";
-import SortShelfDialog from "./component";
+import ExportShareDialog from "./component";
 import { withRouter } from "react-router-dom";
+
 const mapStateToProps = (state: stateType) => {
   return {
-    isOpenSortShelfDialog: state.backupPage.isOpenSortShelfDialog,
+    isOpenExportShareDialog: state.backupPage.isOpenExportShareDialog,
+    exportShareData: state.backupPage.exportShareData,
   };
 };
+
 const actionCreator = {
-  handleSortShelfDialog,
   handleExportShareDialog,
-  handleMode,
-  handleShelf,
 };
+
 export default connect(
   mapStateToProps,
   actionCreator
-)(withTranslation()(withRouter(SortShelfDialog as any) as any) as any);
+)(withTranslation()(withRouter(ExportShareDialog as any) as any) as any);

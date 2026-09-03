@@ -127,6 +127,25 @@ class SelectBook extends React.Component<BookListProps, BookListState> {
             </span>
             <span
               className="book-manage-title"
+              onClick={async () => {
+                let books = await DatabaseService.getRecordsByKeys(
+                  this.props.selectedBooks,
+                  "books"
+                );
+                if (books.length > 0) {
+                  this.props.handleExportShareDialog(true, {
+                    books,
+                    shelfName: this.props.shelfTitle || null,
+                  });
+                } else {
+                  toast(this.props.t("Nothing to export"));
+                }
+              }}
+            >
+              <Trans>Share</Trans>
+            </span>
+            <span
+              className="book-manage-title"
               onClick={() => {
                 this.props.handleDeleteDialog(true);
               }}

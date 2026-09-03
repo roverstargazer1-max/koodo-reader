@@ -321,12 +321,6 @@ class PopupDict extends React.Component<PopupDictProps, PopupDictState> {
     }
   };
   handleChangeDictService = (dictService: string) => {
-    if (dictService === "official-ai-dict-plugin" && !this.props.isAuthed) {
-      toast(this.props.t("Please upgrade to Pro to use this feature"));
-      this.props.handleSetting(true);
-      this.props.handleSettingMode("account");
-      return;
-    }
     this.setState(
       {
         dictService: dictService,
@@ -396,12 +390,6 @@ class PopupDict extends React.Component<PopupDictProps, PopupDictState> {
                       className="add-dialog-shelf-list-option"
                     >
                       {this.props.t(item.displayName)}
-                      {item.key === "official-ai-dict-plugin" && (
-                        <span style={{ fontSize: "13px", color: "#f16464" }}>
-                          {" "}
-                          (Pro)
-                        </span>
-                      )}
                     </option>
                   );
                 })}

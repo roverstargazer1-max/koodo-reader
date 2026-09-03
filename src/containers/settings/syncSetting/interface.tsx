@@ -31,7 +31,6 @@ export interface SettingInfoProps extends RouteComponentProps<any> {
 }
 export interface SettingInfoState {
   isKeepLocal: boolean;
-  isEnableKoodoSync: boolean;
   isDisableAutoSync: boolean;
   autoOffline: boolean;
   hideSyncProgress: boolean;

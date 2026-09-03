@@ -88,6 +88,10 @@ export type stateType = {
     dataSourceList: string[];
     loginOptionList: { email: string; provider: string }[];
     defaultSyncOption: string;
+    isOpenExportShareDialog: boolean;
+    exportShareData: any;
+    isOpenImportShareDialog: boolean;
+    importShareData: any;
   };
   progressPanel: {
     percentage: number;
