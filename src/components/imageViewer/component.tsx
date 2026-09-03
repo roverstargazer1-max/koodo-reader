@@ -173,10 +173,13 @@ class ImageViewer extends React.Component<ImageViewerProps, ImageViewerStates> {
     }
 
     const { rendition } = this.props;
-    let href = rendition.getTargetHref(event);
+    let href =
+      rendition && typeof rendition.getTargetHref === "function"
+        ? rendition.getTargetHref(event)
+        : "";
     if (
       href &&
-      (rendition.resolveChapter(href) ||
+      ((rendition?.resolveChapter && rendition.resolveChapter(href)) ||
         href.indexOf("#") > -1 ||
         href.indexOf("../") === 0 ||
         href.indexOf("http") === 0 ||
