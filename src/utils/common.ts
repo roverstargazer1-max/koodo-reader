@@ -1,4 +1,4 @@
-﻿import Plugin from "../models/Plugin";
+import Plugin from "../models/Plugin";
 import { isElectron } from "react-device-detect";
 import CryptoJS from "crypto-js";
 import {
@@ -635,7 +635,11 @@ export const getPageWidth = (
 
   let pageOffset = "";
   let pageWidth = 0;
-  if (readerMode === "scroll" || readerMode === "single") {
+  if (
+    readerMode === "scroll" ||
+    readerMode === "single" ||
+    readerMode === "webtoon"
+  ) {
     let preWidth =
       document.body.clientWidth * Math.abs(parseFloat(scale)) -
       document.body.clientWidth * 0.4 -

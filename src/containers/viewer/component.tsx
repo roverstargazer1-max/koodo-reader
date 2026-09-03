@@ -36,6 +36,7 @@ import DatabaseService from "../../utils/storage/databaseService";
 import { getOcrResult, getOcrResultV2 } from "../../utils/request/reader";
 import { BookHelper } from "../../assets/lib/kookit.min";
 import { parseWithSystemOCR } from "../../utils/request/common";
+import WebtoonRender from "../../utils/reader/webtoonRender";
 declare var window: any;
 let lock = false; //prevent from clicking too fasts
 
@@ -122,6 +123,14 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     }
   }
   async UNSAFE_componentWillReceiveProps(nextProps: ViewerProps) {
+    if (
+      nextProps.scale !== this.props.scale &&
+      this.props.readerMode === "webtoon" &&
+      this.state.rendition &&
+      this.state.rendition.setScale
+    ) {
+      this.state.rendition.setScale(parseFloat(nextProps.scale));
+    }
     if (
       nextProps.margin !== this.props.margin ||
       nextProps.scale !== this.props.scale ||
@@ -262,119 +271,19 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         this.props.currentBook.description.indexOf("scanned") > -1
           ? "scannedOcrLang"
           : "textOcrLang";
-      let rendition = BookHelper.getRendition(
-        result,
-        {
+      let rendition: any;
+      if (
+        this.props.currentBook.format.startsWith("CB") &&
+        this.props.readerMode === "webtoon"
+      ) {
+        rendition = new WebtoonRender(result, {
           format: isCacheExsit ? "CACHE" : format,
-          readerMode: this.props.readerMode,
-          charset: this.props.currentBook.charset,
-          animation: ConfigService.getReaderConfig("animation") || "none",
-          convertChinese: ConfigService.getReaderConfig("convertChinese"),
-          bookLayout: ConfigService.getReaderConfig("bookLayout") || "",
-          textRules: getTextRules(this.props.currentBook.key),
-          codeHighlight: ConfigService.getReaderConfig("codeHighlight") || "",
-          parserRegex: getParserRegex(
-            this.props.currentBook.format,
-            this.props.currentBook.key
-          ),
-          fullTranslationMode:
-            ConfigService.getAllListConfig("fullTranslationBooks").includes(
-              this.props.currentBook.key
-            ) && this.props.isAuthed
-              ? ConfigService.getReaderConfig("fullTranslationMode")
-              : "no",
-          textOrientation: ConfigService.getReaderConfig("textOrientation"),
-          isDarkMode:
-            ConfigService.getReaderConfig("backgroundColor") ===
-            "rgba(44,47,49,1)"
-              ? "yes"
-              : "no",
-          backgroundColor: ConfigService.getReaderConfig("backgroundColor"),
-          isMobile: "no",
-          isIndent: ConfigService.getReaderConfig("isIndent"),
-          isHyphenation: ConfigService.getReaderConfig("isHyphenation"),
-          isStartFromEven: ConfigService.getReaderConfig("isStartFromEven"),
-          isAllowScript: ConfigService.getReaderConfig("isAllowScript"),
-          isBionic: ConfigService.getReaderConfig("isBionic"),
-          password: getPdfPassword(this.props.currentBook),
-          pdfCrop,
+          readerMode: "webtoon",
+          key: this.props.currentBook.key,
           scale: parseFloat(this.props.scale),
-          isConvertPDF: ConfigService.getAllListConfig(
-            "convertPDFBooks"
-          ).includes(this.props.currentBook.key)
-            ? "yes"
-            : "no",
-          ocrLang: getDefaultOcrLang(
-            getDefaultOcrEngine(this.props.currentBook),
-            this.props.currentBook
-          ),
-          externalWorker: {
-            recognize:
-              getDefaultOcrEngine(this.props.currentBook) === "system-ocr"
-                ? parseWithSystemOCR
-                : ConfigService.getReaderConfig(ocrLangKey) === "accurate"
-                  ? getOcrResultV2
-                  : getOcrResult,
-          },
-          ocrEngine: getDefaultOcrEngine(this.props.currentBook),
-          serverRegion:
-            getServerRegion() === "china" && this.props.isAuthed
-              ? "china"
-              : "global",
-          paraSpacingValue:
-            ConfigService.getReaderConfig("paraSpacingValue") || "1.5",
-          titleSizeValue:
-            ConfigService.getReaderConfig("titleSizeValue") || "1.2",
-          isScannedPDF:
-            this.props.currentBook.description.indexOf("scanned") > -1
-              ? "yes"
-              : "no",
-          brushColor:
-            ConfigService.getReaderConfig("annotationBrushColor") ||
-            BRUSH_COLORS[0],
-          brushWidth: parseFloat(
-            ConfigService.getReaderConfig("annotationBrushWidth") ||
-              BRUSH_WIDTHS[1] + ""
-          ),
-          annotationStyle:
-            ConfigService.getReaderConfig("annotationStyle") || "brush",
-          highlighterColor:
-            ConfigService.getReaderConfig("annotationHighlighterColor") ||
-            HIGHLIGHTER_COLORS[0],
-          highlighterWidth: parseFloat(
-            ConfigService.getReaderConfig("annotationHighlighterWidth") ||
-              HIGHLIGHTER_WIDTHS[1] + ""
-          ),
-          highlighterOpacity: parseFloat(
-            ConfigService.getReaderConfig("annotationHighlighterOpacity") ||
-              "0.4"
-          ),
-          shapeType:
-            ConfigService.getReaderConfig("annotationShapeType") ||
-            SHAPE_TYPES[0],
-          shapeColor:
-            ConfigService.getReaderConfig("annotationShapeColor") ||
-            BRUSH_COLORS[0],
-          shapeWidth: parseFloat(
-            ConfigService.getReaderConfig("annotationShapeWidth") ||
-              BRUSH_WIDTHS[1] + ""
-          ),
-          textSize: parseFloat(
-            ConfigService.getReaderConfig("annotationTextSize") || "24"
-          ),
-          textFont:
-            ConfigService.getReaderConfig("annotationTextFont") ||
-            "sans-serif",
-          textColor:
-            ConfigService.getReaderConfig("annotationTextColor") ||
-            TEXT_COLORS[0],
-          isKeepPDFBackground: ConfigService.getReaderConfig(
-            "isKeepPDFBackground"
-          ),
-        },
-        Kookit
-      );
-      if (this.props.currentBook.format === "TXT") {
+          handleScale: this.props.handleScale,
+          backgroundColor: ConfigService.getReaderConfig("backgroundColor"),
+        });
         let bookLocation = ConfigService.getObjectConfig(
           this.props.currentBook.key,
           "recordLocation",
@@ -385,7 +294,131 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           bookLocation
         );
       } else {
-        await rendition.renderTo(document.getElementById("page-area"));
+        rendition = BookHelper.getRendition(
+          result,
+          {
+            format: isCacheExsit ? "CACHE" : format,
+            readerMode: this.props.readerMode,
+            charset: this.props.currentBook.charset,
+            animation: ConfigService.getReaderConfig("animation") || "none",
+            convertChinese: ConfigService.getReaderConfig("convertChinese"),
+            bookLayout: ConfigService.getReaderConfig("bookLayout") || "",
+            textRules: getTextRules(this.props.currentBook.key),
+            codeHighlight: ConfigService.getReaderConfig("codeHighlight") || "",
+            parserRegex: getParserRegex(
+              this.props.currentBook.format,
+              this.props.currentBook.key
+            ),
+            fullTranslationMode:
+              ConfigService.getAllListConfig("fullTranslationBooks").includes(
+                this.props.currentBook.key
+              ) && this.props.isAuthed
+                ? ConfigService.getReaderConfig("fullTranslationMode")
+                : "no",
+            textOrientation: ConfigService.getReaderConfig("textOrientation"),
+            isDarkMode:
+              ConfigService.getReaderConfig("backgroundColor") ===
+              "rgba(44,47,49,1)"
+                ? "yes"
+                : "no",
+            backgroundColor: ConfigService.getReaderConfig("backgroundColor"),
+            isMobile: "no",
+            isIndent: ConfigService.getReaderConfig("isIndent"),
+            isHyphenation: ConfigService.getReaderConfig("isHyphenation"),
+            isStartFromEven: ConfigService.getReaderConfig("isStartFromEven"),
+            isAllowScript: ConfigService.getReaderConfig("isAllowScript"),
+            isBionic: ConfigService.getReaderConfig("isBionic"),
+            password: getPdfPassword(this.props.currentBook),
+            pdfCrop,
+            scale: parseFloat(this.props.scale),
+            isConvertPDF: ConfigService.getAllListConfig(
+              "convertPDFBooks"
+            ).includes(this.props.currentBook.key)
+              ? "yes"
+              : "no",
+            ocrLang: getDefaultOcrLang(
+              getDefaultOcrEngine(this.props.currentBook),
+              this.props.currentBook
+            ),
+            externalWorker: {
+              recognize:
+                getDefaultOcrEngine(this.props.currentBook) === "system-ocr"
+                  ? parseWithSystemOCR
+                  : ConfigService.getReaderConfig(ocrLangKey) === "accurate"
+                    ? getOcrResultV2
+                    : getOcrResult,
+            },
+            ocrEngine: getDefaultOcrEngine(this.props.currentBook),
+            serverRegion:
+              getServerRegion() === "china" && this.props.isAuthed
+                ? "china"
+                : "global",
+            paraSpacingValue:
+              ConfigService.getReaderConfig("paraSpacingValue") || "1.5",
+            titleSizeValue:
+              ConfigService.getReaderConfig("titleSizeValue") || "1.2",
+            isScannedPDF:
+              this.props.currentBook.description.indexOf("scanned") > -1
+                ? "yes"
+                : "no",
+            brushColor:
+              ConfigService.getReaderConfig("annotationBrushColor") ||
+              BRUSH_COLORS[0],
+            brushWidth: parseFloat(
+              ConfigService.getReaderConfig("annotationBrushWidth") ||
+                BRUSH_WIDTHS[1] + ""
+            ),
+            annotationStyle:
+              ConfigService.getReaderConfig("annotationStyle") || "brush",
+            highlighterColor:
+              ConfigService.getReaderConfig("annotationHighlighterColor") ||
+              HIGHLIGHTER_COLORS[0],
+            highlighterWidth: parseFloat(
+              ConfigService.getReaderConfig("annotationHighlighterWidth") ||
+                HIGHLIGHTER_WIDTHS[1] + ""
+            ),
+            highlighterOpacity: parseFloat(
+              ConfigService.getReaderConfig("annotationHighlighterOpacity") ||
+                "0.4"
+            ),
+            shapeType:
+              ConfigService.getReaderConfig("annotationShapeType") ||
+              SHAPE_TYPES[0],
+            shapeColor:
+              ConfigService.getReaderConfig("annotationShapeColor") ||
+              BRUSH_COLORS[0],
+            shapeWidth: parseFloat(
+              ConfigService.getReaderConfig("annotationShapeWidth") ||
+                BRUSH_WIDTHS[1] + ""
+            ),
+            textSize: parseFloat(
+              ConfigService.getReaderConfig("annotationTextSize") || "24"
+            ),
+            textFont:
+              ConfigService.getReaderConfig("annotationTextFont") ||
+              "sans-serif",
+            textColor:
+              ConfigService.getReaderConfig("annotationTextColor") ||
+              TEXT_COLORS[0],
+            isKeepPDFBackground: ConfigService.getReaderConfig(
+              "isKeepPDFBackground"
+            ),
+          },
+          Kookit
+        );
+        if (this.props.currentBook.format === "TXT") {
+          let bookLocation = ConfigService.getObjectConfig(
+            this.props.currentBook.key,
+            "recordLocation",
+            {}
+          );
+          await rendition.renderTo(
+            document.getElementById("page-area"),
+            bookLocation
+          );
+        } else {
+          await rendition.renderTo(document.getElementById("page-area"));
+        }
       }
 
       await this.handleRest(rendition);
@@ -694,14 +727,23 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         )}
         <div
           className={
-            this.props.readerMode === "scroll"
+            this.props.readerMode === "scroll" ||
+            this.props.readerMode === "webtoon"
               ? "html-viewer-page scrolling-html-viewer-page"
               : "html-viewer-page"
           }
           id="page-area"
           style={
-            this.props.readerMode === "scroll" &&
-            document.body.clientWidth >= 570
+            this.props.readerMode === "webtoon"
+              ? {
+                  left: "0px",
+                  right: "0px",
+                  width: "100%",
+                  paddingLeft: "0px",
+                  paddingRight: "0px",
+                }
+              : this.props.readerMode === "scroll" &&
+                document.body.clientWidth >= 570
               ? {
                   // marginLeft: this.state.pageOffset,
                   // marginRight: this.state.pageOffset,
