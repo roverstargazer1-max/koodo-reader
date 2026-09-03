@@ -146,6 +146,16 @@
   color: var(--text-color, #333);
 }
 
+.jmcomic-btn.outline {
+  background: transparent;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
+  color: var(--text-color, #333);
+}
+
+.jmcomic-btn.outline:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
 .jmcomic-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

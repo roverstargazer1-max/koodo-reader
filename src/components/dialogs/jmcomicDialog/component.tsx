@@ -832,6 +832,24 @@ class JmcomicDialog extends React.Component<
     }
   };
 
+  handleSelectOutputDir = async () => {
+    const ipc = getIpc();
+    if (!ipc) {
+      toast.error(
+        this.props.t("JMComic feature requires the Electron desktop client.")
+      );
+      return;
+    }
+    try {
+      const selected = await ipc.invoke("select-path");
+      if (selected && typeof selected === "string") {
+        this.saveConfig({ outputDir: selected });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to select directory");
+    }
+  };
+
   checkEnvironment = async () => {
     const ipc = getIpc();
     if (!ipc) {
@@ -2318,6 +2336,44 @@ class JmcomicDialog extends React.Component<
             </Trans>
           </span>
         </div>}
+
+        {/* Download Output Directory */}
+        <div className="jmcomic-form-group">
+          <label className="jmcomic-form-label">
+            <Trans>Download Directory</Trans>
+          </label>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input
+              type="text"
+              className="jmcomic-search-input"
+              style={{ flex: 1 }}
+              placeholder={this.props.t("Default: ~/Downloads/KoodoReader_Comics")}
+              value={config.outputDir || ""}
+              readOnly
+            />
+            <button
+              className="jmcomic-btn secondary"
+              style={{ whiteSpace: "nowrap", padding: "0 12px", fontSize: "12px" }}
+              onClick={this.handleSelectOutputDir}
+            >
+              <Trans>Browse...</Trans>
+            </button>
+            {config.outputDir && (
+              <button
+                className="jmcomic-btn outline"
+                style={{ whiteSpace: "nowrap", padding: "0 10px", fontSize: "12px" }}
+                onClick={() => this.saveConfig({ outputDir: "" })}
+              >
+                <Trans>Reset</Trans>
+              </button>
+            )}
+          </div>
+          <span className="jmcomic-form-desc">
+            <Trans>
+              Specify where downloaded CBZ comics are saved. Useful if C: drive is low on space.
+            </Trans>
+          </span>
+        </div>
 
         {/* Proxy */}
         <div className="jmcomic-form-group">
