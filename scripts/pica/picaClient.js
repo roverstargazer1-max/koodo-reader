@@ -4,9 +4,9 @@ const { HttpsProxyAgent } = require("https-proxy-agent");
 const { SocksProxyAgent } = require("socks-proxy-agent");
 
 const API_KEY = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
-const SECRET_KEY = "~BC$bYerf.+hAl!Gy@5SemiGui+qwD&2";
-const APP_VERSION = "2.2.1.3.3.4";
-const APP_BUILD_VERSION = "45";
+const SECRET_KEY = "~d}$Q7$eIni=V)9\\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn";
+const APP_VERSION = "2.2.1.2.3.3";
+const APP_BUILD_VERSION = "44";
 const APP_PLATFORM = "android";
 const APP_CHANNEL = "2";
 const DEFAULT_USER_AGENT = "okhttp/3.8.1";
@@ -64,6 +64,7 @@ function createHeaders(path, method = "GET", token = null, options = {}) {
     "app-uuid": options.uuid || "defaultUuid",
     "image-quality": quality,
     "User-Agent": DEFAULT_USER_AGENT,
+    "Content-Type": "application/json; charset=UTF-8",
   };
 
   if (token) {

@@ -58,6 +58,7 @@ test("createHeaders builds complete PicACG request headers with signature and to
   assert.equal(headers["nonce"], "testnonce1234");
   assert.equal(headers["image-quality"], "high");
   assert.equal(headers["authorization"], "mock-jwt-token-xyz");
+  assert.equal(headers["Content-Type"], "application/json; charset=UTF-8");
   assert.equal(typeof headers["signature"], "string");
   assert.equal(headers["signature"].length, 64);
 });
