@@ -4,7 +4,7 @@
 
 Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书库项目，衍生自 [Koodo Reader](https://github.com/koodo-reader/koodo-reader)，保留原项目的强大阅读和书库管理能力，并深度集成了 **JMComic (禁漫天堂)** 与 **PicACG (哔咔漫画)** 桌面端在线漫画完整工作流。
 
-本仓库不是 Koodo Reader 官方发行版。首个独立版本为 `v0.2.1`。
+本仓库不是 Koodo Reader 官方发行版。首个独立版本为 `v0.1.0`。
 
 ## 与上游的主要差异
 
@@ -50,10 +50,10 @@ Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书�
 
 从 [GitHub Releases 页面](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) 获取最新版本（当前版本：**`v0.2.3`**）：
 
-| 文件类型 | 适用对象与特点 | 下载指引 |
-| :--- | :--- | :--- |
-| **安装版 (Setup)**<br>`Koodo-Reader-Personal-0.2.3-x64-Setup.exe` | **推荐日常使用**。<br>支持自动覆盖升级，内嵌完整 Python Sidecar 运行时，开箱即用。 | [点击下载 Setup 安装包](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
-| **便携版 (Portable)**<br>`Koodo-Reader-Personal-0.2.3-x64-Portable.exe` | **适合 U 盘或免安装场景**。<br>单文件独立运行，无需安装，解压即用。 | [点击下载 Portable 单文件](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| 文件类型                                                            | 适用对象与特点                                                                 | 下载指引                                                                                                 |
+| :------------------------------------------------------------------ | :----------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| **安装版 (Setup)**`Koodo-Reader-Personal-0.2.3-x64-Setup.exe`       | **推荐日常使用**。支持自动覆盖升级，内嵌完整 Python Sidecar 运行时，开箱即用。 | [点击下载 Setup 安装包](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest)    |
+| **便携版 (Portable)**`Koodo-Reader-Personal-0.2.3-x64-Portable.exe` | **适合 U 盘或免安装场景**。单文件独立运行，无需安装，解压即用。                | [点击下载 Portable 单文件](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
 
 > **安全提示**：当前安装包未采购昂贵商业代码签名证书，首次运行可能会弹出 Windows SmartScreen “Windows 已保护你的电脑” 提示，点击 **「更多信息」** -> **「仍要运行」** 即可。每个 Release 页面均附带 `SHA256SUMS.txt` 供校验完整性。
 
@@ -64,11 +64,13 @@ Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书�
 如果你只是想流畅使用阅读器看书和看漫画，阅读本节即可，**完全不需要配置任何开发环境或安装 Python**：
 
 ### 1. 基础阅读与书库导入
+
 - **多格式支持**：支持 EPUB、PDF、MOBI、AZW3、TXT、DJVU、CBZ、CBR 等几乎全部主流电子书与漫画格式；
 - **拖拽即读**：直接将电脑中的电子书文件拖进 Koodo Reader 窗口，即可自动解析并收录进书库；
 - **排版与笔记**：支持双页翻页模式、夜间护眼配色、字体/行距自由调节、文字划线高亮及 TTS 听书朗读。
 
 ### 2. 在线漫画（JMComic 禁漫天堂 & PicACG 哔咔漫画）
+
 - **功能入口**：点击应用左侧边栏的 **「在线漫画」**，即可在折叠菜单中选择打开 **JMComic** 或 **PicaComic** 弹窗；
 - **开箱即用**：安装版与便携版均**已内置全部必要组件**，不需要自己安装 Python 或第三方爬虫依赖；
 - **搜索与浏览**：直接输入漫画标题、作者或车号搜索，或在「排行榜」及「热门分类」中直接发现优质本子；
@@ -80,6 +82,7 @@ Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书�
   - 建议点击 **「📁 浏览...」** 将下载目录指定到空间充裕的 **D 盘** 或 **H 盘**，避免占用有限的系统 C 盘空间。
 
 ### 3. 书库多选管理与封面防窥
+
 - **批量管理**：长按鼠标拖拽进行框选，或点击顶部多选按钮，可批量将漫画「加入喜爱」、「移动书架」或「批量导出 / 删除」；
 - **封面模糊防窥**：在多选菜单或书籍右键菜单中点击 **「模糊封面」**，可一键给封面打上磨砂防窥模糊效果，在公共场所使用更加安心。
 
@@ -90,6 +93,7 @@ Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书�
 为防止用户升级时丢失图书或损坏配置，Koodo Reader Personal 引入了**自动化无损覆盖更新机制**：
 
 ### 安装版升级（强烈推荐，数据 100% 安全）
+
 1. **自动检查更新**：点击应用左侧设置里的「检查更新」，当有新版本时点击更新，应用会自动在后台下载并完成覆盖安装后重启；
 2. **手动下载覆盖**：直接从 Releases 页面下载最新版的 `*-Setup.exe` 双击安装即可，**切记不要先卸载旧版本！**
 3. **覆盖更新的数据保障**：
@@ -98,6 +102,7 @@ Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书�
    - **完全保留数据**：覆盖安装完成后，你的所有书籍、阅读进度、划线笔记、标签分类和设置项均完好保留。
 
 ### 便携版升级
+
 直接前往 Releases 页面下载最新的 `*-Portable.exe`，替换掉旧的 exe 文件即可。所有的图书与数据库存放在独立的本地数据目录中，数据同样安全无虞。
 
 ---
@@ -183,7 +188,7 @@ JavaScript 调度代码位于 `app.asar`；sidecar 由 electron-builder 的 `ext
 
 ## 上游与许可证
 
-本项目基于 Koodo Reader，并保留仓库根目录的 AGPL-3.0 许可证。JMComic-Crawler-Python 作为固定版本的 MIT 依赖使用，其源码没有复制进本仓库。详见[第三方声明](./THIRD_PARTY_NOTICES.md)和 [ADR 0003](./docs/adr/0003-reproducible-python-runtime-and-windows-sidecar.md)。
+本项目基于 Koodo Reader，并保留仓库根目录的 AGPL-3.0 许可证。JMComic-Crawler-Python 作为固定版本的 MIT 依赖使用，其源码没有复制进本仓库。详见[第三方声明](./THIRD_PARTY_NOTICES.md)
 
 使用内容服务时，请遵守服务条款以及账号和所在地适用规则。
 
@@ -195,5 +200,3 @@ JavaScript 调度代码位于 `app.asar`；sidecar 由 electron-builder 的 `ext
 - [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
 - [pica_comic](https://github.com/niuhuan/pica_comic) / [pica-rust](https://github.com/niuhuan/pica-rust)
 - [picacomic-api](https://github.com/l2studio/picacomic-api)
-
-

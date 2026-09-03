@@ -823,12 +823,10 @@ let options = {
     sandbox: true,
   },
 };
-const Database = require("better-sqlite3");
-if (os.platform() === "linux") {
-  options = Object.assign({}, options, {
-    icon: path.join(__dirname, "./build/assets/icon.png"),
-  });
-}
+const defaultAppIcon = isDev
+  ? path.join(__dirname, "./public/assets/icon.png")
+  : path.join(__dirname, "./build/assets/icon.png");
+options.icon = defaultAppIcon;
 // Single Instance Lock
 if (!singleInstance) {
   app.quit();
@@ -3391,19 +3389,19 @@ const createMainWin = () => {
   ipcMain.handle("open-url", async (event, config) => {
     if (config.type === "dict") {
       if (!dictWindow || dictWindow.isDestroyed()) {
-        dictWindow = new BrowserWindow();
+        dictWindow = new BrowserWindow({ icon: defaultAppIcon });
       }
       dictWindow.focus();
       await loadUrlInAuxWindow(dictWindow, config.url);
     } else if (config.type === "trans") {
       if (!transWindow || transWindow.isDestroyed()) {
-        transWindow = new BrowserWindow();
+        transWindow = new BrowserWindow({ icon: defaultAppIcon });
       }
       transWindow.focus();
       await loadUrlInAuxWindow(transWindow, config.url);
     } else {
       if (!linkWindow || linkWindow.isDestroyed()) {
-        linkWindow = new BrowserWindow();
+        linkWindow = new BrowserWindow({ icon: defaultAppIcon });
       }
       linkWindow.loadURL(config.url);
       linkWindow.focus();

@@ -26,34 +26,34 @@ This repository is not the official Koodo Reader distribution. The first indepen
 
 ### JMComic
 
-| Search Panel | My Favorites & Profile |
-| :---: | :---: |
+|                         Search Panel                          |                      My Favorites & Profile                       |
+| :-----------------------------------------------------------: | :---------------------------------------------------------------: |
 | ![JMComic Search Panel](./docs/screenshots/jmcomic-panel.png) | ![JMComic Favorites](./docs/screenshots/jmcomic-mycollection.png) |
 
-| Leaderboard (Daily / Weekly / Monthly / All Time) |
-| :---: |
+|   Leaderboard (Daily / Weekly / Monthly / All Time)    |
+| :----------------------------------------------------: |
 | ![JMComic Leaderboard](./docs/screenshots/ranking.png) |
 
 ### PicACG
 
-| Search & Categories | Favorites & Batch Actions |
-| :---: | :---: |
+|                    Search & Categories                    |                   Favorites & Batch Actions                   |
+| :-------------------------------------------------------: | :-----------------------------------------------------------: |
 | ![PicACG Search Panel](./docs/screenshots/pica-panel.png) | ![PicACG Favorites](./docs/screenshots/pica-mycollection.png) |
 
 ### Library Enhancements
 
-| Batch Actions & Cover Blur / Privacy Protection |
-| :---: |
+|          Batch Actions & Cover Blur / Privacy Protection           |
+| :----------------------------------------------------------------: |
 | ![Library Selection & Blur](./docs/screenshots/book-over-blur.png) |
 
 ## Download & Installation (Windows)
 
 Get the latest release from the [GitHub Releases Page](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) (Current Version: **`v0.2.3`**):
 
-| Package Type | Best For & Features | Direct Download |
-| :--- | :--- | :--- |
-| **Installer (Setup)**<br>`Koodo-Reader-Personal-0.2.3-x64-Setup.exe` | **Recommended for daily reading**.<br>Supports in-app silent overwrite updates, bundled Python Sidecar runtime, works out-of-the-box. | [Download Setup Installer](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
-| **Portable**<br>`Koodo-Reader-Personal-0.2.3-x64-Portable.exe` | **For USB drives & zero-install needs**.<br>Standalone single executable, no installation needed, run directly. | [Download Portable EXE](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| Package Type                                                     | Best For & Features                                                                                                               | Direct Download                                                                                          |
+| :--------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| **Installer (Setup)**`Koodo-Reader-Personal-0.2.3-x64-Setup.exe` | **Recommended for daily reading**.Supports in-app silent overwrite updates, bundled Python Sidecar runtime, works out-of-the-box. | [Download Setup Installer](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| **Portable**`Koodo-Reader-Personal-0.2.3-x64-Portable.exe`       | **For USB drives & zero-install needs**.Standalone single executable, no installation needed, run directly.                       | [Download Portable EXE](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest)    |
 
 > **Security Note**: Binaries are unsigned with commercial certificates. Windows SmartScreen may show an "Unrecognized app" prompt on first launch. Click **"More info"** -> **"Run anyway"**. SHA-256 checksums are published in `SHA256SUMS.txt` with each release.
 
@@ -64,11 +64,13 @@ Get the latest release from the [GitHub Releases Page](https://github.com/rovers
 If you are an end user looking to enjoy reading and online comics, this section covers everything you need—**no programming knowledge or Python installation is required**:
 
 ### 1. Reading & Importing Books
+
 - **Rich Format Support**: Reads EPUB, PDF, MOBI, AZW3, TXT, DJVU, CBZ, CBR, and more;
 - **Drag-and-Drop**: Drag any ebook file into the reader window to immediately parse and add it to your library;
 - **Reading Comfort**: Two-page spread layout, dark & eye-care color palettes, custom fonts/margins, highlight annotations, and Text-to-Speech (TTS) audio narration.
 
 ### 2. Online Comics (JMComic & PicACG)
+
 - **Where to find it**: Click **"Online Comics"** in the left sidebar to expand and open either **JMComic** or **PicaComic**;
 - **Out of the Box**: All necessary crawlers and decryption engines are bundled in both Setup and Portable editions. You never need to install Python manually;
 - **Discover & Search**: Search by title, author, or comic ID, or explore trending leaderboards and official categories;
@@ -80,6 +82,7 @@ If you are an end user looking to enjoy reading and online comics, this section 
   - Click **"📁 Browse..."** and choose a folder on a disk with ample free space (such as drive `D:` or `H:`) to prevent filling up drive `C:`.
 
 ### 3. Library Selection & Cover Privacy Protection
+
 - **Batch Management**: Drag to box-select multiple books, or click the multi-select button to batch favorite, shelve, export, or delete;
 - **Cover Blur (Privacy Protection)**: Select **"Blur Cover"** from the batch menu or right-click context menu to blur sensitive manga covers, protecting privacy in public spaces.
 
@@ -90,6 +93,7 @@ If you are an end user looking to enjoy reading and online comics, this section 
 To ensure your books, reading progress, and notes are never lost, Koodo Reader Personal features **safe, automated overwrite updates**:
 
 ### Setup Installer Updates (Strongly Recommended)
+
 1. **In-App Auto Update**: Click "Check for Updates" in Settings. When an update is ready, click update and the app will silently download, overwrite-install, and restart;
 2. **Manual Overwrite**: Download the latest `*-Setup.exe` from Releases and run it directly. **Do NOT uninstall your current version first!**
 3. **Data Safety Protections**:
@@ -98,6 +102,7 @@ To ensure your books, reading progress, and notes are never lost, Koodo Reader P
    - **Zero Data Loss**: All your books, reading progress, highlights, shelves, and personal settings remain 100% intact after update.
 
 ### Portable Updates
+
 Download the new `*-Portable.exe` and replace the old executable. Your library data resides in the dedicated user data directory and remains completely untouched.
 
 ---
@@ -183,17 +188,15 @@ The release pipeline verifies Windows Server 2022 x64 with Node.js 22, Yarn 1.22
 
 ## Upstream And License
 
-This project is based on Koodo Reader and keeps the repository's AGPL-3.0 license. JMComic-Crawler-Python is consumed as a pinned MIT-licensed dependency; its source is not copied into this repository. See [Third-Party Notices](./THIRD_PARTY_NOTICES.md) and [ADR 0003](./docs/adr/0003-reproducible-python-runtime-and-windows-sidecar.md).
+This project is based on Koodo Reader and keeps the repository's AGPL-3.0 license. JMComic-Crawler-Python is consumed as a pinned MIT-licensed dependency; its source is not copied into this repository. See [Third-Party Notices](./THIRD_PARTY_NOTICES.md)
 
 Use content services in accordance with their terms and the rules that apply to your account and location.
 
 ## Acknowledgements
- 
+
 This project references or uses the following open-source projects. Sincere thanks to their authors and the open-source community:
 
 - [Koodo Reader](https://github.com/koodo-reader/koodo-reader)
 - [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
 - [pica_comic](https://github.com/niuhuan/pica_comic) / [pica-rust](https://github.com/niuhuan/pica-rust)
 - [picacomic-api](https://github.com/l2studio/picacomic-api)
-
-
