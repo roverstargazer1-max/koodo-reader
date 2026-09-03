@@ -117,11 +117,12 @@ class ProgressPanel extends React.Component<
       return <div className="progress-panel">Loading</div>;
     }
     let readerMode =
-      (this.props.currentBook.format === "PDF" &&
-        !ConfigService.getAllListConfig("convertPDFBooks").includes(
-          this.props.currentBook.key
-        )) ||
       this.props.currentBook.format.startsWith("CB")
+        ? ConfigService.getReaderConfig("comicReaderMode") || "webtoon"
+        : (this.props.currentBook.format === "PDF" &&
+          !ConfigService.getAllListConfig("convertPDFBooks").includes(
+            this.props.currentBook.key
+          ))
         ? ConfigService.getReaderConfig("pdfReaderMode") || "scroll"
         : ConfigService.getReaderConfig("readerMode") || "double";
     return (

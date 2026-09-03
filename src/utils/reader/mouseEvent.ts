@@ -391,6 +391,11 @@ export const bindHtmlEvent = (
       }
       if (lock) return;
       lock = true;
+      if (readerMode === "webtoon") {
+        handleLocation(key, rendition);
+        setTimeout(() => (lock = false), 50);
+        return;
+      }
       if (readerMode === "scroll") {
         await sleep(200);
         await rendition.record();

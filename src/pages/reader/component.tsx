@@ -192,11 +192,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
 
       this.props.handleFetchPercentage(book);
       let readerMode =
-        (book.format === "PDF" &&
-          !ConfigService.getAllListConfig("convertPDFBooks").includes(
-            book.key
-          )) ||
         book.format.startsWith("CB")
+          ? ConfigService.getReaderConfig("comicReaderMode") || "webtoon"
+          : (book.format === "PDF" &&
+            !ConfigService.getAllListConfig("convertPDFBooks").includes(
+              book.key
+            ))
           ? ConfigService.getReaderConfig("pdfReaderMode") || "scroll"
           : ConfigService.getReaderConfig("readerMode") || "double";
       this.props.handleReaderMode(readerMode);
@@ -513,7 +514,8 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           onMouseLeave={() => this.setState({ isNearEdge: false })}
         >
           {(this.props.readerMode === "scroll" ||
-            this.props.readerMode === "single") && (
+            this.props.readerMode === "single" ||
+            this.props.readerMode === "webtoon") && (
             <div
               style={{
                 display: "flex",

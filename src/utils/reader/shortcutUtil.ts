@@ -320,7 +320,10 @@ export const isPrevPageKey = (
   if (!matchShortcut(event, config.prevPage)) {
     return false;
   }
-  if (readerMode === "scroll" && isVerticalArrow(event.keyCode)) {
+  if (
+    (readerMode === "scroll" || readerMode === "webtoon") &&
+    isVerticalArrow(event.keyCode)
+  ) {
     return false;
   }
   return true;
@@ -341,7 +344,10 @@ export const isNextPageKey = (
   if (!matchShortcut(event, config.nextPage)) {
     return false;
   }
-  if (readerMode === "scroll" && isVerticalArrow(event.keyCode)) {
+  if (
+    (readerMode === "scroll" || readerMode === "webtoon") &&
+    isVerticalArrow(event.keyCode)
+  ) {
     return false;
   }
   return true;
