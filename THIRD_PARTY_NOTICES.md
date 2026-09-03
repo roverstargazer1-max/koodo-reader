@@ -28,4 +28,14 @@ The exact versions are defined in [`requirements.lock`](./scripts/jmcomic/requir
 
 PyInstaller build-only dependencies are not imported by the application at runtime but are listed in the build lock. Full license texts and package metadata remain in their source distributions and in the collected sidecar where supplied by each package.
 
+## Reference & Protocol Projects
+
+The PicACG client implementation in this repository was independently developed in native Node.js with reference to the protocol research, signature mechanisms, and data schemas explored by:
+
+| Project | Role | Author | Source |
+| --- | --- | --- | --- |
+| pica_comic / pica-rust | PicACG protocol reverse-engineering, routing, and data schema reference | @niuhuan | https://github.com/niuhuan/pica_comic |
+| picacomic-api | Early PicACG API signing and client implementation reference | @l2studio | https://github.com/l2studio/picacomic-api |
+
 This notice is informational and does not replace any component's license text.
+

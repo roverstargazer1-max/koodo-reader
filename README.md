@@ -186,3 +186,14 @@ The release pipeline verifies Windows Server 2022 x64 with Node.js 22, Yarn 1.22
 This project is based on Koodo Reader and keeps the repository's AGPL-3.0 license. JMComic-Crawler-Python is consumed as a pinned MIT-licensed dependency; its source is not copied into this repository. See [Third-Party Notices](./THIRD_PARTY_NOTICES.md) and [ADR 0003](./docs/adr/0003-reproducible-python-runtime-and-windows-sidecar.md).
 
 Use content services in accordance with their terms and the rules that apply to your account and location.
+
+## Acknowledgements
+ 
+This project references or uses the following open-source projects. Sincere thanks to their authors and the open-source community:
+
+- [Koodo Reader](https://github.com/koodo-reader/koodo-reader)
+- [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
+- [pica_comic](https://github.com/niuhuan/pica_comic) / [pica-rust](https://github.com/niuhuan/pica-rust)
+- [picacomic-api](https://github.com/l2studio/picacomic-api)
+
+

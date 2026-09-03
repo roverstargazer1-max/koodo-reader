@@ -186,3 +186,14 @@ JavaScript 调度代码位于 `app.asar`；sidecar 由 electron-builder 的 `ext
 本项目基于 Koodo Reader，并保留仓库根目录的 AGPL-3.0 许可证。JMComic-Crawler-Python 作为固定版本的 MIT 依赖使用，其源码没有复制进本仓库。详见[第三方声明](./THIRD_PARTY_NOTICES.md)和 [ADR 0003](./docs/adr/0003-reproducible-python-runtime-and-windows-sidecar.md)。
 
 使用内容服务时，请遵守服务条款以及账号和所在地适用规则。
+
+## 致谢
+
+本项目在开发中参考或使用了以下开源项目，特此致谢：
+
+- [Koodo Reader](https://github.com/koodo-reader/koodo-reader)
+- [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
+- [pica_comic](https://github.com/niuhuan/pica_comic) / [pica-rust](https://github.com/niuhuan/pica-rust)
+- [picacomic-api](https://github.com/l2studio/picacomic-api)
+
+
