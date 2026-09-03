@@ -254,6 +254,14 @@ export function useBookItem(props: BookItemSharedProps) {
       {}
     );
     if (record && record.percentage) {
+      const val = parseFloat(record.percentage);
+      if (!isNaN(val)) {
+        if (val > 1 && val <= 100) {
+          return val === 100 ? "1" : String(val / 100);
+        } else if (val > 100) {
+          return "1";
+        }
+      }
       return record.percentage;
     }
     return "0";

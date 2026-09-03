@@ -40,6 +40,7 @@ export class WebtoonRender {
   private scrollThrottleTimer: any = null;
   private isProgrammaticScrolling: boolean = false;
   private programmaticScrollTimeout: any = null;
+  private lastRecordedPercentage: string = "";
   private callbacks: Record<string, Function[]> = {};
 
   constructor(buffer: ArrayBuffer, options: WebtoonRenderOptions) {
@@ -276,12 +277,14 @@ export class WebtoonRender {
           targetWrapper.scrollIntoView({ block: "start" });
           setTimeout(() => {
             this.isProgrammaticScrolling = false;
+            this.recordLocation();
           }, 300);
         }
       }, 80);
     } else {
       this.currentPage = 1;
       this.preloadPagesAround(0, 3);
+      this.recordLocation();
     }
 
     this.trigger("rendered");
@@ -479,8 +482,28 @@ export class WebtoonRender {
       }
     }
 
-    if (centerIndex !== -1 && centerIndex + 1 !== this.currentPage) {
+    const atBottom =
+      Boolean(this.win &&
+      this.doc &&
+      (this.doc.documentElement.scrollHeight || this.doc.body?.scrollHeight || 0) >
+        (this.win.innerHeight || 800) &&
+      (this.win.scrollY ??
+        this.doc.documentElement.scrollTop ??
+        this.doc.body?.scrollTop ??
+        0) +
+        (this.win.innerHeight || 800) >=
+        (this.doc.documentElement.scrollHeight ||
+          this.doc.body?.scrollHeight ||
+          0) -
+          15);
+
+    const pageChanged =
+      centerIndex !== -1 && centerIndex + 1 !== this.currentPage;
+    if (pageChanged) {
       this.currentPage = centerIndex + 1;
+    }
+
+    if (pageChanged || (atBottom && this.lastRecordedPercentage !== "1")) {
       this.recordLocation();
       this.trigger("page-changed");
     }
@@ -517,6 +540,7 @@ export class WebtoonRender {
   public recordLocation() {
     if (!this.bookKey) return;
     const position = this.getPosition();
+    this.lastRecordedPercentage = position.percentage;
     ConfigService.setObjectConfig(this.bookKey, position, "recordLocation");
   }
 
@@ -577,10 +601,109 @@ export class WebtoonRender {
     }
   }
 
+  public calculateProgress(): number {
+    if (this.totalPages <= 0) return 0;
+
+    // Check if scrolled to the very bottom of the document
+    if (this.win && this.doc) {
+      const scrollHeight =
+        this.doc.documentElement.scrollHeight ||
+        this.doc.body?.scrollHeight ||
+        0;
+      const clientHeight =
+        this.win.innerHeight || this.doc.documentElement.clientHeight || 800;
+      const scrollTop =
+        this.win.scrollY ??
+        this.doc.documentElement.scrollTop ??
+        this.doc.body?.scrollTop ??
+        0;
+
+      if (
+        scrollHeight > clientHeight &&
+        scrollTop + clientHeight >= scrollHeight - 15
+      ) {
+        return 1;
+      }
+    }
+
+    if (this.totalPages === 1) {
+      if (this.win && this.doc) {
+        const scrollHeight =
+          this.doc.documentElement.scrollHeight ||
+          this.doc.body?.scrollHeight ||
+          0;
+        const clientHeight =
+          this.win.innerHeight || this.doc.documentElement.clientHeight || 800;
+        const maxScroll = scrollHeight - clientHeight;
+        if (maxScroll > 0) {
+          const scrollTop =
+            this.win.scrollY ??
+            this.doc.documentElement.scrollTop ??
+            this.doc.body?.scrollTop ??
+            0;
+          return Math.max(0, Math.min(1, scrollTop / maxScroll));
+        }
+      }
+      return 1;
+    }
+
+    // For multiple pages, calculate continuous progress across page wrappers
+    const currentIndex = Math.max(
+      0,
+      Math.min(this.totalPages - 1, this.currentPage - 1)
+    );
+    const wrapper = this.pageWrappers[currentIndex];
+    if (wrapper && this.win) {
+      const winHeight = this.win.innerHeight || 800;
+      const centerY = winHeight / 2;
+      const rect = wrapper.getBoundingClientRect();
+      const pageHeight = rect.bottom - rect.top;
+      if (pageHeight > 0) {
+        const offsetInPage = centerY - rect.top;
+        const ratioInPage = Math.max(0, Math.min(1, offsetInPage / pageHeight));
+        const progress = (currentIndex + ratioInPage) / this.totalPages;
+        return Math.max(0, Math.min(1, progress));
+      }
+    }
+
+    return Math.max(0, Math.min(1, this.currentPage / this.totalPages));
+  }
+
+  private formatProgress(progress: number): string {
+    if (progress >= 1) return "1";
+    if (progress <= 0) return "0";
+    const rounded = Math.round(progress * 10000) / 10000;
+    if (rounded <= 0) return "0.0001";
+    if (rounded >= 1) return "0.9999";
+    return String(rounded);
+  }
+
   public goToPercentage(percentage: number) {
+    let normalized = percentage;
+    if (normalized > 1 && normalized <= 100) {
+      normalized = normalized / 100;
+    } else if (normalized > 100) {
+      normalized = 1;
+    }
+    if (this.totalPages === 1 && this.win && this.doc) {
+      const scrollHeight =
+        this.doc.documentElement.scrollHeight ||
+        this.doc.body?.scrollHeight ||
+        0;
+      const clientHeight =
+        this.win.innerHeight || this.doc.documentElement.clientHeight || 800;
+      const maxScroll = scrollHeight - clientHeight;
+      if (maxScroll > 0) {
+        this.win.scrollTo({
+          top: maxScroll * normalized,
+          behavior: "smooth",
+        });
+        return;
+      }
+    }
     const targetPage = Math.max(
       1,
-      Math.min(this.totalPages, Math.round(percentage * this.totalPages))
+      Math.min(this.totalPages, Math.round(normalized * this.totalPages))
     );
     this.goToPage(targetPage);
   }
@@ -598,22 +721,18 @@ export class WebtoonRender {
   }
 
   public getProgress() {
-    const percentage =
-      this.totalPages > 0
-        ? Math.round((this.currentPage / this.totalPages) * 100)
-        : 0;
+    const progress = this.calculateProgress();
+    const percentage = this.formatProgress(progress);
     return {
       currentPage: this.currentPage,
       totalPage: this.totalPages,
-      percentage: String(percentage),
+      percentage,
     };
   }
 
   public getPosition() {
-    const percentage =
-      this.totalPages > 0
-        ? Math.round((this.currentPage / this.totalPages) * 100)
-        : 0;
+    const progress = this.calculateProgress();
+    const percentage = this.formatProgress(progress);
     const currentChapter = this.chapterDocList[this.currentPage - 1];
     const label = currentChapter?.label || `Page ${this.currentPage}`;
     const href = currentChapter?.href || String(this.currentPage - 1);
@@ -621,7 +740,7 @@ export class WebtoonRender {
     return {
       count: String(this.currentPage),
       page: String(this.currentPage),
-      percentage: String(percentage),
+      percentage,
       chapterTitle: label,
       chapterDocIndex: String(this.currentPage - 1),
       chapterHref: href,
@@ -742,6 +861,7 @@ export class WebtoonRender {
   }
 
   public removeContent() {
+    this.recordLocation();
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;

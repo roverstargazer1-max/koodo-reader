@@ -57,7 +57,12 @@ function getBookPercentage(bookKey: string): number {
       {}
     );
     if (location && location.percentage != null) {
-      return Math.round(parseFloat(location.percentage) * 100);
+      let val = parseFloat(location.percentage);
+      if (!isNaN(val)) {
+        if (val > 1 && val <= 100) val = val / 100;
+        else if (val > 100) val = 1;
+        return Math.round(val * 100);
+      }
     }
   } catch {
     // ignore

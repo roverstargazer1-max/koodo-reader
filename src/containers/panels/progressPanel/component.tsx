@@ -50,12 +50,22 @@ class ProgressPanel extends React.Component<
         {}
       );
       if (bookLocation.percentage) {
-        let percentage = (parseFloat(bookLocation.percentage) * 100).toFixed(2);
+        let val = parseFloat(bookLocation.percentage);
+        if (!isNaN(val)) {
+          if (val > 1 && val <= 100) val = val / 100;
+          else if (val > 100) val = 1;
+        }
+        let percentage = (val * 100).toFixed(2);
         this.setState({ currentPercentage: parseFloat(percentage) });
       }
     }
     if (nextProps.percentage !== this.props.percentage && nextProps.htmlBook) {
-      let percentage = (nextProps.percentage * 100).toFixed(2);
+      let val = nextProps.percentage;
+      if (typeof val === "number" && !isNaN(val)) {
+        if (val > 1 && val <= 100) val = val / 100;
+        else if (val > 100) val = 1;
+      }
+      let percentage = (val * 100).toFixed(2);
       this.setState({ currentPercentage: parseFloat(percentage) });
     }
   }

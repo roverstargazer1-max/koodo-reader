@@ -188,7 +188,14 @@ export function handleFetchBooks() {
       let locationObj = ConfigService.getAllObjectConfig("recordLocation");
       var sortable: any[] = [];
       for (let obj in locationObj) {
-        sortable.push([obj, locationObj[obj].percentage || 0]);
+        let val = parseFloat(locationObj[obj].percentage || 0);
+        if (!isNaN(val)) {
+          if (val > 1 && val <= 100) val = val / 100;
+          else if (val > 100) val = 1;
+        } else {
+          val = 0;
+        }
+        sortable.push([obj, val]);
       }
       sortable.sort(function (a, b) {
         return b[1] - a[1];

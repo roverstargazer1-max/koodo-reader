@@ -314,8 +314,18 @@ class BookList extends React.Component<BookListProps, BookListState> {
         "recordLocation",
         {}
       );
-      const percentage: string =
+      let percentage: string =
         record && record.percentage ? record.percentage : "";
+      if (percentage) {
+        const val = parseFloat(percentage);
+        if (!isNaN(val)) {
+          if (val > 1 && val <= 100) {
+            percentage = val === 100 ? "1" : String(val / 100);
+          } else if (val > 100) {
+            percentage = "1";
+          }
+        }
+      }
       if (status === "unread") {
         return !percentage || percentage === "0";
       } else if (status === "reading") {
