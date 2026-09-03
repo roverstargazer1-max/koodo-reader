@@ -53,6 +53,15 @@ class CoverUtil {
       const files = fs.readdirSync(directoryPath);
       const imageFiles = files.filter((file) => file.startsWith(book.key));
       if (imageFiles.length === 0) {
+        if (
+          book.cover &&
+          typeof book.cover === "string" &&
+          !book.cover.startsWith("data:") &&
+          !book.cover.startsWith("blob:") &&
+          !book.cover.startsWith("http")
+        ) {
+          return fs.existsSync(book.cover) ? book.cover : "";
+        }
         return book.cover;
       }
       const imageFilePath = path.join(directoryPath, imageFiles[0]);
@@ -98,7 +107,20 @@ class CoverUtil {
   static async isCoverExist(book: BookModel) {
     if (!book) return false;
     if (book.cover) {
-      return true;
+      if (
+        isElectron &&
+        typeof book.cover === "string" &&
+        !book.cover.startsWith("data:") &&
+        !book.cover.startsWith("blob:") &&
+        !book.cover.startsWith("http")
+      ) {
+        var fs = window.electronAPI.fs;
+        if (fs && fs.existsSync(book.cover)) {
+          return true;
+        }
+      } else {
+        return true;
+      }
     }
     if (isElectron) {
       var fs = window.electronAPI.fs;

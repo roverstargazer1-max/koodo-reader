@@ -262,22 +262,25 @@ class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
           }}
         >
           <div className="header-container">
-            {!this.props.isHideHeader && this.props.currentChapter + "" && (
-              <p
-                className="header-chapter-name"
-                style={
-                  this.state.isSingle
-                    ? {
-                        left: `calc(50vw - 
-                      270px)`,
-                      }
-                    : {}
-                }
-              >
-                {this.props.currentChapter}
-              </p>
-            )}
             {!this.props.isHideHeader &&
+              this.props.readerMode !== "webtoon" &&
+              this.props.currentChapter + "" && (
+                <p
+                  className="header-chapter-name"
+                  style={
+                    this.state.isSingle
+                      ? {
+                          left: `calc(50vw - 
+                      270px)`,
+                        }
+                      : {}
+                  }
+                >
+                  {this.props.currentChapter}
+                </p>
+              )}
+            {!this.props.isHideHeader &&
+              this.props.readerMode !== "webtoon" &&
               this.props.currentChapter + "" &&
               !this.state.isSingle && (
                 <p
@@ -308,27 +311,30 @@ class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
             )}
           </div>
           <div className="footer-container">
-            {!this.props.isHideFooter && this.state.prevPage > 0 && (
-              <p
-                className="background-page-left"
-                style={
-                  this.state.isSingle
-                    ? {
-                        left: `calc(50vw - 
-                      270px)`,
-                      }
-                    : {}
-                }
-              >
-                <Trans i18nKey="Book page" count={this.state.prevPage}>
-                  Page
-                  {{
-                    count: this.state.prevPage,
-                  }}
-                </Trans>
-              </p>
-            )}
             {!this.props.isHideFooter &&
+              this.props.readerMode !== "webtoon" &&
+              this.state.prevPage > 0 && (
+                <p
+                  className="background-page-left"
+                  style={
+                    this.state.isSingle
+                      ? {
+                          left: `calc(50vw - 
+                      270px)`,
+                        }
+                      : {}
+                  }
+                >
+                  <Trans i18nKey="Book page" count={this.state.prevPage}>
+                    Page
+                    {{
+                      count: this.state.prevPage,
+                    }}
+                  </Trans>
+                </p>
+              )}
+            {!this.props.isHideFooter &&
+              this.props.readerMode !== "webtoon" &&
               this.state.nextPage > 0 &&
               !this.state.isSingle && (
                 <p className="background-page-right">
@@ -346,7 +352,8 @@ class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
               <div className="bookmark"></div>
             ) : null}
           </>
-          {this.props.isShowPageBorder && (
+          {this.props.isShowPageBorder &&
+            this.props.readerMode !== "webtoon" && (
             <>
               <div className="page-border"></div>
               <div className="inner-page-border"></div>

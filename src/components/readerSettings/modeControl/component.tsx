@@ -11,10 +11,11 @@ class ModeControl extends React.Component<ModeControlProps, ModeControlState> {
   }
 
   handleChangeMode = (mode: string) => {
-    if (this.props.currentBook.format.startsWith("CB")) {
+    const format = (this.props.currentBook.format || "").toUpperCase();
+    if (format.startsWith("CB")) {
       ConfigService.setReaderConfig("comicReaderMode", mode);
     } else if (
-      this.props.currentBook.format === "PDF" &&
+      format === "PDF" &&
       !ConfigService.getAllListConfig("convertPDFBooks").includes(
         this.props.currentBook.key
       )

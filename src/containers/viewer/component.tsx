@@ -132,6 +132,14 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       this.state.rendition.setScale(parseFloat(nextProps.scale));
     }
     if (
+      nextProps.readerMode !== this.props.readerMode &&
+      (nextProps.readerMode === "webtoon" || this.props.readerMode === "webtoon")
+    ) {
+      setTimeout(() => {
+        this.handleRenderBook();
+      }, 0);
+    }
+    if (
       nextProps.margin !== this.props.margin ||
       nextProps.scale !== this.props.scale ||
       nextProps.readerMode !== this.props.readerMode ||
@@ -273,7 +281,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           : "textOcrLang";
       let rendition: any;
       if (
-        this.props.currentBook.format.startsWith("CB") &&
+        (this.props.currentBook.format || "").toUpperCase().startsWith("CB") &&
         this.props.readerMode === "webtoon"
       ) {
         rendition = new WebtoonRender(result, {
@@ -759,7 +767,9 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           }
         ></div>
         <PageWidget />
-        {this.props.isHideBackground ? null : this.props.currentBook.key ? (
+        {this.props.isHideBackground ||
+        this.props.readerMode === "webtoon" ? null : this.props.currentBook
+            .key ? (
           <Background />
         ) : null}
       </>

@@ -191,10 +191,11 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       if (!book) return;
 
       this.props.handleFetchPercentage(book);
+      const bookFormat = (book.format || "").toUpperCase();
       let readerMode =
-        book.format.startsWith("CB")
+        bookFormat.startsWith("CB")
           ? ConfigService.getReaderConfig("comicReaderMode") || "webtoon"
-          : (book.format === "PDF" &&
+          : (bookFormat === "PDF" &&
             !ConfigService.getAllListConfig("convertPDFBooks").includes(
               book.key
             ))

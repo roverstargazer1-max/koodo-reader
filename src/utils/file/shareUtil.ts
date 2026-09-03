@@ -111,18 +111,40 @@ export class ShareUtil {
         createdAt: Date.now(),
         shelfName: shelfName || null,
         includesNotes: includeNotes && notes.length > 0,
-        books: books.map((b) => ({
-          originalKey: b.key,
-          name: b.name,
-          author: b.author || "",
-          description: b.description || "",
-          format: (b.format || "epub").toLowerCase(),
-          size: b.size || 0,
-          publisher: b.publisher || "",
-          fileName: `${b.key}.${(b.format || "epub").toLowerCase()}`,
-          coverName: `${b.key}.png`,
-          charset: b.charset || "utf-8",
-        })),
+        books: books.map((b) => {
+          let coverExt = ".png";
+          if (isElectron) {
+            try {
+              const fs = window.electronAPI.fs;
+              const path = window.electronAPI.path;
+              const coverFolder = path.join(
+                getStorageLocation() || "",
+                "cover"
+              );
+              if (fs.existsSync(coverFolder)) {
+                const files = fs.readdirSync(coverFolder);
+                const matched = files.find(
+                  (f: string) => f.startsWith(b.key + ".") || f === b.key
+                );
+                if (matched) {
+                  coverExt = path.extname(matched) || ".png";
+                }
+              }
+            } catch (_) {}
+          }
+          return {
+            originalKey: b.key,
+            name: b.name,
+            author: b.author || "",
+            description: b.description || "",
+            format: (b.format || "epub").toUpperCase(),
+            size: b.size || 0,
+            publisher: b.publisher || "",
+            fileName: `${b.key}.${(b.format || "epub").toLowerCase()}`,
+            coverName: `${b.key}${coverExt}`,
+            charset: b.charset || "utf-8",
+          };
+        }),
       };
 
       const result = await ipcRenderer.invoke("export-share-package", {

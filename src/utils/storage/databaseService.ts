@@ -277,6 +277,9 @@ class DatabaseService {
     bookKeys: string[],
     dbName: string
   ): Promise<any[]> {
+    if (!bookKeys || bookKeys.length === 0) {
+      return [];
+    }
     if (isElectron) {
       let records = await window
         .electronAPI
@@ -298,6 +301,9 @@ class DatabaseService {
     keys: string[],
     dbName: string
   ): Promise<any[]> {
+    if (!keys || keys.length === 0) {
+      return [];
+    }
     if (isElectron) {
       let records = await window
         .electronAPI
@@ -312,7 +318,10 @@ class DatabaseService {
       return records;
     } else {
       let records = await this.getAllRecords(dbName);
-      return records.filter((record) => keys.includes(record.key));
+      let recordMap = new Map(records.map((r: any) => [r.key, r]));
+      return keys
+        .map((key) => recordMap.get(key))
+        .filter((record) => record !== undefined);
     }
   }
   static async updateAllRecords(

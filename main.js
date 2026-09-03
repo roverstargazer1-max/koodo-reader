@@ -2190,6 +2190,13 @@ const createMainWin = () => {
       await import("./src/assets/lib/kookit-extra.min.mjs");
     let { statement, statementType, executeType, dbName, data, storagePath } =
       config;
+    if (
+      (statement === "getByKeysStatement" ||
+        statement === "getByBookKeysStatement") &&
+      (!data || !Array.isArray(data) || data.length === 0)
+    ) {
+      return [];
+    }
     let db = getDBConnection(dbName, storagePath, SqlStatement.sqlStatement);
     let sql = "";
     if (statementType === "string") {
@@ -2203,7 +2210,11 @@ const createMainWin = () => {
       if (statement.startsWith("save") || statement.startsWith("update")) {
         data = SqlStatement.jsonToSqlite[dbName](data);
       }
-      result = row[executeType](data);
+      let queryParams = data;
+      if (statement === "getByKeysStatement" && Array.isArray(data)) {
+        queryParams = [...data, ...data];
+      }
+      result = row[executeType](queryParams);
     } else {
       result = row[executeType]();
     }
@@ -2715,20 +2726,63 @@ const createMainWin = () => {
             });
           }
 
-          const coverPath = path.join(dataPath, "cover", `${book.key}.png`);
-          if (fs.existsSync(coverPath)) {
+          let coverFileName = null;
+          let sourceCoverPath = null;
+          const coverFolder = path.join(dataPath, "cover");
+          if (fs.existsSync(coverFolder)) {
             try {
-              totalBytes += fs.statSync(coverPath).size;
+              const coverFiles = fs.readdirSync(coverFolder);
+              const matched = coverFiles.find(
+                (f) => f.startsWith(book.key + ".") || f === book.key
+              );
+              if (matched) {
+                coverFileName = matched;
+                sourceCoverPath = path.join(coverFolder, matched);
+              }
             } catch (_) {}
+          }
+
+          if (sourceCoverPath && fs.existsSync(sourceCoverPath)) {
+            try {
+              totalBytes += fs.statSync(sourceCoverPath).size;
+            } catch (_) {}
+            const ext = path.extname(coverFileName) || ".png";
             entriesToAdd.push({
-              source: coverPath,
-              entryName: `covers/${book.key}.png`,
+              source: sourceCoverPath,
+              entryName: `covers/${book.key}${ext}`,
             });
+          } else if (
+            book.cover &&
+            typeof book.cover === "string" &&
+            book.cover.startsWith("data:image/")
+          ) {
+            try {
+              const mimeMatch = book.cover.match(
+                /^data:image\/([a-zA-Z0-9+]+);base64,/
+              );
+              const subType = mimeMatch
+                ? mimeMatch[1].replace("+xml", "")
+                : "png";
+              const ext = subType === "jpeg" ? "jpg" : subType;
+              const base64Data = book.cover.split("base64,")[1];
+              if (base64Data) {
+                const buf = Buffer.from(base64Data, "base64");
+                totalBytes += buf.length;
+                entriesToAdd.push({
+                  buffer: buf,
+                  entryName: `covers/${book.key}.${ext}`,
+                });
+              }
+            } catch (_) {}
           }
         }
 
         for (const entry of entriesToAdd) {
-          zip.addFile(entry.source, entry.entryName);
+          if (entry.source) {
+            zip.addFile(entry.source, entry.entryName);
+          } else if (entry.buffer) {
+            zip.addBuffer(entry.buffer, entry.entryName);
+          }
         }
 
         zip.end();
@@ -2970,9 +3024,9 @@ const createMainWin = () => {
           renamedCount++;
         }
 
-        const format = (b.format || "epub").toLowerCase();
-        const targetBookPath = path.join(bookDir, `${newKey}.${format}`);
-        const targetCoverPath = path.join(coverDir, `${newKey}.png`);
+        const format = (b.format || "epub").toUpperCase();
+        const ext = format.toLowerCase();
+        const targetBookPath = path.join(bookDir, `${newKey}.${ext}`);
 
         newBooks.push({
           key: newKey,
@@ -2980,7 +3034,7 @@ const createMainWin = () => {
           author: b.author || "",
           description: b.description || "",
           md5: b.md5 || "",
-          cover: targetCoverPath,
+          cover: "",
           format: format,
           publisher: b.publisher || "",
           size: b.size || 0,
@@ -3045,10 +3099,12 @@ const createMainWin = () => {
               } else if (name.startsWith("covers/")) {
                 const baseName = path.basename(name);
                 const dotIdx = baseName.indexOf(".");
-                const origKey = dotIdx > 0 ? baseName.slice(0, dotIdx) : baseName;
+                const origKey =
+                  dotIdx > 0 ? baseName.slice(0, dotIdx) : baseName;
+                const ext = dotIdx > 0 ? baseName.slice(dotIdx) : ".png";
                 const mappedKey = keyMap[origKey];
                 if (mappedKey) {
-                  const targetCover = path.join(coverDir, `${mappedKey}.png`);
+                  const targetCover = path.join(coverDir, `${mappedKey}${ext}`);
                   zf.openReadStream(entry, (readErr, readStream) => {
                     if (readErr) return reject(readErr);
                     const writeStream = fs.createWriteStream(targetCover);
