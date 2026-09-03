@@ -2,25 +2,49 @@
 
 简体中文 | [English](./README.md)
 
-Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书库项目，衍生自 [Koodo Reader](https://github.com/koodo-reader/koodo-reader)，保留原项目的阅读和书库能力，并通过 [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python) 提供内置桌面端在线漫画工作流。
+Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书库项目，衍生自 [Koodo Reader](https://github.com/koodo-reader/koodo-reader)，保留原项目的强大阅读和书库管理能力，并深度集成了 **JMComic (禁漫天堂)** 与 **PicACG (哔咔漫画)** 桌面端在线漫画完整工作流。
 
 本仓库不是 Koodo Reader 官方发行版。首个独立版本为 `v0.1.0`。
 
 ## 与上游的主要差异
 
-- 内置 JMComic 桌面面板：搜索、排行、详情、账号登录、收藏夹、章节选择、下载、取消、CBZ 打包和自动入库。
-- 维护 Personal 版本的书库多选和批量交互。
-- 源码环境使用项目私有 `.venv`，固定 `jmcomic==2.7.5`。
-- Windows 安装版和便携版内置 PyInstaller `onedir` sidecar，使用时不需要安装 Python。
-- Personal、Personal 开发版与原 Koodo Reader 使用相互独立的本地数据目录。
+- **双在线漫画源集成**：
+  - **JMComic（禁漫天堂）**：支持关键词/车号搜索、多维度热门榜（今日/本周/本月/总榜）、个人收藏夹同步、单章选择下载、自动生成 ComicInfo.xml 并打包为 CBZ 自动入库。
+  - **PicACG（哔咔漫画）**：纯 Node.js 逆向签名实现，支持搜索、官方分类探索、多时段排行榜（24h/7d/30d）、随机本子、收藏夹管理、平铺页码与快速跳页、分流测速切换与全本/分章 CBZ 打包入库。
+  - **下载体验优化**：两款漫画扩展均支持在设置中自定义下载保存路径，临时解包目录跟随目标磁盘，彻底避免 C 盘空间不足（`ENOSPC`）的问题。
+- **书库多选与封面防窥**：
+  - 增强书库多选批量操作（批量喜爱、加入书架、导出、批量删除、点击空白区域退出多选）；
+  - 新增「模糊封面 / 取消模糊封面」功能，一键隐藏敏感书籍封面，兼顾隐私与观感。
+- **开箱即用与独立运行**：
+  - 源码环境使用项目私有 `.venv`，固定 `jmcomic==2.7.5`；
+  - Windows 安装版和便携版内置 PyInstaller `onedir` sidecar，运行无需用户安装 Python；
+  - Personal、Personal 开发版与原 Koodo Reader 使用相互独立的本地数据目录，互不干扰。
 
-在线漫画是桌面端能力，在 Web 构建中不会显示入口。
+> 在线漫画属于桌面端专属扩展能力，在纯 Web 构建中不会显示入口。
 
-## 截图
+## 截图展示
 
-### 在线漫画面板
+### 禁漫天堂 (JMComic)
 
-![在线漫画面板](./docs/screenshots/jmcomic-panel.jpg)
+| 搜索主面板 | 我的收藏与个人中心 |
+| :---: | :---: |
+| ![JMComic 搜索面板](./docs/screenshots/jmcomic-panel.png) | ![JMComic 收藏夹](./docs/screenshots/jmcomic-mycollection.png) |
+
+| 热门排行榜 (今日 / 本周 / 本月 / 总榜) |
+| :---: |
+| ![JMComic 排行榜](./docs/screenshots/ranking.png) |
+
+### 哔咔漫画 (PicACG)
+
+| 搜索与分类主面板 | 个人收藏与批量管理 |
+| :---: | :---: |
+| ![PicACG 搜索面板](./docs/screenshots/pica-panel.png) | ![PicACG 收藏夹](./docs/screenshots/pica-mycollection.png) |
+
+### 书库增强 (Library Enhancements)
+
+| 书库批量操作与封面模糊防窥 |
+| :---: |
+| ![书库多选与模糊封面](./docs/screenshots/book-over-blur.png) |
 
 ## Windows 下载
 

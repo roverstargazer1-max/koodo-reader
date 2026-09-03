@@ -2,25 +2,49 @@
 
 [简体中文](./README_cn.md) | English
 
-Koodo Reader Personal is an independently maintained, Windows-first personal library derived from [Koodo Reader](https://github.com/koodo-reader/koodo-reader). It keeps the upstream reading and library experience and adds built-in desktop workflows powered by [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python).
+Koodo Reader Personal is an independently maintained, Windows-first personal library derived from [Koodo Reader](https://github.com/koodo-reader/koodo-reader). It preserves upstream's reading and library experience, and deeply integrates desktop online comics workflows for both **JMComic** and **PicACG (哔咔漫画)**.
 
 This repository is not the official Koodo Reader distribution. The first independent release is `v0.1.0`.
 
 ## What Is Different
 
-- Built-in desktop panel for JMComic search, ranking, details, account login, favorites, chapter selection, downloads, cancellation, CBZ packaging, and automatic library import.
-- Library selection and batch interactions maintained for this Personal edition.
-- Reproducible source setup with a private `.venv` and `jmcomic==2.7.5`.
-- Windows packages include a PyInstaller `onedir` sidecar, so installed and portable builds do not need Python.
-- Personal and upstream Koodo installations use separate local data directories.
+- **Dual Online Comic Integrations**:
+  - **JMComic**: Keyword and comic ID search, multi-tier leaderboards (Daily / Weekly / Monthly / All Time), favorites synchronization, chapter selection, automated ComicInfo.xml metadata generation, CBZ archive creation, and library auto-import.
+  - **PicACG**: Pure Node.js reverse-engineered HMAC-SHA256 client, supporting search, official category exploration, multi-timeframe leaderboards (24h / 7d / 30d), random comics, favorites sync, tiled pagination with direct jump, route latency testing, and full/chapter CBZ downloads.
+  - **Custom Download Location**: Both extensions support custom download directories in settings. Temporary extraction files stay on the target volume to completely avoid C: drive space exhaustion (`ENOSPC`).
+- **Library Selection & Privacy Enhancements**:
+  - Multi-selection toolbar for batch operations (favorite, shelve, export, delete, click blank area to deselect);
+  - **Cover Blur / Unblur** feature to protect sensitive comic covers while maintaining a clean library aesthetic.
+- **Out-of-the-box Desktop Experience**:
+  - Source mode setup with project-private `.venv` and pinned dependencies (`jmcomic==2.7.5`);
+  - Windows installer and portable packages bundle PyInstaller `onedir` sidecar—no manual Python installation required;
+  - Completely isolated local data directories between Personal edition and upstream Koodo Reader.
 
-The online-comics panel is a desktop-only capability and is hidden in the web build.
+> The online-comics panel is a desktop-only capability and is hidden in the web build.
 
 ## Screenshots
 
-### Online comics
+### JMComic
 
-![Online comics panel](./docs/screenshots/jmcomic-panel.jpg)
+| Search Panel | My Favorites & Profile |
+| :---: | :---: |
+| ![JMComic Search Panel](./docs/screenshots/jmcomic-panel.png) | ![JMComic Favorites](./docs/screenshots/jmcomic-mycollection.png) |
+
+| Leaderboard (Daily / Weekly / Monthly / All Time) |
+| :---: |
+| ![JMComic Leaderboard](./docs/screenshots/ranking.png) |
+
+### PicACG
+
+| Search & Categories | Favorites & Batch Actions |
+| :---: | :---: |
+| ![PicACG Search Panel](./docs/screenshots/pica-panel.png) | ![PicACG Favorites](./docs/screenshots/pica-mycollection.png) |
+
+### Library Enhancements
+
+| Batch Actions & Cover Blur / Privacy Protection |
+| :---: |
+| ![Library Selection & Blur](./docs/screenshots/book-over-blur.png) |
 
 ## Windows Download
 
