@@ -23,7 +23,7 @@ const isPackagedRuntime =
 const isDev = !isPackagedRuntime;
 const personalDataDir = path.join(
   app.getPath("appData"),
-  isDev ? "KoodoReaderPersonal-dev" : "KoodoReaderPersonal"
+  isDev ? "KoodoReaderPersonalLocal-dev" : "KoodoReaderPersonalLocal"
 );
 app.setPath("userData", personalDataDir);
 const Store = require("electron-store");
@@ -803,6 +803,7 @@ store.set("appVersion", packageJson.version);
 store.set("appPlatform", os.platform() + " " + os.release());
 const mainWinDisplayScale = store.get("mainWinDisplayScale") || 1;
 let options = {
+  title: "Koodo Reader (Personal Local)",
   width: parseInt(store.get("mainWinWidth") || 1050) / mainWinDisplayScale,
   height: parseInt(store.get("mainWinHeight") || 660) / mainWinDisplayScale,
   x: parseInt(store.get("mainWinX")),
@@ -1094,8 +1095,9 @@ const createMainWin = () => {
     Menu.setApplicationMenu(null);
   }
 
+  const devPort = process.env.PORT || 3010;
   const urlLocation = isDev
-    ? "http://localhost:3000"
+    ? `http://localhost:${devPort}`
     : `file://${path.join(__dirname, "./build/index.html")}`;
   mainWin.loadURL(urlLocation);
   // Handle deep link on cold start: wait for renderer to mount its IPC listeners
