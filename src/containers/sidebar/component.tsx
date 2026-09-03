@@ -274,7 +274,11 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
               }
               id={`sidebar-${item.icon}`}
               onClick={() => {
-                this.handleSidebar(item.mode);
+                if (isExpandable && !this.props.isCollapsed) {
+                  this.handleToggleOnlineComics();
+                } else {
+                  this.handleSidebar(item.mode);
+                }
               }}
               onMouseEnter={() => {
                 this.handleHover(item.mode);
@@ -338,7 +342,6 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
                 {isExpandable && !this.props.isCollapsed && (
                   <span
                     className="icon-dropdown sidebar-expand-arrow"
-                    onClick={this.handleToggleOnlineComics}
                     style={{
                       transform: this.state.isOnlineComicsExpanded
                         ? "rotate(0deg)"
@@ -371,10 +374,7 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
                     <div className="side-menu-hover-container"></div>
                   ) : null}
                   <div className="side-menu-selector">
-                    <div className="side-menu-icon">
-                      <span className={`icon-${subItem.icon}`}></span>
-                    </div>
-                    <span style={{ width: "65%" }}>
+                    <span className="side-menu-sub-title">
                       {this.props.t(subItem.name)}
                     </span>
                   </div>

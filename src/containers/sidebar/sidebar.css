@@ -261,9 +261,18 @@
   height: 34px;
 }
 
-.side-menu-sub-item .side-menu-icon {
-  font-size: 18px;
-  margin: 6px 10px 6px 36px;
-  width: 24px;
+.side-menu-sub-item .side-menu-sub-title {
+  padding-left: 80px;
+  font-size: 14px;
+  user-select: none;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-menu-sub-item .side-menu-hover-container {
+  height: 34px;
+  line-height: 34px;
 }
 

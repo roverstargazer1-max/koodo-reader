@@ -4,7 +4,7 @@ const isDesktopRuntime =
 
 export interface SideSubMenuItem {
   name: string;
-  icon: string;
+  icon?: string;
   mode: string;
 }
 
@@ -35,12 +35,10 @@ const allSideMenuItems: SideMenuItem[] = [
     subItems: [
       {
         name: "JMComic",
-        icon: "image",
         mode: "jmcomic",
       },
       {
         name: "PicaComic",
-        icon: "picture-line",
         mode: "picacomic",
       },
     ],

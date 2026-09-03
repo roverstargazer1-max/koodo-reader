@@ -464,11 +464,11 @@ class BookList extends React.Component<BookListProps, BookListState> {
   handleGlobalMouseUp = () => {
     if (!this.isSelecting) return;
 
-    // 如果本次是纯点击（未发生拖拽 && 无修饰键），视为「点击空白区域取消全部选中」
+    // 如果本次是纯点击（未发生拖拽 && 无修饰键），视为「点击空白区域取消全部选中并退出多选模式」
     if (
       !this.isDragging &&
       !this.isModifierActive &&
-      (this.props.selectedBooks?.length ?? 0) > 0
+      (this.props.isSelectBook || (this.props.selectedBooks?.length ?? 0) > 0)
     ) {
       this.props.handleSelectedBooks([]);
       this.props.handleSelectBook(false);
