@@ -48,12 +48,12 @@ This repository is not the official Koodo Reader distribution. The first indepen
 
 ## Download & Installation (Windows)
 
-Get the latest release from the [GitHub Releases Page](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) (Current Version: **`v0.2.1`**):
+Get the latest release from the [GitHub Releases Page](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) (Current Version: **`v0.2.2`**):
 
 | Package Type | Best For & Features | Direct Download |
 | :--- | :--- | :--- |
-| **Installer (Setup)**<br>`Koodo-Reader-Personal-0.2.1-x64-Setup.exe` | **Recommended for daily reading**.<br>Supports in-app silent overwrite updates, bundled Python Sidecar runtime, works out-of-the-box. | [Download Setup Installer](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
-| **Portable**<br>`Koodo-Reader-Personal-0.2.1-x64-Portable.exe` | **For USB drives & zero-install needs**.<br>Standalone single executable, no installation needed, run directly. | [Download Portable EXE](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| **Installer (Setup)**<br>`Koodo-Reader-Personal-0.2.2-x64-Setup.exe` | **Recommended for daily reading**.<br>Supports in-app silent overwrite updates, bundled Python Sidecar runtime, works out-of-the-box. | [Download Setup Installer](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| **Portable**<br>`Koodo-Reader-Personal-0.2.2-x64-Portable.exe` | **For USB drives & zero-install needs**.<br>Standalone single executable, no installation needed, run directly. | [Download Portable EXE](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
 
 > **Security Note**: Binaries are unsigned with commercial certificates. Windows SmartScreen may show an "Unrecognized app" prompt on first launch. Click **"More info"** -> **"Run anyway"**. SHA-256 checksums are published in `SHA256SUMS.txt` with each release.
 
