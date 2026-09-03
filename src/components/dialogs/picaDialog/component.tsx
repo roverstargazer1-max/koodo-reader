@@ -1970,6 +1970,51 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                 </div>
 
                 <div className="pica-setting-group">
+                  <label className="pica-setting-label">{t("Download Directory")}</label>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input
+                      type="text"
+                      className="pica-search-input"
+                      placeholder={t("Default: ~/Downloads/KoodoReader_Comics")}
+                      value={config.outputDir || ""}
+                      readOnly
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      className="pica-btn secondary"
+                      onClick={async () => {
+                        const ipc = getIpc();
+                        if (ipc) {
+                          const selected = await ipc.invoke("select-path");
+                          if (selected) {
+                            const updated = { ...config, outputDir: selected };
+                            this.setState({ config: updated });
+                            this.saveConfig(updated);
+                          }
+                        }
+                      }}
+                    >
+                      📁 {t("Browse...")}
+                    </button>
+                    {config.outputDir && (
+                      <button
+                        className="pica-btn outline"
+                        onClick={() => {
+                          const updated = { ...config, outputDir: "" };
+                          this.setState({ config: updated });
+                          this.saveConfig(updated);
+                        }}
+                      >
+                        {t("Reset")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="pica-setting-desc">
+                    {t("Specify where downloaded CBZ comics are saved. Useful if C: drive is low on space.")}
+                  </div>
+                </div>
+
+                <div className="pica-setting-group">
                   <label className="pica-setting-label">{t("Image Quality")}</label>
                   <select
                     className="pica-select"

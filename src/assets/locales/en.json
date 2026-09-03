@@ -1457,5 +1457,10 @@
   "PicACG official leaderboard requires logging in with your account. Please log in first.": "PicACG official leaderboard requires logging in with your account. Please log in first.",
   "Go to Login": "Go to Login",
   "Download full album": "Download full album",
-  "Batch Download": "Batch Download"
+  "Batch Download": "Batch Download",
+  "Download Directory": "Download Directory",
+  "Browse...": "Browse...",
+  "Reset": "Reset",
+  "Default: ~/Downloads/KoodoReader_Comics": "Default: ~/Downloads/KoodoReader_Comics",
+  "Specify where downloaded CBZ comics are saved. Useful if C: drive is low on space.": "Specify where downloaded CBZ comics are saved. Useful if C: drive is low on space."
 }

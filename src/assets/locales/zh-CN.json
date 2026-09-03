@@ -1466,5 +1466,10 @@
   "PicACG official leaderboard requires logging in with your account. Please log in first.": "哔咔官方排行榜接口需要验证账号权限，请先登录哔咔账号后查看。",
   "Go to Login": "前往登录",
   "Download full album": "下载全本",
-  "Batch Download": "批量下载"
+  "Batch Download": "批量下载",
+  "Download Directory": "下载保存目录",
+  "Browse...": "浏览...",
+  "Reset": "重置",
+  "Default: ~/Downloads/KoodoReader_Comics": "默认：下载/KoodoReader_Comics",
+  "Specify where downloaded CBZ comics are saved. Useful if C: drive is low on space.": "指定下载的 CBZ 漫画保存位置。可在系统盘（C盘）空间不足时指定到其他剩余空间充足的磁盘。"
 }

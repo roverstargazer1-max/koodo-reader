@@ -225,8 +225,9 @@ async function downloadComicPackage({
   const sanitizeName = (str) =>
     (str || "").replace(/[<>:"/\\|?*]/g, "_").trim();
 
-  // Create temporary directory for downloads
-  const tempBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pica-pkg-"));
+  // Create temporary directory on the same drive as targetDir to avoid writing to C: drive
+  const tempDirParent = targetDir && fs.existsSync(targetDir) ? targetDir : os.tmpdir();
+  const tempBaseDir = fs.mkdtempSync(path.join(tempDirParent, ".pica-pkg-"));
 
   try {
     if (combineCbz) {
