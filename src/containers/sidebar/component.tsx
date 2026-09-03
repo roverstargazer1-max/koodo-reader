@@ -504,21 +504,10 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
               ConfigService.getReaderConfig("appSkin") === "night" ||
               (ConfigService.getReaderConfig("appSkin") === "system" &&
                 ConfigService.getReaderConfig("isOSNight") === "yes")
-                ? require(
-                    `../../assets/images/logo-dark${
-                      this.props.isAuthed ? "-pro" : ""
-                    }.png`
-                  )
-                : require(
-                    `../../assets/images/logo-light${
-                      this.props.isAuthed ? "-pro" : ""
-                    }.png`
-                  )
+                ? require("../../assets/images/logo-dark.png")
+                : require("../../assets/images/logo-light.png")
             }
             alt=""
-            onClick={() => {
-              this.handleJump(getWebsiteUrl());
-            }}
             style={this.state.isCollapsed ? { display: "none" } : {}}
             className="logo"
           />
