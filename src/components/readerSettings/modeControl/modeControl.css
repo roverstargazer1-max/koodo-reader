@@ -21,3 +21,14 @@
   cursor: pointer;
   text-align: center;
 }
+.webtoon-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+}
+.webtoon-mode-icon {
+  color: inherit;
+  transition: opacity 0.2s ease;
+}
+
