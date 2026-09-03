@@ -4,7 +4,7 @@
 
 Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书库项目，衍生自 [Koodo Reader](https://github.com/koodo-reader/koodo-reader)，保留原项目的强大阅读和书库管理能力，并深度集成了 **JMComic (禁漫天堂)** 与 **PicACG (哔咔漫画)** 桌面端在线漫画完整工作流。
 
-本仓库不是 Koodo Reader 官方发行版。首个独立版本为 `v0.1.0`。
+本仓库不是 Koodo Reader 官方发行版。首个独立版本为 `v0.2.1`。
 
 ## 与上游的主要差异
 
@@ -26,24 +26,24 @@ Koodo Reader Personal 是一个独立维护、优先支持 Windows 的个人书�
 
 ### 禁漫天堂 (JMComic)
 
-| 搜索主面板 | 我的收藏与个人中心 |
-| :---: | :---: |
+|                        搜索主面板                         |                       我的收藏与个人中心                       |
+| :-------------------------------------------------------: | :------------------------------------------------------------: |
 | ![JMComic 搜索面板](./docs/screenshots/jmcomic-panel.png) | ![JMComic 收藏夹](./docs/screenshots/jmcomic-mycollection.png) |
 
-| 热门排行榜 (今日 / 本周 / 本月 / 总榜) |
-| :---: |
+|      热门排行榜 (今日 / 本周 / 本月 / 总榜)       |
+| :-----------------------------------------------: |
 | ![JMComic 排行榜](./docs/screenshots/ranking.png) |
 
 ### 哔咔漫画 (PicACG)
 
-| 搜索与分类主面板 | 个人收藏与批量管理 |
-| :---: | :---: |
+|                   搜索与分类主面板                    |                     个人收藏与批量管理                     |
+| :---------------------------------------------------: | :--------------------------------------------------------: |
 | ![PicACG 搜索面板](./docs/screenshots/pica-panel.png) | ![PicACG 收藏夹](./docs/screenshots/pica-mycollection.png) |
 
 ### 书库增强 (Library Enhancements)
 
-| 书库批量操作与封面模糊防窥 |
-| :---: |
+|                  书库批量操作与封面模糊防窥                  |
+| :----------------------------------------------------------: |
 | ![书库多选与模糊封面](./docs/screenshots/book-over-blur.png) |
 
 ## Windows 下载
