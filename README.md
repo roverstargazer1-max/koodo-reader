@@ -46,13 +46,63 @@ This repository is not the official Koodo Reader distribution. The first indepen
 | :---: |
 | ![Library Selection & Blur](./docs/screenshots/book-over-blur.png) |
 
-## Windows Download
+## Download & Installation (Windows)
 
-Download the latest NSIS installer or portable executable from [GitHub Releases](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest). Each release includes `SHA256SUMS.txt`.
+Get the latest release from the [GitHub Releases Page](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) (Current Version: **`v0.2.1`**):
 
-`v0.1.0` targets Windows 10/11 x64. Packages are unsigned, so Windows SmartScreen may show an unrecognized-app prompt. Verify the SHA-256 checksum before running a download.
+| Package Type | Best For & Features | Direct Download |
+| :--- | :--- | :--- |
+| **Installer (Setup)**<br>`Koodo-Reader-Personal-0.2.1-x64-Setup.exe` | **Recommended for daily reading**.<br>Supports in-app silent overwrite updates, bundled Python Sidecar runtime, works out-of-the-box. | [Download Setup Installer](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
+| **Portable**<br>`Koodo-Reader-Personal-0.2.1-x64-Portable.exe` | **For USB drives & zero-install needs**.<br>Standalone single executable, no installation needed, run directly. | [Download Portable EXE](https://github.com/roverstargazer1-max/koodo-reader-personal/releases/latest) |
 
-## Source Quick Start
+> **Security Note**: Binaries are unsigned with commercial certificates. Windows SmartScreen may show an "Unrecognized app" prompt on first launch. Click **"More info"** -> **"Run anyway"**. SHA-256 checksums are published in `SHA256SUMS.txt` with each release.
+
+---
+
+## Quick User Guide (Everyday Reading)
+
+If you are an end user looking to enjoy reading and online comics, this section covers everything you need—**no programming knowledge or Python installation is required**:
+
+### 1. Reading & Importing Books
+- **Rich Format Support**: Reads EPUB, PDF, MOBI, AZW3, TXT, DJVU, CBZ, CBR, and more;
+- **Drag-and-Drop**: Drag any ebook file into the reader window to immediately parse and add it to your library;
+- **Reading Comfort**: Two-page spread layout, dark & eye-care color palettes, custom fonts/margins, highlight annotations, and Text-to-Speech (TTS) audio narration.
+
+### 2. Online Comics (JMComic & PicACG)
+- **Where to find it**: Click **"Online Comics"** in the left sidebar to expand and open either **JMComic** or **PicaComic**;
+- **Out of the Box**: All necessary crawlers and decryption engines are bundled in both Setup and Portable editions. You never need to install Python manually;
+- **Discover & Search**: Search by title, author, or comic ID, or explore trending leaderboards and official categories;
+- **One-Click Download & Automatic Library Import**:
+  - Click the **"📥 Download"** button directly on any comic card, or select specific chapters from comic details;
+  - Once finished, the app **automatically packages chapters into standard `.cbz` archives and silently imports them into your local library** for offline reading;
+- **Recommended Setting (Custom Download Volume)**:
+  - In the comic panel's "Settings" tab, locate **"Download Directory"**;
+  - Click **"📁 Browse..."** and choose a folder on a disk with ample free space (such as drive `D:` or `H:`) to prevent filling up drive `C:`.
+
+### 3. Library Selection & Cover Privacy Protection
+- **Batch Management**: Drag to box-select multiple books, or click the multi-select button to batch favorite, shelve, export, or delete;
+- **Cover Blur (Privacy Protection)**: Select **"Blur Cover"** from the batch menu or right-click context menu to blur sensitive manga covers, protecting privacy in public spaces.
+
+---
+
+## Upgrade & Seamless Overwrite Updates
+
+To ensure your books, reading progress, and notes are never lost, Koodo Reader Personal features **safe, automated overwrite updates**:
+
+### Setup Installer Updates (Strongly Recommended)
+1. **In-App Auto Update**: Click "Check for Updates" in Settings. When an update is ready, click update and the app will silently download, overwrite-install, and restart;
+2. **Manual Overwrite**: Download the latest `*-Setup.exe` from Releases and run it directly. **Do NOT uninstall your current version first!**
+3. **Data Safety Protections**:
+   - **Automatic Database Snapshot**: SQLite database connections are gracefully closed, and an automated backup snapshot (Pre-Update Backup) is created before writing files;
+   - **Process Lock Prevention**: The installer terminates any stale background sidecar processes (such as `jmcomic-bridge.exe`) before overwriting;
+   - **Zero Data Loss**: All your books, reading progress, highlights, shelves, and personal settings remain 100% intact after update.
+
+### Portable Updates
+Download the new `*-Portable.exe` and replace the old executable. Your library data resides in the dedicated user data directory and remains completely untouched.
+
+---
+
+## Source Quick Start (For Developers)
 
 Install Git, Node.js 22, Python 3.12 x64, and Corepack, then run:
 
