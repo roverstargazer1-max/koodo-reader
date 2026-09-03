@@ -1,7 +1,7 @@
 {
   "name": "koodo-reader-personal",
   "main": "main.js",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A Windows-first personal library derived from Koodo Reader with built-in JMComic integration",
   "author": {
     "name": "roverstargazer1-max"

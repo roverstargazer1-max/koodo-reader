@@ -36,6 +36,7 @@ const fsExtra = require("fs-extra");
 const nodeCrypto = require("crypto");
 const yazl = require("yazl");
 const yauzl = require("yauzl");
+const Database = require("better-sqlite3");
 const { getVoicePlugin } = require("./src/utils/plugins/main/registry");
 const { initJmcomicIpc } = require("./scripts/jmcomic/jmcomicManager");
 const { initPicaIpc } = require("./scripts/pica/picaManager");
