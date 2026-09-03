@@ -21,6 +21,155 @@ const extractPayload = (arg1: any, arg2: any) => {
   return arg1;
 };
 
+interface PicaPaginationProps {
+  current: number;
+  total: number;
+  onPageChange: (p: number) => void;
+  t: (key: string) => string;
+}
+
+const PicaPagination: React.FC<PicaPaginationProps> = ({
+  current,
+  total,
+  onPageChange,
+  t,
+}) => {
+  const [inputVal, setInputVal] = React.useState<string>(String(current));
+
+  React.useEffect(() => {
+    setInputVal(String(current));
+  }, [current]);
+
+  if (total <= 1) return null;
+
+  const handleJump = (target?: number) => {
+    let pageNum = target !== undefined ? target : parseInt(inputVal.trim(), 10);
+    if (isNaN(pageNum)) {
+      setInputVal(String(current));
+      return;
+    }
+    const clamped = Math.max(1, Math.min(total, pageNum));
+    if (clamped !== current) {
+      onPageChange(clamped);
+    }
+    setInputVal(String(clamped));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleJump();
+    }
+  };
+
+  const renderPageButtons = () => {
+    const items: (number | string)[] = [];
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) items.push(i);
+    } else {
+      if (current <= 4) {
+        for (let i = 1; i <= 5; i++) items.push(i);
+        items.push("...right");
+        items.push(total);
+      } else if (current >= total - 3) {
+        items.push(1);
+        items.push("...left");
+        for (let i = total - 4; i <= total; i++) items.push(i);
+      } else {
+        items.push(1);
+        items.push("...left");
+        for (let i = current - 1; i <= current + 1; i++) items.push(i);
+        items.push("...right");
+        items.push(total);
+      }
+    }
+
+    return items.map((item, idx) => {
+      if (typeof item === "number") {
+        return (
+          <button
+            key={`page-${item}`}
+            className={`pica-pagination-btn ${item === current ? "active" : ""}`}
+            onClick={() => {
+              if (item !== current) onPageChange(item);
+            }}
+          >
+            {item}
+          </button>
+        );
+      } else if (item === "...left") {
+        return (
+          <span
+            key={`ellipsis-left-${idx}`}
+            className="pica-pagination-ellipsis"
+            title={t("Previous Page")}
+            onClick={() => handleJump(Math.max(1, current - 5))}
+          >
+            ...
+          </span>
+        );
+      } else {
+        return (
+          <span
+            key={`ellipsis-right-${idx}`}
+            className="pica-pagination-ellipsis"
+            title={t("Next Page")}
+            onClick={() => handleJump(Math.min(total, current + 5))}
+          >
+            ...
+          </span>
+        );
+      }
+    });
+  };
+
+  return (
+    <div className="pica-pagination">
+      <button
+        className="pica-pagination-btn"
+        disabled={current <= 1}
+        onClick={() => onPageChange(current - 1)}
+        title={t("Previous Page")}
+      >
+        {t("Previous Page")}
+      </button>
+
+      {renderPageButtons()}
+
+      <button
+        className="pica-pagination-btn"
+        disabled={current >= total}
+        onClick={() => onPageChange(current + 1)}
+        title={t("Next Page")}
+      >
+        {t("Next Page")}
+      </button>
+
+      <div className="pica-pagination-jump">
+        <span>{t("Page")}</span>
+        <input
+          type="number"
+          min={1}
+          max={total}
+          className="pica-pagination-input"
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => handleJump()}
+        />
+        <span>/ {total}</span>
+        <button
+          className="pica-pagination-jump-btn"
+          onClick={() => handleJump()}
+          title={t("Confirm")}
+        >
+          {t("Confirm")}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
   private progressListener: any = null;
   private finishListener: any = null;
@@ -557,6 +706,10 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
   };
 
   fetchLeaderboard = async () => {
+    if (!this.state.token) {
+      this.setState({ isRanking: false, rankResults: [] });
+      return;
+    }
     this.setState({ isRanking: true });
     const ipc = getIpc();
     if (!ipc) return;
@@ -578,6 +731,9 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
         });
       } else {
         this.setState({ isRanking: false });
+        if (res.message && res.message !== "success") {
+          toast(res.message);
+        }
       }
     } catch {
       this.setState({ isRanking: false });
@@ -935,13 +1091,23 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
   };
 
   batchAddToQueue = () => {
-    const { selectedBatchIds, favoriteResults } = this.state;
+    const { selectedBatchIds } = this.state;
     if (selectedBatchIds.length === 0) return;
 
+    const allKnownComics = [
+      ...this.state.searchResults,
+      ...this.state.categoryResults,
+      ...this.state.rankResults,
+      ...this.state.randomResults,
+      ...this.state.favoriteResults,
+    ];
+
+    let count = 0;
     selectedBatchIds.forEach((id) => {
-      const comic = favoriteResults.find((c) => c.id === id);
+      const comic = allKnownComics.find((c) => c.id === id);
       if (comic) {
         this.enqueueDownload(comic, [], true);
+        count++;
       }
     });
 
@@ -950,7 +1116,60 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
       selectedBatchIds: [],
       currentTab: "downloads",
     });
-    toast.success(`${selectedBatchIds.length} ${this.props.t("Download started in background")}`);
+    toast.success(`${count} ${this.props.t("Download started in background")}`);
+  };
+
+  renderBatchBar = (items: PicaComicItem[]) => {
+    const { t } = this.props;
+    const { isBatchMode, selectedBatchIds } = this.state;
+    if (!isBatchMode || items.length === 0) return null;
+
+    const allIds = items.map((c) => c.id);
+    const isAllSelected = allIds.length > 0 && allIds.every((id) => selectedBatchIds.includes(id));
+
+    return (
+      <div className="pica-batch-bar">
+        <div className="pica-batch-bar-left">
+          <span>
+            {t("Selected")}: {selectedBatchIds.length}
+          </span>
+          <button
+            className="pica-btn outline"
+            style={{ padding: "3px 8px", fontSize: 12 }}
+            onClick={() => {
+              if (isAllSelected) {
+                this.setState((prev) => ({
+                  selectedBatchIds: prev.selectedBatchIds.filter((id) => !allIds.includes(id)),
+                }));
+              } else {
+                this.setState((prev) => ({
+                  selectedBatchIds: Array.from(new Set([...prev.selectedBatchIds, ...allIds])),
+                }));
+              }
+            }}
+          >
+            {isAllSelected ? t("Deselect All") : t("Select All")}
+          </button>
+        </div>
+        <div className="pica-batch-bar-right">
+          <button
+            className="pica-btn"
+            style={{ padding: "4px 12px", fontSize: 12 }}
+            disabled={selectedBatchIds.length === 0}
+            onClick={this.batchAddToQueue}
+          >
+            📥 {t("Batch Download")} ({selectedBatchIds.length})
+          </button>
+          <button
+            className="pica-btn secondary"
+            style={{ padding: "4px 10px", fontSize: 12 }}
+            onClick={() => this.setState({ isBatchMode: false, selectedBatchIds: [] })}
+          >
+            {t("Exit Batch Mode")}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   // --- Speed Test Route ---
@@ -963,17 +1182,19 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
     if (!ipc) return;
 
     try {
-      const res = await ipc.invoke("pica-test-route", {
-        route: routeKey,
-        proxy: this.state.config.proxy,
-      });
-
-      this.setState((prev) => ({
-        routeSpeedTest: {
-          ...prev.routeSpeedTest,
-          [routeKey]: res.code === 200 ? res.latency : "error",
-        },
-      }));
+      const res = await ipc.invoke("pica-test-route", { route: routeKey });
+      if (res && (res.success || res.code === 200)) {
+        this.setState((prev) => ({
+          routeSpeedTest: {
+            ...prev.routeSpeedTest,
+            [routeKey]: Number(res.latency ?? res.timeMs ?? 0),
+          },
+        }));
+      } else {
+        this.setState((prev) => ({
+          routeSpeedTest: { ...prev.routeSpeedTest, [routeKey]: "error" },
+        }));
+      }
     } catch {
       this.setState((prev) => ({
         routeSpeedTest: { ...prev.routeSpeedTest, [routeKey]: "error" },
@@ -1034,12 +1255,25 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
             {comic.author || t("Unknown Author")}
           </div>
           <div className="pica-card-meta">
-            <span>{comic.categories && comic.categories[0] ? comic.categories[0] : ""}</span>
-            {comic.likesCount ? (
-              <span className="pica-card-likes">
-                ❤️ {comic.likesCount}
-              </span>
-            ) : null}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+              {comic.likesCount ? (
+                <span className="pica-card-likes">
+                  ❤️ {comic.likesCount}
+                </span>
+              ) : (
+                <span>{comic.categories && comic.categories[0] ? comic.categories[0] : ""}</span>
+              )}
+            </div>
+            <button
+              className={`pica-card-download-btn ${inLibrary ? "downloaded" : ""}`}
+              title={inLibrary ? t("Already in library") : t("Download full album")}
+              onClick={(e) => {
+                e.stopPropagation();
+                this.enqueueDownload(comic, [], true);
+              }}
+            >
+              {inLibrary ? `✓ ${t("Downloaded")}` : `📥 ${t("Download")}`}
+            </button>
           </div>
         </div>
       </div>
@@ -1108,7 +1342,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
           <div className="pica-tabs">
             <button
               className={`pica-tab-btn ${currentTab === "search" ? "active" : ""}`}
-              onClick={() => this.setState({ currentTab: "search" })}
+              onClick={() => this.setState({ currentTab: "search", isBatchMode: false, selectedBatchIds: [] })}
             >
               <span className="icon-search"></span>
               {t("Search Comics")}
@@ -1116,7 +1350,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
             <button
               className={`pica-tab-btn ${currentTab === "explore" ? "active" : ""}`}
               onClick={() => {
-                this.setState({ currentTab: "explore" }, () => {
+                this.setState({ currentTab: "explore", isBatchMode: false, selectedBatchIds: [] }, () => {
                   if (categories.length === 0) this.fetchCategories();
                 });
               }}
@@ -1127,7 +1361,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
             <button
               className={`pica-tab-btn ${currentTab === "favorites" ? "active" : ""}`}
               onClick={() => {
-                this.setState({ currentTab: "favorites" }, () => {
+                this.setState({ currentTab: "favorites", isBatchMode: false, selectedBatchIds: [] }, () => {
                   if (token && favoriteResults.length === 0) this.fetchFavorites(1);
                 });
               }}
@@ -1137,7 +1371,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
             </button>
             <button
               className={`pica-tab-btn ${currentTab === "downloads" ? "active" : ""}`}
-              onClick={() => this.setState({ currentTab: "downloads" })}
+              onClick={() => this.setState({ currentTab: "downloads", isBatchMode: false, selectedBatchIds: [] })}
             >
               <span className="icon-download"></span>
               {t("Download Tasks")}
@@ -1147,7 +1381,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
             </button>
             <button
               className={`pica-tab-btn ${currentTab === "settings" ? "active" : ""}`}
-              onClick={() => this.setState({ currentTab: "settings" })}
+              onClick={() => this.setState({ currentTab: "settings", isBatchMode: false, selectedBatchIds: [] })}
             >
               <span className="icon-setting"></span>
               {t("Settings")}
@@ -1208,30 +1442,25 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                 </div>
               ) : searchResults.length > 0 ? (
                 <>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                    <button
+                      className={`pica-btn ${isBatchMode ? "secondary" : "outline"}`}
+                      style={{ padding: "4px 10px", fontSize: 13 }}
+                      onClick={this.toggleBatchMode}
+                    >
+                      {isBatchMode ? t("Exit Batch Mode") : t("Batch Management")}
+                    </button>
+                  </div>
+                  {this.renderBatchBar(searchResults)}
                   <div className="pica-comic-grid">
                     {searchResults.map((c) => this.renderComicCard(c))}
                   </div>
-                  {searchTotalPages > 1 && (
-                    <div className="pica-pagination">
-                      <button
-                        className="pica-btn secondary"
-                        disabled={searchPage <= 1}
-                        onClick={() => this.handleSearch(searchPage - 1)}
-                      >
-                        {t("Previous Page")}
-                      </button>
-                      <span className="pica-page-info">
-                        {searchPage} / {searchTotalPages}
-                      </span>
-                      <button
-                        className="pica-btn secondary"
-                        disabled={searchPage >= searchTotalPages}
-                        onClick={() => this.handleSearch(searchPage + 1)}
-                      >
-                        {t("Next Page")}
-                      </button>
-                    </div>
-                  )}
+                  <PicaPagination
+                    current={searchPage}
+                    total={searchTotalPages}
+                    onPageChange={(p) => this.handleSearch(p)}
+                    t={t}
+                  />
                 </>
               ) : (
                 <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>
@@ -1279,15 +1508,27 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                 <div>
                   {selectedCategory ? (
                     <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                        <button
-                          className="pica-btn secondary"
-                          onClick={() => this.setState({ selectedCategory: "", categoryResults: [] })}
-                        >
-                          ← {t("Back to Categories")}
-                        </button>
-                        <h3 style={{ margin: 0 }}>{selectedCategory}</h3>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <button
+                            className="pica-btn secondary"
+                            onClick={() => this.setState({ selectedCategory: "", categoryResults: [], isBatchMode: false, selectedBatchIds: [] })}
+                          >
+                            ← {t("Back to Categories")}
+                          </button>
+                          <h3 style={{ margin: 0 }}>{selectedCategory}</h3>
+                        </div>
+                        {categoryResults.length > 0 && (
+                          <button
+                            className={`pica-btn ${isBatchMode ? "secondary" : "outline"}`}
+                            style={{ padding: "4px 10px", fontSize: 13 }}
+                            onClick={this.toggleBatchMode}
+                          >
+                            {isBatchMode ? t("Exit Batch Mode") : t("Batch Management")}
+                          </button>
+                        )}
                       </div>
+                      {this.renderBatchBar(categoryResults)}
                       {isLoadingCategoryComics ? (
                         <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
                           {t("Loading...")}
@@ -1297,27 +1538,12 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                           <div className="pica-comic-grid">
                             {categoryResults.map((c) => this.renderComicCard(c))}
                           </div>
-                          {categoryTotalPages > 1 && (
-                            <div className="pica-pagination">
-                              <button
-                                className="pica-btn secondary"
-                                disabled={categoryPage <= 1}
-                                onClick={() => this.fetchCategoryComics(selectedCategory, categoryPage - 1)}
-                              >
-                                {t("Previous Page")}
-                              </button>
-                              <span className="pica-page-info">
-                                {categoryPage} / {categoryTotalPages}
-                              </span>
-                              <button
-                                className="pica-btn secondary"
-                                disabled={categoryPage >= categoryTotalPages}
-                                onClick={() => this.fetchCategoryComics(selectedCategory, categoryPage + 1)}
-                              >
-                                {t("Next Page")}
-                              </button>
-                            </div>
-                          )}
+                          <PicaPagination
+                            current={categoryPage}
+                            total={categoryTotalPages}
+                            onPageChange={(p) => this.fetchCategoryComics(selectedCategory, p)}
+                            t={t}
+                          />
                         </>
                       )}
                     </div>
@@ -1349,36 +1575,72 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
               {/* Explore Sub-view: Rankings */}
               {exploreSubTab === "rank" && (
                 <div>
-                  <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                    <select
-                      className="pica-select"
-                      value={rankTime}
-                      onChange={(e) => {
-                        this.setState({ rankTime: e.target.value as any }, () => this.fetchLeaderboard());
-                      }}
-                    >
-                      <option value="H24">{t("24 Hours Leaderboard")}</option>
-                      <option value="D7">{t("7 Days Leaderboard")}</option>
-                      <option value="D30">{t("30 Days Leaderboard")}</option>
-                    </select>
-                    <select
-                      className="pica-select"
-                      value={rankType}
-                      onChange={(e) => {
-                        this.setState({ rankType: e.target.value as any }, () => this.fetchLeaderboard());
-                      }}
-                    >
-                      <option value="VC">{t("Most Views")}</option>
-                      <option value="CA">{t("Most Likes")}</option>
-                    </select>
-                  </div>
-                  {isRanking ? (
-                    <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
-                      {t("Loading leaderboard...")}
+                  {!token ? (
+                    <div className="pica-login-prompt">
+                      <div className="pica-login-prompt-icon">🏆</div>
+                      <div className="pica-login-prompt-title">{t("Login Required for Leaderboard")}</div>
+                      <div className="pica-login-prompt-desc">
+                        {t("PicACG official leaderboard requires logging in with your account. Please log in first.")}
+                      </div>
+                      <button
+                        className="pica-btn"
+                        onClick={() => this.setState({ currentTab: "favorites", isBatchMode: false, selectedBatchIds: [] })}
+                      >
+                        {t("Go to Login")}
+                      </button>
                     </div>
                   ) : (
-                    <div className="pica-comic-grid">
-                      {rankResults.map((c) => this.renderComicCard(c))}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <select
+                            className="pica-select"
+                            value={rankTime}
+                            onChange={(e) => {
+                              this.setState({ rankTime: e.target.value as any }, () => this.fetchLeaderboard());
+                            }}
+                          >
+                            <option value="H24">{t("24 Hours Leaderboard")}</option>
+                            <option value="D7">{t("7 Days Leaderboard")}</option>
+                            <option value="D30">{t("30 Days Leaderboard")}</option>
+                          </select>
+                          <select
+                            className="pica-select"
+                            value={rankType}
+                            onChange={(e) => {
+                              this.setState({ rankType: e.target.value as any }, () => this.fetchLeaderboard());
+                            }}
+                          >
+                            <option value="VC">{t("Most Views")}</option>
+                            <option value="CA">{t("Most Likes")}</option>
+                          </select>
+                        </div>
+                        {rankResults.length > 0 && (
+                          <button
+                            className={`pica-btn ${isBatchMode ? "secondary" : "outline"}`}
+                            style={{ padding: "4px 10px", fontSize: 13 }}
+                            onClick={this.toggleBatchMode}
+                          >
+                            {isBatchMode ? t("Exit Batch Mode") : t("Batch Management")}
+                          </button>
+                        )}
+                      </div>
+
+                      {this.renderBatchBar(rankResults)}
+
+                      {isRanking ? (
+                        <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
+                          {t("Loading leaderboard...")}
+                        </div>
+                      ) : rankResults.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
+                          {t("No comics found")}
+                        </div>
+                      ) : (
+                        <div className="pica-comic-grid">
+                          {rankResults.map((c) => this.renderComicCard(c))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1387,14 +1649,28 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
               {/* Explore Sub-view: Random */}
               {exploreSubTab === "random" && (
                 <div>
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <button
+                      className={`pica-btn ${isBatchMode ? "secondary" : "outline"}`}
+                      style={{ padding: "4px 10px", fontSize: 13 }}
+                      onClick={this.toggleBatchMode}
+                    >
+                      {isBatchMode ? t("Exit Batch Mode") : t("Batch Management")}
+                    </button>
                     <button className="pica-btn secondary" onClick={this.fetchRandom} disabled={isRandomLoading}>
                       🎲 {t("Refresh Random")}
                     </button>
                   </div>
+
+                  {this.renderBatchBar(randomResults)}
+
                   {isRandomLoading ? (
                     <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
                       {t("Loading...")}
+                    </div>
+                  ) : randomResults.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
+                      {t("No comics found")}
                     </div>
                   ) : (
                     <div className="pica-comic-grid">
@@ -1531,27 +1807,12 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                       <div className="pica-comic-grid">
                         {favoriteResults.map((c) => this.renderComicCard(c))}
                       </div>
-                      {favoriteTotalPages > 1 && (
-                        <div className="pica-pagination">
-                          <button
-                            className="pica-btn secondary"
-                            disabled={favoritePage <= 1}
-                            onClick={() => this.fetchFavorites(favoritePage - 1)}
-                          >
-                            {t("Previous Page")}
-                          </button>
-                          <span className="pica-page-info">
-                            {favoritePage} / {favoriteTotalPages}
-                          </span>
-                          <button
-                            className="pica-btn secondary"
-                            disabled={favoritePage >= favoriteTotalPages}
-                            onClick={() => this.fetchFavorites(favoritePage + 1)}
-                          >
-                            {t("Next Page")}
-                          </button>
-                        </div>
-                      )}
+                      <PicaPagination
+                        current={favoritePage}
+                        total={favoriteTotalPages}
+                        onPageChange={(p) => this.fetchFavorites(p)}
+                        t={t}
+                      />
                     </>
                   ) : (
                     <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>

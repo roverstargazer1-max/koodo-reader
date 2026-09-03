@@ -1461,5 +1461,10 @@
   "Removed from Favorites": "已从收藏中移除",
   "Added to Download Queue": "已加入下载队列",
   "comics": "本",
-  "Session expired, please log in again.": "会话已过期，请重新登录。"
+  "Session expired, please log in again.": "会话已过期，请重新登录。",
+  "Login Required for Leaderboard": "查看排行榜需要登录",
+  "PicACG official leaderboard requires logging in with your account. Please log in first.": "哔咔官方排行榜接口需要验证账号权限，请先登录哔咔账号后查看。",
+  "Go to Login": "前往登录",
+  "Download full album": "下载全本",
+  "Batch Download": "批量下载"
 }

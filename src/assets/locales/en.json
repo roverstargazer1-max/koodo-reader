@@ -1452,5 +1452,10 @@
   "Removed from Favorites": "Removed from Favorites",
   "Added to Download Queue": "Added to Download Queue",
   "comics": "comics",
-  "Session expired, please log in again.": "Session expired, please log in again."
+  "Session expired, please log in again.": "Session expired, please log in again.",
+  "Login Required for Leaderboard": "Login Required for Leaderboard",
+  "PicACG official leaderboard requires logging in with your account. Please log in first.": "PicACG official leaderboard requires logging in with your account. Please log in first.",
+  "Go to Login": "Go to Login",
+  "Download full album": "Download full album",
+  "Batch Download": "Batch Download"
 }

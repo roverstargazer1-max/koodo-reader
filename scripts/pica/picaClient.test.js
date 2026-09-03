@@ -110,3 +110,19 @@ test("PicaClient proxy agent creation", () => {
   const clientDirect = new PicaClient({ proxy: "" });
   assert.equal(clientDirect.getAgent(), null);
 });
+
+test("generateSignature includes full query string in signature calculation", () => {
+  const path = "comics/leaderboard?tt=H24&ct=VC";
+  const timestamp = "1700000000";
+  const nonce = "testnoncestring1234567890abcdef";
+  const method = "GET";
+
+  const expectedRaw = (path + timestamp + nonce + method + API_KEY).toLowerCase();
+  const expectedSig = crypto
+    .createHmac("sha256", SECRET_KEY)
+    .update(expectedRaw)
+    .digest("hex");
+
+  const sig = generateSignature(path, timestamp, nonce, method);
+  assert.equal(sig, expectedSig);
+});

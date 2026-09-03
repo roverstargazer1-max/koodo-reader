@@ -140,7 +140,22 @@ class PicaClient {
    */
   async request(path, options = {}) {
     const method = (options.method || "GET").toUpperCase();
-    const cleanPath = path.replace(/^\//, "");
+    let cleanPath = String(path)
+      .replace(/^https?:\/\/[^\/]+\/?/, "")
+      .replace(/^\//, "");
+
+    if (options.params && typeof options.params === "object") {
+      const queryParts = [];
+      for (const [k, v] of Object.entries(options.params)) {
+        if (v !== undefined && v !== null && v !== "") {
+          queryParts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+        }
+      }
+      if (queryParts.length > 0) {
+        cleanPath += (cleanPath.includes("?") ? "&" : "?") + queryParts.join("&");
+      }
+    }
+
     const url = options.fullUrl || `${this.getBaseUrl()}/${cleanPath}`;
 
     const headers = createHeaders(cleanPath, method, this.token, {
@@ -158,7 +173,6 @@ class PicaClient {
         ...options.headers,
       },
       data: options.data,
-      params: options.params,
       timeout: this.timeout,
       validateStatus: () => true, // Don't throw for non-2xx so we can intercept 401
     };
