@@ -87,9 +87,11 @@ export class ShareUtil {
     });
 
     // 监听打包进度
-    const progressListener = (_: any, data: { percent: number }) => {
+    const progressListener = (arg1: any, arg2?: any) => {
+      const payload = arg2 !== undefined ? arg2 : arg1;
+      const percent = payload?.percent ?? 0;
       toast.loading(
-        i18n.t("Exporting share package...") + ` (${data.percent}%)`,
+        i18n.t("Exporting share package...") + ` (${percent}%)`,
         { id: toastId }
       );
     };
@@ -212,8 +214,10 @@ export class ShareUtil {
 
     let progressListener: any = null;
     if (onProgress) {
-      progressListener = (_: any, data: { percent: number }) => {
-        onProgress(data.percent);
+      progressListener = (arg1: any, arg2?: any) => {
+        const payload = arg2 !== undefined ? arg2 : arg1;
+        const percent = payload?.percent ?? 0;
+        onProgress(percent);
       };
       ipcRenderer.on("share-import-progress", progressListener);
     }
