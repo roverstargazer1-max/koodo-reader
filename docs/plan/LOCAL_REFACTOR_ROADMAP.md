@@ -149,12 +149,13 @@
 
 ## 5. 阶段迭代里程碑
 
-- **Milestone 1 (当前目标)**：
+- **Milestone 1 (已完成)**：
   - [x] 开立并切换至 `feature/personal-local` 分支；
   - [x] 确立本地化重构规划文档 (`docs/plan/LOCAL_REFACTOR_ROADMAP.md`)；
-  - [ ] 完成所有官方云接口、登录体系、Pro 标识的物理清理；
-  - [ ] 完成 Redux 全局解锁与各外部模块打桩拦截；
-  - [ ] 完成构建验证，提交代码到分支。
+  - [x] 完成所有官方云接口、登录体系、Pro 标识的物理清理；
+  - [x] 完成 Redux 全局解锁与各外部模块打桩拦截；
+  - [x] 建立全功能排查验收清单 ([`docs/plan/CLOUD_FEATURE_AUDIT_CHECKLIST.md`](./CLOUD_FEATURE_AUDIT_CHECKLIST.md))；
+  - [x] 完成构建与 TypeScript 类型验证，提交代码落库至分支。
 - **Milestone 2 (AI 与核心增强)**：
   - [ ] 打通“全文翻译”直连个人 AI API（DeepSeek / OpenAI）；
   - [ ] 完善“生词释义”本地词频匹配与词典悬浮窗；
