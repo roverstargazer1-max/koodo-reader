@@ -133,6 +133,9 @@ const initMobileServer = () => {
           selectedAddress: store.get("mobileSelectedAddress") || null,
         })
         .then((status) => {
+          if (status && status.selectedAddress) {
+            store.set("mobileSelectedAddress", status.selectedAddress);
+          }
           console.info(`[MobileServer] Running at ${status.connectionUrl}`);
         })
         .catch((err) => {
@@ -3629,7 +3632,11 @@ const createMainWin = () => {
     }
   });
   ipcMain.handle("mobile-server-status", async () => {
-    return mobileServer.getStatus();
+    const status = mobileServer.getStatus();
+    if (status && status.selectedAddress && store.get("mobileSelectedAddress") !== status.selectedAddress) {
+      store.set("mobileSelectedAddress", status.selectedAddress);
+    }
+    return status;
   });
   ipcMain.handle("mobile-server-toggle", async (event, enabled) => {
     if (enabled) {
@@ -3639,10 +3646,14 @@ const createMainWin = () => {
         token = nodeCrypto.randomBytes(16).toString("hex");
         store.set("mobileCompanionToken", token);
       }
-      return await mobileServer.start({
+      const status = await mobileServer.start({
         token,
         selectedAddress: store.get("mobileSelectedAddress") || null,
       });
+      if (status && status.selectedAddress) {
+        store.set("mobileSelectedAddress", status.selectedAddress);
+      }
+      return status;
     } else {
       store.set("isEnableMobileCompanion", "no");
       return await mobileServer.stop();

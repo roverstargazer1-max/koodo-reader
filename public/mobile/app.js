@@ -136,7 +136,7 @@
       shelfEmpty.style.display = "none";
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
       const [booksRes, shelvesRes] = await Promise.all([
         fetch(api("/api/books"), { signal: controller.signal }),
@@ -187,13 +187,23 @@
       }
     } catch (err) {
       console.error("Failed to load books:", err);
-      updateConnectionStatus(false, "连接异常");
+      updateConnectionStatus(false, "连接失败");
       shelfLoading.style.display = "none";
       shelfEmpty.style.display = "flex";
-      document.querySelector(".empty-title").textContent = "无法加载个人书库";
-      document.querySelector(".empty-desc").innerHTML = `${escapeHtml(
-        err.message || "请求超时"
-      )}<br><br><button onclick="window.location.reload()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer;font-weight:600;">点击重试</button>`;
+
+      const isAbort = err.name === "AbortError";
+      const host = window.location.hostname;
+      const isHotspot = host.startsWith("172.20.10.");
+      let errMsg = isAbort ? "请求电脑端服务超时（无法连接到目标 IP）" : escapeHtml(err.message || "无法连接到电脑");
+      let hint = "";
+      if (!isHotspot && (/^(192\.168\.|10\.)/.test(host))) {
+        hint = `<div style="margin-top:12px;padding:8px 12px;background:rgba(234,179,8,0.1);border-radius:8px;font-size:12px;color:#eab308;text-align:left;line-height:1.5;">
+          💡 <strong>热点连接提示：</strong>如果您正在使用手机热点给电脑联网，请在电脑端 Koodo Reader 顶部点击“手机连接”，查看是否已刷新为 <strong>172.20.10.x</strong> 的热点 IP，并用手机重新扫码。
+        </div>`;
+      }
+
+      document.querySelector(".empty-title").textContent = "无法连接电脑端书库";
+      document.querySelector(".empty-desc").innerHTML = `${errMsg}${hint}<br><br><button onclick="window.location.reload()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer;font-weight:600;">点击重试</button>`;
     }
   }
 

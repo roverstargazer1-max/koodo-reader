@@ -183,6 +183,17 @@ body {
   flex-shrink: 0;
 }
 
+.status-pill.connecting {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
+.status-pill.connecting .status-dot {
+  background-color: #eab308;
+  box-shadow: 0 0 5px rgba(234, 179, 8, 0.5);
+}
+
 .status-pill.connected {
   background: var(--status-connected-bg);
   color: var(--status-connected-text);

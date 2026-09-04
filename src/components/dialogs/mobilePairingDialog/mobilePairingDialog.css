@@ -99,10 +99,53 @@
   gap: 6px;
 }
 
+.mobile-pairing-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .mobile-pairing-field-label {
   font-size: 0.82rem;
   color: #9ca3af;
   font-weight: 500;
+}
+
+.mobile-pairing-btn-refresh {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #9ca3af;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.mobile-pairing-btn-refresh:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3f4f6;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.mobile-pairing-hotspot-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-top: 2px;
+}
+
+.mobile-pairing-hotspot-badge {
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .mobile-pairing-select {

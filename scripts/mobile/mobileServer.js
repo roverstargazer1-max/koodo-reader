@@ -320,7 +320,12 @@ class MobileServer {
           this.port = p;
           this.host = host;
           this.running = true;
-          this.selectedAddress = options.selectedAddress || getPrimaryAddress();
+          const interfaces = getAvailableInterfaces();
+          const primary = getPrimaryAddress();
+          const requestedAddress = options.selectedAddress;
+          const isRequestedValid =
+            requestedAddress && interfaces.some((i) => i.address === requestedAddress);
+          this.selectedAddress = isRequestedValid ? requestedAddress : primary;
           resolve(this.getStatus());
         });
 
@@ -377,6 +382,11 @@ class MobileServer {
   getStatus() {
     const interfaces = getAvailableInterfaces();
     const primary = getPrimaryAddress();
+    const isValidSelected =
+      this.selectedAddress && interfaces.some((i) => i.address === this.selectedAddress);
+    if (!isValidSelected) {
+      this.selectedAddress = primary;
+    }
     const activeAddress = this.selectedAddress || primary;
     const connectionUrl = this.running && this.token
       ? `http://${activeAddress}:${this.port}/?token=${this.token}`

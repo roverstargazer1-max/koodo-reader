@@ -141,3 +141,31 @@ test("mobileServer resets token and updates connectionUrl", async () => {
     await server.stop();
   }
 });
+
+test("mobileServer auto-falls back to primary address when stored address is stale or invalid", async () => {
+  const server = new MobileServer();
+  // Pass a completely fictitious stale address e.g. 192.168.254.254
+  const staleAddress = "192.168.254.254";
+  const status = await server.start({
+    port: 28330,
+    host: "127.0.0.1",
+    selectedAddress: staleAddress,
+  });
+
+  try {
+    const primary = getPrimaryAddress();
+    assert.notEqual(status.selectedAddress, staleAddress);
+    assert.equal(status.selectedAddress, primary);
+    assert.ok(status.connectionUrl.includes(primary));
+    assert.ok(!status.connectionUrl.includes(staleAddress));
+
+    // Manually setting an invalid stale address should also be self-healed by getStatus()
+    server.setSelectedAddress("10.254.254.254");
+    const healedStatus = server.getStatus();
+    assert.equal(healedStatus.selectedAddress, primary);
+    assert.ok(healedStatus.connectionUrl.includes(primary));
+  } finally {
+    await server.stop();
+  }
+});
+

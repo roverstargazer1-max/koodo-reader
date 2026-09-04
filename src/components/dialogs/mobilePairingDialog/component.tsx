@@ -13,6 +13,8 @@ import { generateQrSvg } from "../../../utils/mobile/qrGenerator";
 interface Props extends MobilePairingDialogProps, WithTranslation {}
 
 class MobilePairingDialog extends React.Component<Props, MobilePairingDialogState> {
+  private pollTimer: any = null;
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -30,9 +32,20 @@ class MobilePairingDialog extends React.Component<Props, MobilePairingDialogStat
 
   async componentDidMount() {
     await this.fetchStatus();
+    // Auto-poll network interfaces every 3 seconds while dialog is open to detect Wi-Fi/Hotspot changes
+    this.pollTimer = setInterval(() => {
+      this.fetchStatus(true);
+    }, 3000);
   }
 
-  fetchStatus = async () => {
+  componentWillUnmount() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  fetchStatus = async (silent = false) => {
     try {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI && typeof electronAPI.invoke === "function") {
@@ -40,12 +53,24 @@ class MobilePairingDialog extends React.Component<Props, MobilePairingDialogStat
           "mobile-server-status"
         );
         if (status) {
+          const interfaces = status.interfaces || [];
+          let selectedAddress = status.selectedAddress;
+
+          // Double check that selectedAddress exists in currently available interfaces
+          const isSelectedValid = interfaces.some((i) => i.address === selectedAddress);
+          if (!isSelectedValid && interfaces.length > 0) {
+            selectedAddress = interfaces[0].address;
+            electronAPI
+              .invoke("mobile-server-select-address", selectedAddress)
+              .catch(() => {});
+          }
+
           this.setState({
             running: status.running,
             port: status.port,
             token: status.token,
-            selectedAddress: status.selectedAddress,
-            interfaces: status.interfaces || [],
+            selectedAddress,
+            interfaces,
             connectionUrl: status.connectionUrl,
             isLoading: false,
           });
@@ -53,8 +78,15 @@ class MobilePairingDialog extends React.Component<Props, MobilePairingDialogStat
       }
     } catch (err: any) {
       console.error("Failed to get mobile server status:", err);
-      this.setState({ isLoading: false });
+      if (!silent) {
+        this.setState({ isLoading: false });
+      }
     }
+  };
+
+  handleRefreshNetwork = async () => {
+    await this.fetchStatus(false);
+    toast.success(this.props.t("Network adapters refreshed") || "网卡列表已刷新");
   };
 
   handleToggle = async () => {
@@ -210,12 +242,27 @@ class MobilePairingDialog extends React.Component<Props, MobilePairingDialogStat
             <>
               {/* Network Adapter Selector */}
               <div className="mobile-pairing-field">
-                <label className="mobile-pairing-field-label">
-                  <Trans>Network Adapter</Trans>
-                </label>
+                <div className="mobile-pairing-field-header">
+                  <label className="mobile-pairing-field-label">
+                    <Trans>Network Adapter</Trans>
+                  </label>
+                  <button
+                    type="button"
+                    className="mobile-pairing-btn-refresh"
+                    onClick={this.handleRefreshNetwork}
+                    title={t("Refresh Network Adapters")}
+                  >
+                    <span style={{ marginRight: "4px" }}>↻</span>
+                    <Trans>Refresh</Trans>
+                  </button>
+                </div>
                 <select
                   className="mobile-pairing-select"
-                  value={selectedAddress}
+                  value={
+                    interfaces.some((item) => item.address === selectedAddress)
+                      ? selectedAddress
+                      : interfaces[0]?.address || ""
+                  }
                   onChange={this.handleAddressChange}
                 >
                   {interfaces.map((item, idx) => (
@@ -224,6 +271,12 @@ class MobilePairingDialog extends React.Component<Props, MobilePairingDialogStat
                     </option>
                   ))}
                 </select>
+                {selectedAddress && selectedAddress.startsWith("172.20.10.") && (
+                  <div className="mobile-pairing-hotspot-hint">
+                    <span className="mobile-pairing-hotspot-badge">📱 手机热点</span>
+                    <span>已检测到 iOS 手机热点网段，请手机扫码直连</span>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic QR Code */}
