@@ -25,6 +25,14 @@
     swipeStartX: 0,
     swipeStartY: 0,
     scrollDebounceTimer: null,
+    // Auto-scroll state (Waterfall Webtoon mode)
+    isAutoScrolling: false,
+    autoScrollSpeed: parseInt(localStorage.getItem("koodo_comic_auto_scroll_speed") || "60", 10),
+    autoScrollRafId: null,
+    autoScrollLastTime: 0,
+    wakeLockSentinel: null,
+    speedPopoverVisible: false,
+    wasJustInterrupted: false,
   };
 
   const container = document.getElementById("comic-reader-view");
@@ -35,6 +43,8 @@
 
   // Launch Reader for a given book
   window.launchComicReader = async function (book) {
+    stopAutoScroll();
+    closeSpeedPopover();
     state.book = book;
     state.currentPage = book.page > 0 ? book.page : 1;
     state.prefetchedIndices.clear();
@@ -52,6 +62,41 @@
         </button>
         <div class="comic-title-text" id="comic-title">${escapeHtml(book.name)}</div>
         <div class="comic-page-counter" id="comic-page-counter">- / -</div>
+      </div>
+
+      <!-- Auto-Scroll Floating HUD (Waterfall only) -->
+      <div class="comic-auto-scroll-hud ${state.mode === "waterfall" ? "" : "hidden"}" id="comic-auto-scroll-hud">
+        <div class="comic-auto-scroll-pill" id="comic-auto-scroll-pill">
+          <button class="comic-auto-scroll-btn" id="comic-auto-scroll-btn" type="button" aria-label="自动下滑" title="自动下滑">
+            <svg class="auto-scroll-icon play-icon" id="auto-scroll-icon-play" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg class="auto-scroll-icon pause-icon" id="auto-scroll-icon-pause" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:none;">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          </button>
+          <button class="comic-auto-scroll-gear" id="comic-auto-scroll-gear" type="button" aria-label="速度调节" title="速度调节">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Speed Setting Popover -->
+        <div class="comic-speed-popover hidden" id="comic-speed-popover">
+          <div class="comic-speed-header">
+            <span class="comic-speed-title">下滑速度</span>
+            <span class="comic-speed-badge" id="comic-speed-badge">适中</span>
+          </div>
+          <div class="comic-speed-control">
+            <input type="range" id="comic-speed-slider" class="comic-speed-slider" min="20" max="400" step="5" value="${state.autoScrollSpeed || 60}" />
+          </div>
+          <div class="comic-speed-footer">
+            <span class="comic-speed-label">慢</span>
+            <span class="comic-speed-val" id="comic-speed-val">${state.autoScrollSpeed || 60} px/s</span>
+            <span class="comic-speed-label">快</span>
+          </div>
+        </div>
       </div>
 
       <!-- Main Comic Canvas -->
@@ -74,16 +119,26 @@
           </button>
         </div>
       </div>
+
+      <!-- Comic Toast Notification -->
+      <div class="comic-toast hidden" id="comic-toast"></div>
     `;
+
+    // Wire auto-scroll controller events
+    setupAutoScrollControls();
 
     // Wire global header/footer events
     document.getElementById("comic-back-btn").onclick = () => {
+      stopAutoScroll();
+      closeSpeedPopover();
       reportProgress(true);
       window.returnToShelf();
     };
 
     const modeBtn = document.getElementById("comic-mode-toggle");
     modeBtn.onclick = () => {
+      stopAutoScroll();
+      closeSpeedPopover();
       state.mode = state.mode === "waterfall" ? "paged" : "waterfall";
       localStorage.setItem("koodo_comic_mode", state.mode);
       modeBtn.textContent = state.mode === "waterfall" ? "切换为横向翻页" : "切换为竖卷瀑布流";
@@ -96,6 +151,7 @@
       document.getElementById("comic-slider-val").textContent = `${targetPage} / ${state.totalPages}`;
     };
     slider.onchange = (e) => {
+      stopAutoScroll();
       const targetPage = parseInt(e.target.value, 10);
       jumpToPage(targetPage);
     };
@@ -146,10 +202,15 @@
 
   // Render Waterfall vs Paged
   function renderReaderMode() {
+    stopAutoScroll();
+    closeSpeedPopover();
+    const hud = document.getElementById("comic-auto-scroll-hud");
     const viewport = document.getElementById("comic-viewport");
     if (state.mode === "waterfall") {
+      if (hud) hud.classList.remove("hidden");
       renderWaterfall(viewport);
     } else {
+      if (hud) hud.classList.add("hidden");
       renderPaged(viewport);
     }
   }
@@ -210,8 +271,25 @@
       }, 800);
     });
 
+    // Manual intervention detection: immediately stop auto-scroll on human touch/wheel
+    const handleUserIntervention = () => {
+      if (state.isAutoScrolling) {
+        stopAutoScroll();
+        state.wasJustInterrupted = true;
+      }
+    };
+
+    scrollEl.addEventListener("touchstart", handleUserIntervention, { passive: true });
+    scrollEl.addEventListener("mousedown", handleUserIntervention, { passive: true });
+    scrollEl.addEventListener("wheel", handleUserIntervention, { passive: true });
+
     // Tap in center 40% toggles controls
     scrollEl.addEventListener("click", (e) => {
+      if (state.wasJustInterrupted) {
+        state.wasJustInterrupted = false;
+        return;
+      }
+      closeSpeedPopover();
       const rect = scrollEl.getBoundingClientRect();
       const yRatio = (e.clientY - rect.top) / rect.height;
       if (yRatio >= 0.3 && yRatio <= 0.7) {
@@ -466,6 +544,7 @@
   }
 
   function jumpToPage(page) {
+    stopAutoScroll();
     state.currentPage = Math.max(1, Math.min(state.totalPages, page));
     updatePageIndicators();
 
@@ -490,6 +569,290 @@
       }
       reportProgress(true);
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Waterfall Auto-Scroll Controller & Helpers
+  // ─────────────────────────────────────────────────────────────
+  function getSpeedBadge(speed) {
+    if (speed < 50) return "慢速";
+    if (speed <= 150) return "适中";
+    return "快速";
+  }
+
+  function updateAutoScrollUI() {
+    const hud = document.getElementById("comic-auto-scroll-hud");
+    const playIcon = document.getElementById("auto-scroll-icon-play");
+    const pauseIcon = document.getElementById("auto-scroll-icon-pause");
+    const btn = document.getElementById("comic-auto-scroll-btn");
+
+    if (state.isAutoScrolling) {
+      if (hud) {
+        hud.classList.add("active");
+        hud.classList.remove("idle");
+      }
+      if (playIcon) playIcon.style.display = "none";
+      if (pauseIcon) pauseIcon.style.display = "block";
+      if (btn) btn.setAttribute("aria-label", "暂停下滑");
+    } else {
+      if (hud) {
+        hud.classList.remove("active");
+        hud.classList.add("idle");
+      }
+      if (playIcon) playIcon.style.display = "block";
+      if (pauseIcon) pauseIcon.style.display = "none";
+      if (btn) btn.setAttribute("aria-label", "自动下滑");
+    }
+  }
+
+  async function acquireWakeLock() {
+    try {
+      if ("wakeLock" in navigator && !state.wakeLockSentinel) {
+        state.wakeLockSentinel = await navigator.wakeLock.request("screen");
+        state.wakeLockSentinel.addEventListener("release", () => {
+          state.wakeLockSentinel = null;
+        });
+      }
+    } catch (err) {
+      console.debug("Screen Wake Lock unavailable:", err);
+    }
+  }
+
+  function releaseWakeLock() {
+    if (state.wakeLockSentinel) {
+      try {
+        state.wakeLockSentinel.release();
+      } catch (e) {}
+      state.wakeLockSentinel = null;
+    }
+  }
+
+  let toastTimer = null;
+  function showToast(text) {
+    const toast = document.getElementById("comic-toast");
+    if (!toast) return;
+    toast.textContent = text;
+    toast.classList.remove("hidden");
+    void toast.offsetWidth;
+    toast.classList.add("visible");
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("visible");
+      setTimeout(() => {
+        if (!toast.classList.contains("visible")) {
+          toast.classList.add("hidden");
+        }
+      }, 300);
+    }, 2000);
+  }
+
+  function startAutoScroll() {
+    if (state.isAutoScrolling || state.mode !== "waterfall") return;
+    const scrollEl = document.getElementById("waterfall-scroll");
+    if (!scrollEl) return;
+
+    // Check if already reached bottom
+    if (scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 6) {
+      showToast("已到达末尾");
+      return;
+    }
+
+    state.isAutoScrolling = true;
+    state.autoScrollLastTime = performance.now();
+    updateAutoScrollUI();
+    acquireWakeLock();
+
+    function scrollLoop(now) {
+      if (!state.isAutoScrolling) return;
+
+      const currentScrollEl = document.getElementById("waterfall-scroll");
+      if (!currentScrollEl) {
+        stopAutoScroll();
+        return;
+      }
+
+      const dt = Math.min((now - state.autoScrollLastTime) / 1000, 0.1);
+      state.autoScrollLastTime = now;
+
+      currentScrollEl.scrollTop += state.autoScrollSpeed * dt;
+
+      // Check if reached bottom
+      if (currentScrollEl.scrollTop + currentScrollEl.clientHeight >= currentScrollEl.scrollHeight - 6) {
+        stopAutoScroll();
+        showToast("已到达末尾");
+        return;
+      }
+
+      state.autoScrollRafId = requestAnimationFrame(scrollLoop);
+    }
+
+    state.autoScrollRafId = requestAnimationFrame(scrollLoop);
+  }
+
+  function stopAutoScroll() {
+    if (!state.isAutoScrolling && !state.autoScrollRafId) return;
+    state.isAutoScrolling = false;
+    if (state.autoScrollRafId) {
+      cancelAnimationFrame(state.autoScrollRafId);
+      state.autoScrollRafId = null;
+    }
+    updateAutoScrollUI();
+    releaseWakeLock();
+  }
+
+  function toggleAutoScroll() {
+    if (state.isAutoScrolling) {
+      stopAutoScroll();
+    } else {
+      startAutoScroll();
+    }
+  }
+
+  function toggleSpeedPopover(forceState) {
+    const popover = document.getElementById("comic-speed-popover");
+    const hud = document.getElementById("comic-auto-scroll-hud");
+    if (!popover || !hud) return;
+
+    const nextState = typeof forceState === "boolean" ? forceState : !state.speedPopoverVisible;
+    state.speedPopoverVisible = nextState;
+
+    if (nextState) {
+      popover.classList.remove("hidden");
+      hud.classList.add("popover-open");
+    } else {
+      popover.classList.add("hidden");
+      hud.classList.remove("popover-open");
+    }
+  }
+
+  function closeSpeedPopover() {
+    if (state.speedPopoverVisible) {
+      toggleSpeedPopover(false);
+    }
+  }
+
+  function setupAutoScrollControls() {
+    const hud = document.getElementById("comic-auto-scroll-hud");
+    const btn = document.getElementById("comic-auto-scroll-btn");
+    const gear = document.getElementById("comic-auto-scroll-gear");
+    const slider = document.getElementById("comic-speed-slider");
+    const speedVal = document.getElementById("comic-speed-val");
+    const speedBadge = document.getElementById("comic-speed-badge");
+
+    if (!hud || !btn || !gear || !slider) return;
+
+    // Prevent touch/mouse/wheel events on HUD from bubbling to the reading canvas
+    ["touchstart", "touchend", "touchmove", "mousedown", "mouseup", "click", "wheel"].forEach((eventName) => {
+      hud.addEventListener(eventName, (e) => {
+        e.stopPropagation();
+      });
+    });
+
+    // Speed slider handling
+    const updateSpeedDisplay = (speed) => {
+      state.autoScrollSpeed = speed;
+      localStorage.setItem("koodo_comic_auto_scroll_speed", String(speed));
+      if (speedVal) speedVal.textContent = `${speed} px/s`;
+      if (speedBadge) speedBadge.textContent = getSpeedBadge(speed);
+    };
+
+    updateSpeedDisplay(state.autoScrollSpeed);
+
+    slider.addEventListener("input", (e) => {
+      const speed = parseInt(e.target.value, 10) || 60;
+      updateSpeedDisplay(speed);
+    });
+
+    // Gear toggles popover
+    gear.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSpeedPopover();
+    });
+
+    // Long press and click detection on main button
+    let longPressTimer = null;
+    let didLongPress = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        didLongPress = false;
+        if (e.touches.length > 0) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }
+        longPressTimer = setTimeout(() => {
+          didLongPress = true;
+          toggleSpeedPopover();
+          if (navigator.vibrate) {
+            try { navigator.vibrate(40); } catch (err) {}
+          }
+        }, 450);
+      },
+      { passive: true }
+    );
+
+    btn.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!longPressTimer) return;
+        if (e.touches.length > 0) {
+          const dx = Math.abs(e.touches[0].clientX - touchStartX);
+          const dy = Math.abs(e.touches[0].clientY - touchStartY);
+          if (dx > 10 || dy > 10) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+        }
+      },
+      { passive: true }
+    );
+
+    const clearLongPress = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    btn.addEventListener("touchend", clearLongPress, { passive: true });
+    btn.addEventListener("touchcancel", clearLongPress, { passive: true });
+
+    btn.addEventListener("mousedown", () => {
+      didLongPress = false;
+      longPressTimer = setTimeout(() => {
+        didLongPress = true;
+        toggleSpeedPopover();
+      }, 450);
+    });
+    btn.addEventListener("mouseup", clearLongPress);
+    btn.addEventListener("mouseleave", clearLongPress);
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (didLongPress) {
+        didLongPress = false;
+        return;
+      }
+      toggleAutoScroll();
+    });
+
+    // Tap outside to close popover
+    document.addEventListener("click", (e) => {
+      if (state.speedPopoverVisible && !hud.contains(e.target)) {
+        closeSpeedPopover();
+      }
+    });
+
+    // Pause/stop auto-scroll when browser tab/app becomes hidden
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && state.isAutoScrolling) {
+        stopAutoScroll();
+      }
+    });
   }
 
   // Background Prefetcher: 3 to 5 pages ahead
