@@ -10,6 +10,9 @@
     mode: localStorage.getItem("koodo_comic_mode") || "waterfall", // "waterfall" | "paged"
     controlsVisible: false,
     prefetchedIndices: new Set(),
+    isRestoringScroll: false,
+    aspectRatio: 1.414,
+    hasMeasuredRatio: false,
     // Zoom and pan state
     scale: 1,
     translateX: 0,
@@ -114,6 +117,16 @@
         return;
       }
 
+      // If page is not set (> 1) but percentage exists, calculate precise page
+      if (state.currentPage <= 1 && book.percentage > 0) {
+        state.currentPage = Math.min(
+          state.totalPages,
+          Math.max(1, Math.round(book.percentage * state.totalPages))
+        );
+      } else if (book.page > 0) {
+        state.currentPage = Math.min(state.totalPages, Math.max(1, book.page));
+      }
+
       slider.max = state.totalPages;
       slider.value = state.currentPage;
       updatePageIndicators();
@@ -154,11 +167,18 @@
     const wrapper = document.getElementById("waterfall-wrapper");
     const scrollEl = document.getElementById("waterfall-scroll");
 
+    // Dynamic aspect-ratio placeholder sizing to eliminate layout shift
+    const viewportWidth = Math.min(scrollEl.clientWidth || window.innerWidth || 375, 900);
+    const initialRatio = state.aspectRatio || 1.414;
+    const estimatedHeight = Math.round(viewportWidth * initialRatio) + "px";
+
     for (let i = 0; i < state.totalPages; i++) {
       const item = document.createElement("div");
       item.className = "comic-waterfall-item";
       item.id = `waterfall-item-${i}`;
       item.setAttribute("data-index", i);
+      item.style.minHeight = estimatedHeight;
+      item.style.height = estimatedHeight;
       item.innerHTML = `<div class="spinner" style="width:24px;height:24px;margin:80px 0;"></div>`;
       wrapper.appendChild(item);
     }
@@ -181,6 +201,8 @@
 
     // Scroll listener with 800ms debounce for progress tracking
     scrollEl.addEventListener("scroll", () => {
+      // Guard against layout-shift during initial scroll restoration
+      if (state.isRestoringScroll) return;
       if (state.scrollDebounceTimer) clearTimeout(state.scrollDebounceTimer);
       detectWaterfallCurrentPage(scrollEl);
       state.scrollDebounceTimer = setTimeout(() => {
@@ -197,29 +219,85 @@
       }
     });
 
-    // Scroll to initial page
-    if (state.currentPage > 1) {
-      setTimeout(() => {
-        const targetEl = document.getElementById(`waterfall-item-${state.currentPage - 1}`);
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: "smooth" });
-        }
-      }, 100);
+    // Anchor to initial page instantly without layout-shift decay
+    restoreWaterfallScroll(scrollEl);
+  }
+
+  function restoreWaterfallScroll(scrollEl) {
+    if (state.currentPage <= 1) return;
+
+    state.isRestoringScroll = true;
+    const targetIndex = state.currentPage - 1;
+    const targetEl = document.getElementById(`waterfall-item-${targetIndex}`);
+    if (!targetEl) {
+      state.isRestoringScroll = false;
+      return;
     }
+
+    // Immediately load target page and neighbors to avoid blank flash
+    loadWaterfallImage(targetEl, targetIndex);
+    if (targetIndex > 0) {
+      const prevEl = document.getElementById(`waterfall-item-${targetIndex - 1}`);
+      if (prevEl) loadWaterfallImage(prevEl, targetIndex - 1);
+    }
+    if (targetIndex + 1 < state.totalPages) {
+      const nextEl = document.getElementById(`waterfall-item-${targetIndex + 1}`);
+      if (nextEl) loadWaterfallImage(nextEl, targetIndex + 1);
+    }
+
+    const applyScroll = () => {
+      if (targetEl && scrollEl) {
+        scrollEl.scrollTop = targetEl.offsetTop;
+      }
+    };
+
+    applyScroll();
+    requestAnimationFrame(applyScroll);
+    setTimeout(applyScroll, 50);
+    setTimeout(applyScroll, 150);
+    setTimeout(applyScroll, 300);
+
+    setTimeout(() => {
+      applyScroll();
+      state.isRestoringScroll = false;
+      detectWaterfallCurrentPage(scrollEl);
+    }, 450);
+  }
+
+  function updateUnloadedItemHeights(scrollEl, ratio) {
+    const width = Math.min(scrollEl.clientWidth || window.innerWidth || 375, 900);
+    const newHeight = Math.round(width * ratio) + "px";
+    const unloaded = scrollEl.querySelectorAll(".comic-waterfall-item:not(.loaded)");
+    unloaded.forEach((el) => {
+      el.style.minHeight = newHeight;
+      el.style.height = newHeight;
+    });
   }
 
   function loadWaterfallImage(containerEl, index) {
-    if (containerEl.querySelector("img")) return;
+    if (!containerEl || containerEl.querySelector("img")) return;
     const img = document.createElement("img");
     img.className = "comic-waterfall-img";
     img.alt = `Page ${index + 1}`;
     img.src = getPageUrl(state.book.key, index);
     img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        const ratio = img.naturalHeight / img.naturalWidth;
+        if (!state.hasMeasuredRatio && ratio > 0.5 && ratio < 3.0) {
+          state.aspectRatio = ratio;
+          state.hasMeasuredRatio = true;
+          const scrollEl = document.getElementById("waterfall-scroll");
+          if (scrollEl) updateUnloadedItemHeights(scrollEl, ratio);
+        }
+      }
+      containerEl.classList.add("loaded");
       containerEl.innerHTML = "";
-      containerEl.style.minHeight = "auto";
+      containerEl.style.minHeight = "";
+      containerEl.style.height = "";
       containerEl.appendChild(img);
     };
     img.onerror = () => {
+      containerEl.classList.add("loaded");
       containerEl.innerHTML = `<p style="color:#ef4444;font-size:12px;padding:40px 0;">图片加载失败</p>`;
     };
   }
@@ -404,10 +482,13 @@
       prefetchPages(state.currentPage - 1, 4);
       reportProgress(true); // Paged mode reports immediately on flip
     } else {
-      const targetEl = document.getElementById(`waterfall-item-${state.currentPage - 1}`);
+      const targetIndex = state.currentPage - 1;
+      const targetEl = document.getElementById(`waterfall-item-${targetIndex}`);
       if (targetEl) {
+        loadWaterfallImage(targetEl, targetIndex);
         targetEl.scrollIntoView({ behavior: "smooth" });
       }
+      reportProgress(true);
     }
   }
 
@@ -446,7 +527,11 @@
   // Progress Reporting (Ticket 05 Contract)
   function reportProgress(immediate = false) {
     if (!state.book || state.totalPages <= 0) return;
+    if (state.isRestoringScroll) return;
     const percentage = Number((state.currentPage / state.totalPages).toFixed(4));
+    const pageItem = state.pages[state.currentPage - 1];
+    const targetHref =
+      (pageItem && typeof pageItem === "object" ? pageItem.name : pageItem) || "";
     const payload = {
       bookKey: state.book.key,
       page: state.currentPage,
@@ -455,6 +540,8 @@
       timestamp: Date.now(),
       format: state.book.format || "cbz",
       chapterTitle: `第 ${state.currentPage} 页`,
+      chapterDocIndex: state.currentPage - 1,
+      chapterHref: targetHref,
     };
 
     if (window.syncProgress) {
