@@ -117,6 +117,7 @@
     "typecheck": "tsc --noEmit --noUnusedLocals false --noUnusedParameters false",
     "test:jmcomic-runtime": "node --test scripts/jmcomic/runtime.test.js",
     "test:pica": "node --test scripts/pica/*.test.js",
+    "test:mobile": "node --test scripts/mobile/*.test.js",
     "build:jmcomic-sidecar": "node scripts/build-jmcomic-sidecar.js",
     "dev": "node scripts/check-environment.js && concurrently \"cross-env BROWSER=none yarn start\" \"wait-on http://127.0.0.1:3000/ && nodemon --watch main.js --watch src/utils/plugins/main --watch scripts/jmcomic --watch scripts/pica --ext js --exec \\\"electron .\\\"\"",
     "package:win": "yarn build && yarn build:jmcomic-sidecar && electron-builder --win --x64 --publish never",
@@ -140,6 +141,8 @@
       "scripts/jmcomic/jmcomicManager.js",
       "scripts/jmcomic/runtime.js",
       "scripts/pica/**/*.js",
+      "scripts/mobile/**/*.js",
+      "public/mobile/**/*",
       "main.js",
       "preload.js",
       "chat-preload.js"
