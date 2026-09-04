@@ -128,7 +128,11 @@ function registerProgressSyncRoutes(server, context = {}) {
 
         const updatedRecord = {
           ...(existing || {}),
-          page: String(incoming.page || (existing && existing.page) || 1),
+          page: incoming.page !== undefined && incoming.page !== ""
+            ? String(incoming.page)
+            : existing && existing.page
+            ? String(existing.page)
+            : "",
           percentage: String(incoming.percentage !== undefined ? incoming.percentage : (existing && existing.percentage) || 0),
           count: String(incoming.totalPages || incoming.count || (existing && existing.count) || incoming.page || 1),
           // Store the original incoming timestamp. If the source is Kookit engine
@@ -151,7 +155,10 @@ function registerProgressSyncRoutes(server, context = {}) {
           updatedRecord.chapterDocIndex = String(incoming.chapterDocIndex);
         }
         if (incoming.chapterHref) {
-          updatedRecord.chapterHref = incoming.chapterHref;
+          updatedRecord.chapterHref =
+            typeof incoming.chapterHref === "object"
+              ? incoming.chapterHref.name || ""
+              : String(incoming.chapterHref);
         }
 
         records[bookKey] = updatedRecord;

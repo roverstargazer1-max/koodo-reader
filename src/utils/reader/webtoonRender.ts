@@ -264,7 +264,26 @@ export class WebtoonRender {
     const savedLocation =
       bookLocation ||
       ConfigService.getObjectConfig(this.bookKey, "recordLocation", {});
-    const initialPage = savedLocation.page ? parseInt(savedLocation.page) : 1;
+    let initialPage = 1;
+    if (savedLocation.page && parseInt(savedLocation.page) > 0) {
+      initialPage = parseInt(savedLocation.page);
+    } else if (
+      savedLocation.chapterDocIndex !== undefined &&
+      savedLocation.chapterDocIndex !== ""
+    ) {
+      initialPage = parseInt(savedLocation.chapterDocIndex) + 1;
+    } else if (
+      savedLocation.percentage &&
+      parseFloat(savedLocation.percentage) > 0
+    ) {
+      initialPage = Math.min(
+        this.totalPages,
+        Math.max(
+          1,
+          Math.round(parseFloat(savedLocation.percentage) * this.totalPages)
+        )
+      );
+    }
 
     if (initialPage > 1 && initialPage <= this.totalPages) {
       this.currentPage = initialPage;
@@ -277,14 +296,12 @@ export class WebtoonRender {
           targetWrapper.scrollIntoView({ block: "start" });
           setTimeout(() => {
             this.isProgrammaticScrolling = false;
-            this.recordLocation();
           }, 300);
         }
       }, 80);
     } else {
       this.currentPage = 1;
       this.preloadPagesAround(0, 3);
-      this.recordLocation();
     }
 
     this.trigger("rendered");
@@ -591,10 +608,12 @@ export class WebtoonRender {
   public goToPosition(positionStr: string) {
     try {
       const pos = JSON.parse(positionStr);
-      if (pos.page) {
+      if (pos.page && parseInt(pos.page) > 0) {
         this.goToPage(parseInt(pos.page));
-      } else if (pos.chapterDocIndex !== undefined) {
+      } else if (pos.chapterDocIndex !== undefined && pos.chapterDocIndex !== "") {
         this.goToChapterDocIndex(parseInt(pos.chapterDocIndex));
+      } else if (pos.percentage && parseFloat(pos.percentage) > 0) {
+        this.goToPercentage(parseFloat(pos.percentage));
       }
     } catch {
       // ignore

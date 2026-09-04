@@ -78,7 +78,31 @@ export function initProgressSyncBridge(storeInstance?: any) {
     }
   };
 
-  // 1b. Hook ConfigService list config methods so desktop blur modifications sync to main store
+  let shelfSyncTimer: any = null;
+  const syncShelvesToMain = () => {
+    if (shelfSyncTimer) clearTimeout(shelfSyncTimer);
+    shelfSyncTimer = setTimeout(() => {
+      try {
+        if (window.electronAPI?.invoke) {
+          const shelfList = ConfigService.getAllMapConfig("shelfList") || {};
+          const sortedShelfList =
+            ConfigService.getAllListConfig("sortedShelfList") || [];
+          window.electronAPI
+            .invoke("mobile-sync-shelves", { shelfList, sortedShelfList })
+            .catch((err: any) => {
+              console.warn(
+                "[ProgressSyncBridge] Error syncing shelves to main:",
+                err
+              );
+            });
+        }
+      } catch (e) {
+        console.warn("[ProgressSyncBridge] Error calling mobile-sync-shelves:", e);
+      }
+    }, 200);
+  };
+
+  // 1b. Hook ConfigService list config methods so desktop blur and shelf modifications sync to main store
   const originalSetAllListConfig = ConfigService.setAllListConfig;
   ConfigService.setAllListConfig = function (
     list: any,
@@ -88,6 +112,9 @@ export function initProgressSyncBridge(storeInstance?: any) {
     (originalSetAllListConfig as any).call(this, list, name, ...rest);
     if (name === "blurredBooks") {
       syncBlurredBooksToMain(list);
+    }
+    if (name === "sortedShelfList") {
+      syncShelvesToMain();
     }
   };
 
@@ -101,6 +128,9 @@ export function initProgressSyncBridge(storeInstance?: any) {
     if (name === "blurredBooks") {
       syncBlurredBooksToMain();
     }
+    if (name === "sortedShelfList") {
+      syncShelvesToMain();
+    }
   };
 
   const originalDeleteListConfig = ConfigService.deleteListConfig;
@@ -113,12 +143,80 @@ export function initProgressSyncBridge(storeInstance?: any) {
     if (name === "blurredBooks") {
       syncBlurredBooksToMain();
     }
+    if (name === "sortedShelfList") {
+      syncShelvesToMain();
+    }
+  };
+
+  // 1c. Hook ConfigService map config methods so desktop shelf modifications sync to main store
+  const originalSetMapConfig = ConfigService.setMapConfig;
+  ConfigService.setMapConfig = function (
+    key: string,
+    val: any,
+    name: string,
+    ...rest: any[]
+  ) {
+    (originalSetMapConfig as any).call(this, key, val, name, ...rest);
+    if (name === "shelfList") {
+      syncShelvesToMain();
+    }
+  };
+
+  const originalSetOneMapConfig = ConfigService.setOneMapConfig;
+  ConfigService.setOneMapConfig = function (
+    key: string,
+    val: any,
+    name: string,
+    ...rest: any[]
+  ) {
+    (originalSetOneMapConfig as any).call(this, key, val, name, ...rest);
+    if (name === "shelfList") {
+      syncShelvesToMain();
+    }
+  };
+
+  const originalSetAllMapConfig = ConfigService.setAllMapConfig;
+  ConfigService.setAllMapConfig = function (
+    map: any,
+    name: string,
+    ...rest: any[]
+  ) {
+    (originalSetAllMapConfig as any).call(this, map, name, ...rest);
+    if (name === "shelfList") {
+      syncShelvesToMain();
+    }
+  };
+
+  const originalDeleteMapConfig = ConfigService.deleteMapConfig;
+  ConfigService.deleteMapConfig = function (
+    key: string,
+    name: string,
+    ...rest: any[]
+  ) {
+    (originalDeleteMapConfig as any).call(this, key, name, ...rest);
+    if (name === "shelfList") {
+      syncShelvesToMain();
+    }
+  };
+
+  const originalDeleteFromMapConfig = ConfigService.deleteFromMapConfig;
+  ConfigService.deleteFromMapConfig = function (
+    key: string,
+    val: any,
+    name: string,
+    ...rest: any[]
+  ) {
+    (originalDeleteFromMapConfig as any).call(this, key, val, name, ...rest);
+    if (name === "shelfList") {
+      syncShelvesToMain();
+    }
   };
 
   if (!window.electronAPI) return;
 
-  // Initial sync of blurred books list to main store
+  // Initial sync of blurred books and shelves to main store
   syncBlurredBooksToMain();
+  syncShelvesToMain();
 
   // 2. Initial Bi-Directional Reconciliation with Main Process Store
   if (window.electronAPI.invoke) {
@@ -162,7 +260,12 @@ export function initProgressSyncBridge(storeInstance?: any) {
                 if (nr.text) merged.text = nr.text;
                 if (nr.count !== undefined) merged.count = String(nr.count);
                 if (nr.chapterDocIndex !== undefined) merged.chapterDocIndex = String(nr.chapterDocIndex);
-                if (nr.chapterHref) merged.chapterHref = nr.chapterHref;
+                if (nr.chapterHref) {
+                  merged.chapterHref =
+                    typeof nr.chapterHref === "object"
+                      ? nr.chapterHref.name || ""
+                      : String(nr.chapterHref);
+                }
 
                 originalSetObjectConfig.call(
                   ConfigService,
@@ -232,7 +335,10 @@ export function initProgressSyncBridge(storeInstance?: any) {
         merged.chapterDocIndex = String(record.chapterDocIndex);
       }
       if (record.chapterHref) {
-        merged.chapterHref = record.chapterHref;
+        merged.chapterHref =
+          typeof record.chapterHref === "object"
+            ? record.chapterHref.name || ""
+            : String(record.chapterHref);
       }
 
       // Clear stale desktop CFI/xpath only when mobile provided position context,

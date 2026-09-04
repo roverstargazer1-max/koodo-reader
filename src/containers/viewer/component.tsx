@@ -449,6 +449,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     let chapters = rendition.getChapter();
     let chapterDocs = rendition.getChapterDoc();
     let flattenChapters = rendition.flatChapter(chapters);
+    rendition.flattenChapters = flattenChapters;
     this.props.handleHtmlBook({
       key: this.props.currentBook.key,
       chapters,
@@ -484,7 +485,40 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       {}
     );
     if (chapterDocs.length > 0) {
-      if (
+      const isComic =
+        (this.props.currentBook.format || "").toUpperCase().startsWith("CB") ||
+        this.props.readerMode === "webtoon";
+
+      if (isComic) {
+        let targetDocIndex = -1;
+        if (
+          bookLocation.chapterDocIndex !== undefined &&
+          bookLocation.chapterDocIndex !== ""
+        ) {
+          targetDocIndex = parseInt(bookLocation.chapterDocIndex);
+        } else if (bookLocation.page && parseInt(bookLocation.page) > 0) {
+          targetDocIndex = parseInt(bookLocation.page) - 1;
+        } else if (
+          bookLocation.percentage &&
+          parseFloat(bookLocation.percentage) > 0
+        ) {
+          targetDocIndex = Math.min(
+            chapterDocs.length - 1,
+            Math.max(
+              0,
+              Math.round(parseFloat(bookLocation.percentage) * chapterDocs.length) - 1
+            )
+          );
+        }
+
+        if (targetDocIndex >= 0 && targetDocIndex < chapterDocs.length) {
+          if (typeof rendition.goToChapterDocIndex === "function") {
+            await rendition.goToChapterDocIndex(targetDocIndex);
+          } else if (typeof rendition.goToPage === "function") {
+            await rendition.goToPage(targetDocIndex + 1);
+          }
+        }
+      } else if (
         ConfigService.getReaderConfig("isEnableKoReaderSync") === "yes" &&
         bookLocation.xpath
       ) {
@@ -525,25 +559,13 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         await rendition.goToPercentage(parseFloat(bookLocation.percentage));
       }
     }
-    // Track whether the initial restore was via the imprecise goToPercentage
-    // fallback so we can avoid overwriting the stored location with the coarse
-    // chapter-start position on the very first "rendered" event.
-    const restoredViaPercentageOnly = !!(
-      !bookLocation.cfi &&
-      !bookLocation.text &&
-      !bookLocation.chapterDocIndex &&
-      bookLocation.percentage
-    );
     let isFirstRender = true;
     rendition.on("rendered", async () => {
-      // Skip handleLocation on the very first render when we fell back to
-      // goToPercentage — the rendition is at the chapter START, not the real
-      // position, so saving it would permanently destroy the stored progress.
-      if (isFirstRender && restoredViaPercentageOnly) {
+      // Skip handleLocation on the very first render so that the initial restore
+      // is not prematurely overwritten before the user actually interacts.
+      if (isFirstRender) {
         isFirstRender = false;
-        // Still need to update UI state (chapter title, etc.) but NOT save position
       } else {
-        isFirstRender = false;
         this.handleLocation();
       }
       let bookLocation: {
