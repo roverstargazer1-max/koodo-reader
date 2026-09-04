@@ -97,3 +97,111 @@ test("novelStreamer streams EPUB and TXT files with Range support", async () => 
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("novelStreamer extracts EPUB chapters with images and streams resources", async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "koodo-novel-epub-test-"));
+  const bookDir = path.join(tempDir, "book");
+  fs.mkdirSync(bookDir, { recursive: true });
+
+  const epubPath = path.join(bookDir, "real-epub.epub");
+  const yazl = require("yazl");
+  const zip = new yazl.ZipFile();
+
+  const containerXml = `<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`;
+
+  const opfXml = `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="BookId">
+  <manifest>
+    <item id="ch1" href="Text/ch1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="img1" href="Images/pic.jpg" media-type="image/jpeg"/>
+  </manifest>
+  <spine>
+    <itemref idref="ch1"/>
+  </spine>
+</package>`;
+
+  const ch1Html = `<!DOCTYPE html>
+<html>
+<head><title>第一章 冒险</title></head>
+<body>
+  <h1>第一章 冒险</h1>
+  <div><img src="../Images/pic.jpg" alt="插图1"/></div>
+  <p>出发前的一段对话。</p>
+</body>
+</html>`;
+
+  const imageBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+
+  zip.addBuffer(Buffer.from(containerXml), "META-INF/container.xml");
+  zip.addBuffer(Buffer.from(opfXml), "OEBPS/content.opf");
+  zip.addBuffer(Buffer.from(ch1Html), "OEBPS/Text/ch1.xhtml");
+  zip.addBuffer(imageBuffer, "OEBPS/Images/pic.jpg");
+  zip.end();
+
+  await new Promise((resolve) => {
+    const out = fs.createWriteStream(epubPath);
+    zip.outputStream.pipe(out);
+    out.on("close", resolve);
+  });
+
+  const server = new MobileServer();
+  const token = "epub-test-token";
+
+  registerNovelStreamerRoutes(server, {
+    storagePath: tempDir,
+    getBook: (key) => {
+      if (key === "real-epub") return { key: "real-epub", format: "epub", path: epubPath };
+      return null;
+    },
+  });
+
+  const status = await server.start({
+    port: 28375,
+    host: "127.0.0.1",
+    token,
+  });
+
+  try {
+    // 1. Get structured chapters
+    const chaptersRes = await fetch(
+      `http://127.0.0.1:${status.port}/api/book/real-epub/novel/chapters?token=${token}`
+    );
+    assert.equal(chaptersRes.status, 200);
+    const data = await chaptersRes.json();
+    assert.equal(data.chapters.length, 1);
+    assert.equal(data.chapters[0].title, "第一章 冒险");
+
+    const paras = data.chapters[0].paragraphs;
+    assert.equal(paras.length, 3);
+    assert.equal(paras[0], "第一章 冒险");
+    assert.deepEqual(paras[1], {
+      type: "image",
+      src: `/api/book/real-epub/resource?path=OEBPS%2FImages%2Fpic.jpg`,
+      alt: "插图1",
+    });
+    assert.equal(paras[2], "出发前的一段对话。");
+
+    // 2. Stream image resource
+    const imgRes = await fetch(
+      `http://127.0.0.1:${status.port}/api/book/real-epub/resource?path=OEBPS/Images/pic.jpg&token=${token}`
+    );
+    assert.equal(imgRes.status, 200);
+    assert.equal(imgRes.headers.get("content-type"), "image/jpeg");
+    const imgData = Buffer.from(await imgRes.arrayBuffer());
+    assert.deepEqual(imgData, imageBuffer);
+
+    // 3. Prevent path traversal
+    const badPathRes = await fetch(
+      `http://127.0.0.1:${status.port}/api/book/real-epub/resource?path=../secret&token=${token}`
+    );
+    assert.equal(badPathRes.status, 403);
+  } finally {
+    await server.stop();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
