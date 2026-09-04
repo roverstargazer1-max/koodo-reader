@@ -112,12 +112,20 @@ function registerProgressSyncRoutes(server, context = {}) {
         }
 
         const updatedRecord = {
-          page: String(incoming.page || 1),
-          percentage: String(incoming.percentage || 0),
-          count: String(incoming.totalPages || incoming.count || incoming.page || 1),
+          ...(existing || {}),
+          page: String(incoming.page || (existing && existing.page) || 1),
+          percentage: String(incoming.percentage !== undefined ? incoming.percentage : (existing && existing.percentage) || 0),
+          count: String(incoming.totalPages || incoming.count || (existing && existing.count) || incoming.page || 1),
           timestamp: incomingTime,
-          chapterTitle: incoming.chapterTitle || "",
+          chapterTitle: incoming.chapterTitle || (existing && existing.chapterTitle) || "",
+          // Clear outdated desktop CFI/xpath so desktop navigates using latest mobile percentage/page
+          cfi: "",
+          xpath: "",
+          text: "",
         };
+        if (incoming.chapterDocIndex !== undefined) {
+          updatedRecord.chapterDocIndex = String(incoming.chapterDocIndex);
+        }
 
         records[bookKey] = updatedRecord;
         saveStoreRecords(records);

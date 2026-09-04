@@ -224,10 +224,12 @@
       }
 
       const coverSrc = api(book.coverUrl || `/api/cover/${encodeURIComponent(book.key)}`);
+      const isBlurred = Boolean(book.isBlurred);
+      const blurClass = isBlurred ? " book-cover-blurred" : "";
 
       card.innerHTML = `
         <div class="book-cover-wrap">
-          <img class="book-cover" src="${coverSrc}" alt="${escapeHtml(book.name)}" loading="lazy" />
+          <img class="book-cover${blurClass}" src="${coverSrc}" alt="${escapeHtml(book.name)}" loading="lazy" />
           <span class="progress-pill ${pillClass}">${pillText}</span>
         </div>
         <div class="book-info">

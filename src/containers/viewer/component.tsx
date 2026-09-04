@@ -489,6 +489,12 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         bookLocation.xpath
       ) {
         await rendition.goToXpath(bookLocation.xpath);
+      } else if (
+        !bookLocation.cfi &&
+        bookLocation.percentage &&
+        typeof rendition.goToPercentage === "function"
+      ) {
+        await rendition.goToPercentage(parseFloat(bookLocation.percentage));
       } else {
         await rendition.goToPosition(
           JSON.stringify({

@@ -520,6 +520,35 @@
     }
   }
 
+  function getCurrentChapterTitle() {
+    if (!state.chapters || state.chapters.length === 0) {
+      return state.book ? state.book.name : "";
+    }
+    if (state.layoutMode === "paged") {
+      let lastTitle = state.chapters[0]?.title || "";
+      for (let i = 0; i <= state.pagedIndex && i < state.pagedPages.length; i++) {
+        const titleItem = state.pagedPages[i]?.find((it) => it.isTitle);
+        if (titleItem) lastTitle = titleItem.text;
+      }
+      return lastTitle || state.book?.name || "";
+    } else {
+      const scrollEl = document.getElementById("novel-scroll");
+      if (!scrollEl) return state.chapters[0]?.title || state.book?.name || "";
+      const chapterEls = scrollEl.querySelectorAll(".novel-chapter");
+      let activeTitle = state.chapters[0]?.title || state.book?.name || "";
+      const top = scrollEl.scrollTop + 50;
+      for (const el of chapterEls) {
+        if (el.offsetTop <= top) {
+          const tEl = el.querySelector(".novel-chapter-title");
+          if (tEl && tEl.textContent) activeTitle = tEl.textContent.trim();
+        } else {
+          break;
+        }
+      }
+      return activeTitle;
+    }
+  }
+
   function reportProgress(immediate = false) {
     if (!state.book) return;
     const payload = {
@@ -529,7 +558,7 @@
       totalPages: state.layoutMode === "paged" ? state.totalPagesInPaged : 1,
       timestamp: Date.now(),
       format: state.book.format || "epub",
-      chapterTitle: state.book.name,
+      chapterTitle: getCurrentChapterTitle() || state.book.name,
     };
 
     if (window.syncProgress) {

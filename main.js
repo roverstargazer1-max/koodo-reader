@@ -49,6 +49,27 @@ const configDir = app.getPath("userData");
 const dirPath = path.join(configDir, "uploads");
 const packageJson = require("./package.json");
 
+const resolveStorage = () => {
+  const stored = store.get("storageLocation");
+  if (stored && fs.existsSync(stored)) return stored;
+  const defaultPath = path.join(dirPath, "data");
+  if (fs.existsSync(path.join(defaultPath, "config", "books.db"))) {
+    return defaultPath;
+  }
+  try {
+    const appData = app.getPath("appData");
+    const prodData = path.join(appData, "KoodoReaderPersonal", "uploads", "data");
+    if (fs.existsSync(path.join(prodData, "config", "books.db"))) {
+      return prodData;
+    }
+    const legacyData = path.join(appData, "koodo-reader", "uploads", "data");
+    if (fs.existsSync(path.join(legacyData, "config", "books.db"))) {
+      return legacyData;
+    }
+  } catch (e) {}
+  return defaultPath;
+};
+
 const initMobileServer = () => {
   try {
     let mobileToken = store.get("mobileCompanionToken");
@@ -56,27 +77,6 @@ const initMobileServer = () => {
       mobileToken = nodeCrypto.randomBytes(16).toString("hex");
       store.set("mobileCompanionToken", mobileToken);
     }
-
-    const resolveStorage = () => {
-      const stored = store.get("storageLocation");
-      if (stored && fs.existsSync(stored)) return stored;
-      const defaultPath = path.join(dirPath, "data");
-      if (fs.existsSync(path.join(defaultPath, "config", "books.db"))) {
-        return defaultPath;
-      }
-      try {
-        const appData = app.getPath("appData");
-        const prodData = path.join(appData, "KoodoReaderPersonal", "uploads", "data");
-        if (fs.existsSync(path.join(prodData, "config", "books.db"))) {
-          return prodData;
-        }
-        const legacyData = path.join(appData, "koodo-reader", "uploads", "data");
-        if (fs.existsSync(path.join(legacyData, "config", "books.db"))) {
-          return legacyData;
-        }
-      } catch (e) {}
-      return defaultPath;
-    };
 
     const mobileContext = {
       getStoragePath: resolveStorage,
@@ -3657,6 +3657,105 @@ const createMainWin = () => {
     mobileServer.setSelectedAddress(address);
     store.set("mobileSelectedAddress", address);
     return mobileServer.getStatus();
+  });
+  ipcMain.handle("mobile-sync-progress", async (event, { bookKey, record }) => {
+    if (!bookKey || !record) return { success: false, reason: "Missing bookKey or record" };
+    try {
+      let records = {};
+      const raw = store.get("recordLocation");
+      if (typeof raw === "string") {
+        try { records = JSON.parse(raw); } catch (e) {}
+      } else if (typeof raw === "object" && raw !== null) {
+        records = raw;
+      }
+
+      const existing = records[bookKey];
+      const incomingTime = record.timestamp || Date.now();
+      if (existing && existing.timestamp && existing.timestamp > incomingTime) {
+        return { success: true, updated: false, reason: "Existing record is newer" };
+      }
+
+      records[bookKey] = {
+        ...(existing || {}),
+        ...record,
+        timestamp: incomingTime,
+      };
+      store.set("recordLocation", JSON.stringify(records));
+
+      // Update books.db page column if available
+      try {
+        const sPath = resolveStorage();
+        const dbPath = path.join(sPath, "config", "books.db");
+        if (fs.existsSync(dbPath) && record.page) {
+          const db = (dbConnection && dbConnection["books"]) || new Database(dbPath);
+          db.prepare("UPDATE books SET page = ? WHERE key = ?").run(parseInt(record.page, 10), bookKey);
+        }
+      } catch (dbErr) {}
+
+      return { success: true, updated: true };
+    } catch (err) {
+      console.error("[Main] Error syncing progress:", err);
+      return { success: false, error: err.message };
+    }
+  });
+  ipcMain.handle("mobile-sync-all-progress", async (event, desktopRecords = {}) => {
+    try {
+      let records = {};
+      const raw = store.get("recordLocation");
+      if (typeof raw === "string") {
+        try { records = JSON.parse(raw); } catch (e) {}
+      } else if (typeof raw === "object" && raw !== null) {
+        records = raw;
+      }
+
+      const newerRecordsFromMobile = {};
+      let changed = false;
+
+      if (desktopRecords && typeof desktopRecords === "object") {
+        for (const [key, dRec] of Object.entries(desktopRecords)) {
+          if (!dRec) continue;
+          const mRec = records[key];
+          const dTime = dRec.timestamp || 0;
+          const mTime = mRec ? (mRec.timestamp || 0) : 0;
+
+          if (!mRec) {
+            records[key] = { ...dRec, timestamp: dTime || Date.now() };
+            changed = true;
+          } else if (dTime >= mTime) {
+            records[key] = { ...mRec, ...dRec, timestamp: dTime || Date.now() };
+            changed = true;
+          } else {
+            // Mobile record is newer than desktop record
+            newerRecordsFromMobile[key] = mRec;
+          }
+        }
+      }
+
+      // Also check if mobile store has any books that desktop completely lacks
+      for (const [key, mRec] of Object.entries(records)) {
+        if (!desktopRecords || !desktopRecords[key]) {
+          newerRecordsFromMobile[key] = mRec;
+        }
+      }
+
+      if (changed) {
+        store.set("recordLocation", JSON.stringify(records));
+      }
+
+      return { success: true, newerRecords: newerRecordsFromMobile };
+    } catch (err) {
+      console.error("[Main] Error syncing all progress:", err);
+      return { success: false, error: err.message, newerRecords: {} };
+    }
+  });
+  ipcMain.handle("mobile-sync-blurred-books", async (event, blurredBooks = []) => {
+    try {
+      store.set("blurredBooks", Array.isArray(blurredBooks) ? blurredBooks : []);
+      return { success: true };
+    } catch (err) {
+      console.error("[Main] Error syncing blurred books:", err);
+      return { success: false, error: err.message };
+    }
   });
   ipcMain.on("get-dirname", (event, arg) => {
     event.returnValue = __dirname;

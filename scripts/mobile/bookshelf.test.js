@@ -61,7 +61,7 @@ function createTestEnvironment() {
   const comicCoverPath = path.join(coverDir, "comic-1.png");
   fs.writeFileSync(comicCoverPath, Buffer.from("fake-png-content-12345"));
 
-  // Mock store with recordLocation
+  // Mock store with recordLocation and blurredBooks
   const mockStore = {
     get: (key) => {
       if (key === "recordLocation") {
@@ -79,6 +79,9 @@ function createTestEnvironment() {
           },
         };
       }
+      if (key === "blurredBooks") {
+        return ["comic-1"];
+      }
       return null;
     },
   };
@@ -86,7 +89,7 @@ function createTestEnvironment() {
   return { tempDir, db, mockStore };
 }
 
-test("Bookshelf API returns formatted book list with progress", async () => {
+test("Bookshelf API returns formatted book list with progress and blurred cover status", async () => {
   const { tempDir, db, mockStore } = createTestEnvironment();
   const server = new MobileServer();
   const token = "shelf-test-token";
@@ -122,12 +125,14 @@ test("Bookshelf API returns formatted book list with progress", async () => {
     assert.equal(comic.percentage, 0.5);
     assert.equal(comic.lastReadTime, 1725400000000);
     assert.equal(comic.coverUrl, "/api/cover/comic-1");
+    assert.equal(comic.isBlurred, true);
 
     // Verify novel-1
     const novel = books.find((b) => b.key === "novel-1");
     assert.ok(novel);
     assert.equal(novel.category, "novel");
     assert.equal(novel.percentage, 0.1);
+    assert.equal(novel.isBlurred, false);
   } finally {
     await server.stop();
     db.close();

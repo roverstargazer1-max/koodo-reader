@@ -107,6 +107,9 @@ const INVOKE_CHANNELS = new Set([
   "mobile-server-toggle",
   "mobile-server-reset-token",
   "mobile-server-select-address",
+  "mobile-sync-progress",
+  "mobile-sync-all-progress",
+  "mobile-sync-blurred-books",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);
 const SEND_SYNC_CHANNELS = new Set([
@@ -168,7 +171,7 @@ const listen = (channel, listener, once = false) => {
   assertChannel(EVENT_CHANNELS, channel);
   const handler = (_event, payload) => {
     if (once) removeListener(channel, listener, handler);
-    listener(payload);
+    listener(payload, _event);
   };
   const handlers = eventHandlers.get(channel) || new Map();
   const listeners = handlers.get(listener) || [];

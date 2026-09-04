@@ -115,6 +115,41 @@ test("ProgressSync handles POST, GET, conflict resolution, and desktop relay", a
     const getFinalData = await getFinal.json();
     assert.equal(getFinalData.progress.page, "55");
     assert.equal(getFinalData.progress.percentage, "0.55");
+
+    // 6. Test existing desktop record with cfi being superseded by newer mobile update
+    storeData["recordLocation"] = JSON.stringify({
+      "test-novel": {
+        page: "5",
+        percentage: "0.1",
+        cfi: "epubcfi(/6/2[ch1]!/4/2/10:0)",
+        xpath: "/html/body/p[1]",
+        chapterTitle: "Chapter 1",
+        timestamp: 1000,
+      },
+    });
+
+    const postNovel = await fetch(
+      `http://127.0.0.1:${status.port}/api/book/test-novel/progress?token=${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          page: 1,
+          percentage: 0.45,
+          timestamp: 3000, // newer than 1000
+          chapterTitle: "Chapter 4",
+        }),
+      }
+    );
+    assert.equal(postNovel.status, 200);
+    const postNovelData = await postNovel.json();
+    assert.equal(postNovelData.success, true);
+    assert.equal(postNovelData.updated, true);
+    assert.equal(postNovelData.progress.percentage, "0.45");
+    assert.equal(postNovelData.progress.chapterTitle, "Chapter 4");
+    // Stale desktop CFI and xpath MUST be cleared so desktop jumps to mobile percentage
+    assert.equal(postNovelData.progress.cfi, "");
+    assert.equal(postNovelData.progress.xpath, "");
   } finally {
     await server.stop();
   }

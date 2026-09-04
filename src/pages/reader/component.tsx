@@ -70,6 +70,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   messageTimer!: NodeJS.Timeout;
   tickTimer!: NodeJS.Timeout;
   private autoShowTimer: NodeJS.Timeout | null = null;
+  private mobileProgressHandler: any = null;
   private readingTimeUtil = new ReadingTimeUtil(
     ConfigService,
     isElectron
@@ -154,85 +155,93 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     );
 
     if (isElectron && window.electronAPI?.on) {
-      window.electronAPI.on(
-        "mobile-progress-updated",
-        (event: any, data: any) => {
-          if (!data || !this.props.currentBook) return;
-          const { bookKey, record } = data;
-          if (bookKey !== this.props.currentBook.key) return;
+      this.mobileProgressHandler = (arg1: any, arg2: any) => {
+        const data = arg1 && arg1.bookKey ? arg1 : arg2 && arg2.bookKey ? arg2 : arg1;
+        if (!data || !data.bookKey || !data.record || !this.props.currentBook) return;
+        const { bookKey, record } = data;
+        if (bookKey !== this.props.currentBook.key) return;
 
-          const pct = Math.round(parseFloat(record.percentage || "0") * 100);
-          const page = record.page || 1;
+        const pct = Math.round(parseFloat(record.percentage || "0") * 100);
+        const page = record.page || 1;
+        const isComic = (this.props.currentBook?.format || "").toLowerCase().startsWith("cb");
 
-          const msg = this.props
-            .t("Mobile reached page")
-            .replace("{{page}}", String(page))
-            .replace("{{percentage}}", String(pct));
+        const msg = isComic
+          ? (this.props.t("Mobile reached page") || "手机端已读至第 {{page}} 页 ({{percentage}}%)")
+              .replace("{{page}}", String(page))
+              .replace("{{percentage}}", String(pct))
+          : `手机端已读至 ${record.chapterTitle || `${pct}%`} (${pct}%)`;
 
-          toast(
-            (t) => (
-              <span
+        toast(
+          (t) => (
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                fontSize: "13px",
+              }}
+            >
+              <span>{msg}</span>
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  if (this.props.htmlBook?.rendition) {
+                    if (
+                      isComic &&
+                      typeof this.props.htmlBook.rendition.goToPage === "function"
+                    ) {
+                      this.props.htmlBook.rendition.goToPage(
+                        parseInt(page, 10)
+                      );
+                    } else if (
+                      typeof this.props.htmlBook.rendition.goToPercentage ===
+                        "function" &&
+                      record.percentage !== undefined
+                    ) {
+                      this.props.htmlBook.rendition.goToPercentage(
+                        parseFloat(record.percentage)
+                      );
+                    } else if (
+                      typeof this.props.htmlBook.rendition.goToPage ===
+                      "function"
+                    ) {
+                      this.props.htmlBook.rendition.goToPage(
+                        parseInt(page, 10)
+                      );
+                    }
+                  }
+                }}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  fontSize: "13px",
+                  background: "var(--theme-color, #007aff)",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 600,
                 }}
               >
-                <span>{msg}</span>
-                <button
-                  onClick={() => {
-                    toast.dismiss(t.id);
-                    if (this.props.htmlBook?.rendition) {
-                      if (
-                        typeof this.props.htmlBook.rendition.goToPage ===
-                        "function"
-                      ) {
-                        this.props.htmlBook.rendition.goToPage(
-                          parseInt(page, 10)
-                        );
-                      } else if (
-                        typeof this.props.htmlBook.rendition.goToPercentage ===
-                          "function" &&
-                        record.percentage
-                      ) {
-                        this.props.htmlBook.rendition.goToPercentage(
-                          parseFloat(record.percentage)
-                        );
-                      }
-                    }
-                  }}
-                  style={{
-                    background: "var(--theme-color, #007aff)",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {this.props.t("Jump Now")}
-                </button>
-                <button
-                  onClick={() => toast.dismiss(t.id)}
-                  style={{
-                    background: "transparent",
-                    color: "#9ca3af",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                  }}
-                >
-                  {this.props.t("Dismiss")}
-                </button>
-              </span>
-            ),
-            { duration: 6000 }
-          );
-        }
-      );
+                {this.props.t("Jump Now")}
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                style={{
+                  background: "transparent",
+                  color: "#9ca3af",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                {this.props.t("Dismiss")}
+              </button>
+            </span>
+          ),
+          { duration: 6000 }
+        );
+      };
+      window.electronAPI.on("mobile-progress-updated", this.mobileProgressHandler);
     }
 
     // 进入阅读器后主动展示快捷按钮 3 秒，提示用户位置后自动隐藏
@@ -315,6 +324,13 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     });
     // Flush any in-flight session time before the component tears down
     this.readingTimeUtil.stop();
+    if (isElectron && this.mobileProgressHandler && window.electronAPI?.removeListener) {
+      window.electronAPI.removeListener(
+        "mobile-progress-updated",
+        this.mobileProgressHandler
+      );
+      this.mobileProgressHandler = null;
+    }
   }
 
   cancelEnterReader = (position: string) => {

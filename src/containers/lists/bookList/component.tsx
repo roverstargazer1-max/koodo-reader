@@ -38,6 +38,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
   private visibilityChangeHandler: ((event: Event) => void) | null = null;
   private resizeHandler: (() => void) | null = null;
   private readingFinishedHandler: ((config: any) => void) | null = null;
+  private progressSyncHandler: (() => void) | null = null;
   private isSelecting = false;
   private startSelectionKeys: string[] = [];
   private isModifierActive = false;
@@ -101,6 +102,16 @@ class BookList extends React.Component<BookListProps, BookListState> {
       ipcRenderer.on("reading-finished", this.readingFinishedHandler);
     }
 
+    this.progressSyncHandler = async () => {
+      this.props.handleFetchBooks();
+      await this.loadFullBooksData();
+      this.forceUpdate();
+    };
+    window.addEventListener("koodo-progress-synced", this.progressSyncHandler);
+    if (isElectron && window.electronAPI?.on) {
+      window.electronAPI.on("mobile-progress-updated", this.progressSyncHandler);
+    }
+
     // 初始加载完整的书籍数据
     await this.loadFullBooksData();
 
@@ -140,6 +151,17 @@ class BookList extends React.Component<BookListProps, BookListState> {
         this.readingFinishedHandler
       );
       this.readingFinishedHandler = null;
+    }
+
+    if (this.progressSyncHandler) {
+      window.removeEventListener("koodo-progress-synced", this.progressSyncHandler);
+      if (isElectron && window.electronAPI?.removeListener) {
+        window.electronAPI.removeListener(
+          "mobile-progress-updated",
+          this.progressSyncHandler
+        );
+      }
+      this.progressSyncHandler = null;
     }
   }
 

@@ -68,6 +68,20 @@ function registerBookshelfRoutes(server, context = {}) {
     return {};
   };
 
+  const getStoreBlurredBooks = () => {
+    try {
+      if (context.getStore) {
+        const s = context.getStore();
+        const raw = s.get("blurredBooks");
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === "string") return JSON.parse(raw);
+      }
+    } catch (e) {
+      // ignore
+    }
+    return [];
+  };
+
   const getDatabase = () => {
     if (context.getDb) return context.getDb();
     if (context.db) return context.db;
@@ -91,6 +105,8 @@ function registerBookshelfRoutes(server, context = {}) {
       }
 
       const records = getStoreRecords();
+      const blurredBooks = getStoreBlurredBooks();
+      const blurredSet = new Set(Array.isArray(blurredBooks) ? blurredBooks : []);
 
       const result = books.map((book) => {
         const record = records[book.key] || {};
@@ -123,6 +139,7 @@ function registerBookshelfRoutes(server, context = {}) {
           percentage: Math.min(1, Math.max(0, percentage)),
           lastReadTime: record.timestamp || record.time || 0,
           chapterTitle: record.chapterTitle || "",
+          isBlurred: blurredSet.has(book.key),
           coverUrl: `/api/cover/${encodeURIComponent(book.key)}`,
         };
       });

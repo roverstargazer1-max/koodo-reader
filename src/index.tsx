@@ -15,11 +15,17 @@ import {
   applyAppBackgroundImage,
 } from "./utils/reader/launchUtil";
 import { migrateConfig } from "./utils/common";
+import { initProgressSyncBridge } from "./utils/sync/progressSyncBridge";
 initTheme();
 initSystemFont();
 migrateConfig();
 applyCustomSystemCSS();
 applyAppBackgroundImage();
+try {
+  initProgressSyncBridge(store);
+} catch (e) {
+  console.warn("Failed to initialize progress sync bridge:", e);
+}
 const container = document.getElementById("root")!;
 ReactDOM.render(
   <Provider store={store}>
