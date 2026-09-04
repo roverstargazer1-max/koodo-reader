@@ -128,6 +128,149 @@
   pointer-events: none;
 }
 
+/* Chapter directory drawer */
+.novel-toc-btn {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--novel-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--novel-text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.novel-toc-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.novel-toc-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 390;
+  background: rgba(0, 0, 0, 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.novel-toc-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.novel-toc-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(86vw, 380px);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--novel-bg);
+  color: var(--novel-text);
+  border-left: 1px solid var(--novel-border);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.28);
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.24s ease;
+  pointer-events: none;
+}
+
+.novel-toc-drawer.visible {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.novel-toc-header {
+  min-height: 56px;
+  padding: 0 14px 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--novel-border);
+  flex-shrink: 0;
+}
+
+.novel-toc-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.novel-toc-close {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--novel-muted);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.novel-toc-close:active,
+.novel-toc-close:hover {
+  background: var(--novel-border);
+  color: var(--novel-text);
+}
+
+.novel-toc-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px calc(16px + env(safe-area-inset-bottom, 0px));
+  -webkit-overflow-scrolling: touch;
+}
+
+.novel-toc-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 10px;
+  margin: 2px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--novel-text);
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.novel-toc-item:active,
+.novel-toc-item:hover {
+  background: var(--novel-border);
+}
+
+.novel-toc-item.active {
+  background: rgba(0, 122, 255, 0.14);
+  color: #007aff;
+  font-weight: 600;
+}
+
+.novel-toc-index {
+  flex: 0 0 24px;
+  color: var(--novel-muted);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  text-align: right;
+}
+
+.novel-toc-item.active .novel-toc-index {
+  color: #007aff;
+}
+
+.novel-toc-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Progress Scrubber */
 .novel-scrubber-row {
   display: flex;

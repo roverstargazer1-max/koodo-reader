@@ -9,12 +9,17 @@
     theme: localStorage.getItem("koodo_novel_theme") || "theme-parchment",
     layoutMode: localStorage.getItem("koodo_novel_layout") || "scroll", // "scroll" | "paged"
     controlsVisible: false,
+    chapterDrawerVisible: false,
+    chapterDrawerHistory: false,
+    chapterDrawerPopstateHandler: null,
     chapters: [],
     currentChapterIndex: 0,
     pagedIndex: 0,
     totalPagesInPaged: 1,
     pagedPages: [],
     scrollDebounceTimer: null,
+    scrollRestoreId: 0,
+    isRestoringScroll: false,
     percentage: 0,
   };
 
@@ -24,6 +29,21 @@
     state.book = book;
     state.percentage = book.percentage || 0;
     state.controlsVisible = false;
+    state.chapterDrawerVisible = false;
+    state.chapterDrawerHistory = false;
+    state.currentChapterIndex = 0;
+    state.scrollRestoreId++;
+    state.isRestoringScroll = false;
+    if (state.chapterDrawerPopstateHandler) {
+      window.removeEventListener("popstate", state.chapterDrawerPopstateHandler);
+    }
+    state.chapterDrawerPopstateHandler = () => {
+      if (state.chapterDrawerVisible) {
+        state.chapterDrawerHistory = false;
+        closeChapterDrawer();
+      }
+    };
+    window.addEventListener("popstate", state.chapterDrawerPopstateHandler);
 
     renderNovelShell();
 
@@ -38,6 +58,7 @@
           const data = await chaptersRes.json();
           if (data && Array.isArray(data.chapters) && data.chapters.length > 0) {
             state.chapters = data.chapters;
+            state.currentChapterIndex = resolveInitialChapterIndex();
             renderNovelContent();
             return;
           }
@@ -59,6 +80,7 @@
 
       const text = await res.text();
       parseTxtContent(text);
+      state.currentChapterIndex = resolveInitialChapterIndex();
 
       renderNovelContent();
     } catch (err) {
@@ -134,14 +156,32 @@
             <button class="novel-preset-btn ${state.layoutMode === "paged" ? "active" : ""}" id="layout-paged-btn">手势翻页</button>
           </div>
         </div>
+        <button class="novel-toc-btn" id="novel-toc-btn" type="button" disabled>
+          &#x2630; &#x76EE;&#x5F55;
+        </button>
       </div>
+
+      <!-- Chapter directory drawer -->
+      <div class="novel-toc-backdrop" id="novel-toc-backdrop" aria-hidden="true"></div>
+      <aside class="novel-toc-drawer" id="novel-toc-drawer" aria-hidden="true" aria-label="&#x76EE;&#x5F55;">
+        <div class="novel-toc-header">
+          <span class="novel-toc-title">&#x76EE;&#x5F55;</span>
+          <button class="novel-toc-close" id="novel-toc-close" type="button" aria-label="&#x5173;&#x95ED;">&#x00D7;</button>
+        </div>
+        <div class="novel-toc-list" id="novel-toc-list"></div>
+      </aside>
     `;
 
     // Wire events
     document.getElementById("novel-back-btn").onclick = () => {
       reportProgress(true);
+      closeChapterDrawer();
       window.returnToShelf();
     };
+
+    document.getElementById("novel-toc-btn").onclick = openChapterDrawer;
+    document.getElementById("novel-toc-close").onclick = closeChapterDrawer;
+    document.getElementById("novel-toc-backdrop").onclick = closeChapterDrawer;
 
     // Scrubber
     const scrubber = document.getElementById("novel-scrubber");
@@ -273,11 +313,34 @@
       `;
       return;
     }
+    const tocButton = document.getElementById("novel-toc-btn");
+    if (tocButton) tocButton.disabled = false;
+    renderChapterDrawer();
     if (state.layoutMode === "scroll") {
       renderScrollMode(area);
     } else {
       renderPagedMode(area);
     }
+  }
+
+  function resolveInitialChapterIndex() {
+    if (!state.chapters.length || !state.book) return 0;
+    const savedIndex = Number.parseInt(state.book.chapterDocIndex, 10);
+    if (Number.isInteger(savedIndex) && savedIndex >= 0 && savedIndex < state.chapters.length) {
+      return savedIndex;
+    }
+    if (state.book.chapterHref) {
+      const hrefIndex = state.chapters.findIndex((chapter) =>
+        chapter.href === state.book.chapterHref || chapter.id === state.book.chapterHref
+      );
+      if (hrefIndex >= 0) return hrefIndex;
+    }
+    if (state.book.chapterTitle) {
+      const title = String(state.book.chapterTitle).trim();
+      const titleIndex = state.chapters.findIndex((chapter) => String(chapter.title || "").trim() === title);
+      if (titleIndex >= 0) return titleIndex;
+    }
+    return 0;
   }
 
   // 1. Continuous Vertical Scroll Mode
@@ -316,6 +379,8 @@
     // Scroll listener for progress calculation
     scrollEl.addEventListener("scroll", () => {
       if (state.scrollDebounceTimer) clearTimeout(state.scrollDebounceTimer);
+      if (state.isRestoringScroll) return;
+      updateCurrentChapterFromScroll(scrollEl);
       const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
       if (maxScroll > 0) {
         state.percentage = Math.min(1, Math.max(0, scrollEl.scrollTop / maxScroll));
@@ -327,6 +392,8 @@
       }, 800);
     });
 
+    updateCurrentChapterFromScroll(scrollEl);
+
     // Tap center 40% toggles controls
     scrollEl.addEventListener("click", (e) => {
       const rect = scrollEl.getBoundingClientRect();
@@ -336,55 +403,22 @@
       }
     });
 
-    // Restore scroll position robustly by waiting for all images to finish
-    // loading before computing maxScroll. The old 100ms setTimeout fired before
-    // images had loaded, causing scrollHeight to be too small and the actual
-    // restored position to be wrong (typically too low).
-    if (state.percentage > 0) {
-      const doRestoreScroll = () => {
-        const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
-        if (maxScroll > 0) {
-          scrollEl.scrollTop = maxScroll * state.percentage;
-        }
-      };
-
-      const images = scrollEl.querySelectorAll("img");
-      if (images.length === 0) {
-        // No images — layout is immediate, restore right away
-        requestAnimationFrame(doRestoreScroll);
-      } else {
-        // Wait for all images to load (or error) before restoring scroll
-        let pending = images.length;
-        const onSettled = () => {
-          pending--;
-          if (pending <= 0) doRestoreScroll();
-        };
-        images.forEach((img) => {
-          if (img.complete) {
-            pending--;
-          } else {
-            img.addEventListener("load", onSettled, { once: true });
-            img.addEventListener("error", onSettled, { once: true });
-          }
-        });
-        if (pending <= 0) {
-          requestAnimationFrame(doRestoreScroll);
-        }
-      }
-    }
+    restoreInitialScrollPosition(scrollEl);
   }
 
   // 2. Horizontal Paged Mode
   function renderPagedMode(area) {
+    state.scrollRestoreId++;
+    state.isRestoringScroll = false;
     // Flatten paragraphs into screen-sized chunks
     const allParagraphs = [];
     state.chapters.forEach((ch) => {
-      allParagraphs.push({ isTitle: true, text: ch.title });
+      allParagraphs.push({ isTitle: true, text: ch.title, chapterIndex: state.chapters.indexOf(ch) });
       ch.paragraphs.forEach((p) => {
         if (typeof p === "object" && p && p.type === "image") {
-          allParagraphs.push({ isTitle: false, isImage: true, src: p.src, alt: p.alt || "" });
+          allParagraphs.push({ isTitle: false, isImage: true, src: p.src, alt: p.alt || "", chapterIndex: state.chapters.indexOf(ch) });
         } else {
-          allParagraphs.push({ isTitle: false, isImage: false, text: p });
+          allParagraphs.push({ isTitle: false, isImage: false, text: p, chapterIndex: state.chapters.indexOf(ch) });
         }
       });
     });
@@ -423,12 +457,22 @@
       state.totalPagesInPaged - 1,
       Math.floor(state.percentage * state.totalPagesInPaged)
     );
+    const savedChapterIndex = resolveInitialChapterIndex();
+    const savedPageIndex = state.pagedPages.findIndex((page) =>
+      page.some((item) => item.chapterIndex === savedChapterIndex)
+    );
+    const hasSavedChapter = state.book?.chapterDocIndex || state.book?.chapterHref || state.book?.chapterTitle;
+    if (hasSavedChapter && savedPageIndex >= 0 && (savedChapterIndex > 0 || state.percentage <= 0.02)) {
+      state.pagedIndex = savedPageIndex;
+    }
 
     renderCurrentPage(area);
   }
 
   function renderCurrentPage(area) {
     const pageItems = state.pagedPages[state.pagedIndex] || [];
+    const chapterItem = pageItems.find((item) => item.chapterIndex !== undefined);
+    if (chapterItem) state.currentChapterIndex = chapterItem.chapterIndex;
 
     area.innerHTML = `
       <div class="novel-paged-container">
@@ -547,6 +591,163 @@
       header.classList.toggle("hidden", !state.controlsVisible);
       footer.classList.toggle("hidden", !state.controlsVisible);
     }
+  }
+
+  function restoreInitialScrollPosition(scrollEl) {
+    const targetPercentage = Math.min(1, Math.max(0, Number(state.percentage) || 0));
+    const targetChapterIndex = resolveInitialChapterIndex();
+    const savedText = String(state.book?.text || '').trim().slice(0, 80);
+    const restoreId = ++state.scrollRestoreId;
+    let attempts = 0;
+    let cancelled = false;
+
+    const finish = () => {
+      if (state.scrollRestoreId !== restoreId) return;
+      state.isRestoringScroll = false;
+      const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+      if (maxScroll > 0) {
+        state.percentage = Math.min(1, Math.max(0, scrollEl.scrollTop / maxScroll));
+        updateCurrentChapterFromScroll(scrollEl);
+        updateProgressDisplay();
+      }
+    };
+    const cancel = () => {
+      cancelled = true;
+      finish();
+    };
+    scrollEl.addEventListener("touchstart", cancel, { once: true, passive: true });
+    scrollEl.addEventListener("wheel", cancel, { once: true, passive: true });
+    state.isRestoringScroll = true;
+
+    const restore = () => {
+      if (cancelled || state.scrollRestoreId !== restoreId) return;
+      const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+      if (maxScroll <= 0) {
+        if (attempts++ < 20) setTimeout(restore, 120);
+        else finish();
+        return;
+      }
+
+      let targetTop = maxScroll * targetPercentage;
+      const chapterEl = scrollEl.querySelector(`.novel-chapter[data-chapter-index="${targetChapterIndex}"]`);
+      const hasSavedChapter = state.book?.chapterDocIndex || state.book?.chapterHref || state.book?.chapterTitle;
+      if (chapterEl && hasSavedChapter) {
+        const paragraph = savedText
+          ? Array.from(chapterEl.querySelectorAll("[data-para-index]")).find((el) =>
+              String(el.textContent || "").trim().startsWith(savedText.slice(0, 40))
+            )
+          : null;
+        if (paragraph) {
+          targetTop = paragraph.offsetTop;
+        } else {
+          const chapterPercentage = chapterEl.offsetTop / maxScroll;
+          // Ignore a stale chapter-0 marker when the saved percentage points
+          // meaningfully further into the book.
+          if (targetChapterIndex > 0 || targetPercentage <= 0.02 || Math.abs(chapterPercentage - targetPercentage) <= 0.08) {
+            targetTop = chapterEl.offsetTop;
+          }
+        }
+      }
+
+      scrollEl.scrollTop = Math.min(maxScroll, Math.max(0, targetTop));
+      if (attempts++ < 20) {
+        setTimeout(restore, 120);
+      } else {
+        finish();
+      }
+    };
+
+    requestAnimationFrame(restore);
+  }
+
+  function updateCurrentChapterFromScroll(scrollEl) {
+    if (!state.chapters.length) return;
+    const chapterEls = scrollEl.querySelectorAll(".novel-chapter[data-chapter-index]");
+    const top = scrollEl.scrollTop + 60;
+    let index = 0;
+    chapterEls.forEach((el) => {
+      if (el.offsetTop <= top) index = parseInt(el.dataset.chapterIndex, 10) || index;
+    });
+    state.currentChapterIndex = Math.max(0, Math.min(state.chapters.length - 1, index));
+    updateChapterDrawerActive();
+  }
+
+  function openChapterDrawer() {
+    if (!state.chapters.length) return;
+    if (!state.chapterDrawerVisible) {
+      window.history.pushState({ ...(window.history.state || {}), novelChapterDrawer: true }, "");
+      state.chapterDrawerHistory = true;
+    }
+    state.chapterDrawerVisible = true;
+    const drawer = document.getElementById("novel-toc-drawer");
+    const backdrop = document.getElementById("novel-toc-backdrop");
+    drawer && drawer.classList.add("visible");
+    backdrop && backdrop.classList.add("visible");
+    drawer && drawer.setAttribute("aria-hidden", "false");
+    backdrop && backdrop.setAttribute("aria-hidden", "false");
+    renderChapterDrawer();
+    requestAnimationFrame(() => {
+      const active = document.querySelector(".novel-toc-item.active");
+      active && active.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  function closeChapterDrawer() {
+    const shouldPopHistory = state.chapterDrawerHistory;
+    state.chapterDrawerHistory = false;
+    state.chapterDrawerVisible = false;
+    const drawer = document.getElementById("novel-toc-drawer");
+    const backdrop = document.getElementById("novel-toc-backdrop");
+    drawer && drawer.classList.remove("visible");
+    backdrop && backdrop.classList.remove("visible");
+    drawer && drawer.setAttribute("aria-hidden", "true");
+    backdrop && backdrop.setAttribute("aria-hidden", "true");
+    if (shouldPopHistory) window.history.back();
+  }
+
+  function renderChapterDrawer() {
+    const list = document.getElementById("novel-toc-list");
+    if (!list) return;
+    list.innerHTML = state.chapters.map((chapter, index) => `
+      <button type="button" class="novel-toc-item ${index === state.currentChapterIndex ? "active" : ""}" data-chapter-index="${index}">
+        <span class="novel-toc-index">${index + 1}</span>
+        <span class="novel-toc-label">${escapeHtml(chapter.title || `${index + 1}`)}</span>
+      </button>
+    `).join("");
+    list.querySelectorAll(".novel-toc-item").forEach((item) => {
+      item.onclick = () => jumpToChapter(parseInt(item.dataset.chapterIndex, 10));
+    });
+  }
+
+  function updateChapterDrawerActive() {
+    document.querySelectorAll(".novel-toc-item").forEach((item) => {
+      item.classList.toggle("active", parseInt(item.dataset.chapterIndex, 10) === state.currentChapterIndex);
+    });
+  }
+
+  function jumpToChapter(index) {
+    if (!state.chapters.length || index < 0 || index >= state.chapters.length) return;
+    state.currentChapterIndex = index;
+    if (state.layoutMode === "scroll") {
+      const scrollEl = document.getElementById("novel-scroll");
+      const chapterEl = scrollEl && scrollEl.querySelector(`.novel-chapter[data-chapter-index="${index}"]`);
+      if (scrollEl && chapterEl) {
+        scrollEl.scrollTo({ top: Math.max(0, chapterEl.offsetTop - 12), behavior: "auto" });
+        const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+        state.percentage = maxScroll > 0 ? chapterEl.offsetTop / maxScroll : 0;
+      }
+    } else {
+      const pageIndex = state.pagedPages.findIndex((page) => page.some((item) => item.chapterIndex === index));
+      if (pageIndex >= 0) {
+        state.pagedIndex = pageIndex;
+        renderCurrentPage(document.getElementById("novel-content-area"));
+        state.percentage = (state.pagedIndex + 1) / state.totalPagesInPaged;
+      }
+    }
+    updateProgressDisplay();
+    updateChapterDrawerActive();
+    reportProgress(true);
+    closeChapterDrawer();
   }
 
   function getCurrentChapterTitle() {
