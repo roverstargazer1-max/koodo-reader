@@ -1,0 +1,313 @@
+/* Mobile Novel Typography Reader */
+#novel-reader-view {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  overflow: hidden;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* 4 Classic Themes */
+.theme-white {
+  --novel-bg: #ffffff;
+  --novel-text: #1f2937;
+  --novel-muted: #6b7280;
+  --novel-border: #e5e7eb;
+  --novel-chrome: rgba(255, 255, 255, 0.92);
+}
+
+.theme-parchment {
+  --novel-bg: #f6f1e7;
+  --novel-text: #382e21;
+  --novel-muted: #847665;
+  --novel-border: #e6decb;
+  --novel-chrome: rgba(246, 241, 231, 0.94);
+}
+
+.theme-dark {
+  --novel-bg: #232731;
+  --novel-text: #e2e8f0;
+  --novel-muted: #94a3b8;
+  --novel-border: #334155;
+  --novel-chrome: rgba(35, 39, 49, 0.94);
+}
+
+.theme-amoled {
+  --novel-bg: #000000;
+  --novel-text: #a3a3a3;
+  --novel-muted: #666666;
+  --novel-border: #222222;
+  --novel-chrome: rgba(18, 18, 18, 0.96);
+}
+
+#novel-reader-view {
+  background-color: var(--novel-bg);
+  color: var(--novel-text);
+}
+
+/* Floating Header */
+.novel-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--novel-chrome);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--novel-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 300;
+  transition: transform 0.22s ease-in-out, opacity 0.22s ease-in-out;
+}
+
+.novel-header.hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.novel-back-btn {
+  background: none;
+  border: none;
+  color: var(--novel-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.novel-title-text {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--novel-text);
+  max-width: 50vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.novel-progress-text {
+  font-size: 0.8rem;
+  color: var(--novel-muted);
+  font-family: monospace;
+}
+
+/* Floating Bottom Drawer */
+.novel-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--novel-chrome);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--novel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 300;
+  transition: transform 0.22s ease-in-out, opacity 0.22s ease-in-out;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.novel-footer.hidden {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Progress Scrubber */
+.novel-scrubber-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.novel-scrubber {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--novel-border);
+  outline: none;
+}
+
+.novel-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #6366f1;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+  cursor: pointer;
+}
+
+/* Drawer Row: Font Size Slider */
+.novel-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.novel-setting-label {
+  font-size: 0.82rem;
+  color: var(--novel-muted);
+  min-width: 50px;
+  font-weight: 500;
+}
+
+.novel-font-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--novel-border);
+  outline: none;
+}
+
+.novel-font-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #6366f1;
+  cursor: pointer;
+}
+
+/* Line Height Presets */
+.novel-presets-group {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.novel-preset-btn {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--novel-border);
+  background: transparent;
+  color: var(--novel-text);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s;
+}
+
+.novel-preset-btn.active {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
+}
+
+/* Theme Swatches */
+.novel-themes-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 4px 0;
+}
+
+.novel-theme-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.12s, border-color 0.12s;
+}
+
+.novel-theme-swatch.active {
+  border-color: #6366f1;
+  transform: scale(1.15);
+}
+
+.swatch-white { background: #ffffff; border: 1px solid #d1d5db; }
+.swatch-parchment { background: #f6f1e7; border: 1px solid #dcd2bf; }
+.swatch-dark { background: #232731; border: 1px solid #3b4252; }
+.swatch-amoled { background: #000000; border: 1px solid #333333; }
+
+/* Scroll Mode Container */
+.novel-scroll-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 68px 22px 100px;
+}
+
+.novel-content-wrapper {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.novel-chapter-title {
+  font-size: 1.35em;
+  font-weight: 700;
+  margin: 32px 0 18px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--novel-border);
+  line-height: 1.3;
+}
+
+.novel-paragraph {
+  text-indent: 2em;
+  margin-bottom: 1.1em;
+  letter-spacing: 0.03em;
+  word-break: break-word;
+  text-align: justify;
+}
+
+/* Paged Mode Container */
+.novel-paged-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 64px 22px 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.novel-paged-content {
+  flex: 1;
+  overflow: hidden;
+  line-height: 1.6;
+}
+
+.novel-tap-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  z-index: 100;
+}
+
+.novel-zone-prev { width: 30%; height: 100%; }
+.novel-zone-center { width: 40%; height: 100%; }
+.novel-zone-next { width: 30%; height: 100%; }

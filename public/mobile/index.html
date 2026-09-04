@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f1117">
+  <title>Koodo Reader</title>
+  <link rel="stylesheet" href="./app.css">
+  <link rel="stylesheet" href="./comicReader.css">
+  <link rel="stylesheet" href="./novelReader.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Bookshelf View -->
+    <div id="shelf-view">
+      <header class="mobile-header">
+        <div class="header-top">
+          <div class="logo">
+            <span class="logo-icon">📖</span>
+            <span class="logo-text">Koodo Reader</span>
+          </div>
+          <div id="connection-status" class="status-pill connected">局域网已连接</div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input
+            type="search"
+            id="search-input"
+            class="search-input"
+            placeholder="搜索书名或作者..."
+            autocomplete="off"
+          />
+          <button id="search-clear" class="search-clear" style="display: none;">✕</button>
+        </div>
+
+        <!-- Category Filter Tabs -->
+        <nav class="filter-tabs">
+          <button class="filter-tab active" data-category="recent">最近阅读</button>
+          <button class="filter-tab" data-category="all">全部</button>
+          <button class="filter-tab" data-category="comic">漫画</button>
+          <button class="filter-tab" data-category="novel">小说</button>
+        </nav>
+      </header>
+
+      <main class="mobile-main">
+        <!-- Loading State -->
+        <div class="loading-container" id="shelf-loading">
+          <div class="spinner"></div>
+          <p>正在加载个人书库...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-container" id="shelf-empty" style="display: none;">
+          <div class="empty-icon">📚</div>
+          <p class="empty-title">书架空空如也</p>
+          <p class="empty-desc">未找到符合条件的图书</p>
+        </div>
+
+        <!-- Book Grid -->
+        <div class="book-grid" id="book-grid" style="display: none;"></div>
+      </main>
+    </div>
+
+    <!-- Comic Reader View (Loaded dynamically) -->
+    <div id="comic-reader-view" class="reader-view" style="display: none;"></div>
+
+    <!-- Novel Reader View (Loaded dynamically) -->
+    <div id="novel-reader-view" class="reader-view" style="display: none;"></div>
+  </div>
+
+  <script src="./app.js"></script>
+  <script src="./comicReader.js"></script>
+  <script src="./novelReader.js"></script>
+</body>
+</html>
