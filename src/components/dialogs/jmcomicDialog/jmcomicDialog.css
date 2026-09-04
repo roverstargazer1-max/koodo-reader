@@ -847,4 +847,130 @@
   background: rgba(255, 59, 48, 0.08);
 }
 
+/* Clickable tags */
+.jmcomic-tag.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.jmcomic-tag.clickable:hover {
+  background: var(--theme-color, #007aff);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* Search Header & Tag Filters */
+.jmcomic-search-header-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.jmcomic-search-header-container .jmcomic-search-bar {
+  margin-bottom: 0;
+}
+
+.jmcomic-category-select {
+  font-weight: 500;
+  max-width: 140px;
+}
+
+.jmcomic-clear-btn {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.jmcomic-tag-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.jmcomic-tag-filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #777);
+  white-space: nowrap;
+}
+
+.jmcomic-tag-capsules-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: thin;
+}
+
+.jmcomic-tag-capsules-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.jmcomic-tag-capsules-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.jmcomic-tag-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
+  background: var(--input-bg, #fff);
+  color: var(--text-color, #444);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.jmcomic-tag-capsule:hover {
+  border-color: var(--theme-color, #007aff);
+  color: var(--theme-color, #007aff);
+}
+
+.jmcomic-tag-capsule.included {
+  background: #34c759;
+  border-color: #34c759;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(52, 199, 89, 0.35);
+}
+
+.jmcomic-tag-capsule.included:hover {
+  background: #2ea84b;
+  border-color: #2ea84b;
+  color: #fff;
+}
+
+.jmcomic-tag-capsule.excluded {
+  background: #ff3b30;
+  border-color: #ff3b30;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35);
+}
+
+.jmcomic-tag-capsule.excluded:hover {
+  background: #d32f2f;
+  border-color: #d32f2f;
+  color: #fff;
+}
+
+.jmcomic-tag-prefix {
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1;
+}
+
+
 

@@ -84,9 +84,53 @@ export interface JmcomicDialogProps {
   t: TFunction;
 }
 
+export interface JmCategoryOption {
+  id: string;
+  nameKey: string;
+}
+
+export const JM_CATEGORIES: JmCategoryOption[] = [
+  { id: "0", nameKey: "All Categories" },
+  { id: "doujin", nameKey: "Doujinshi" },
+  { id: "hanman", nameKey: "Korean Manga" },
+  { id: "single", nameKey: "Tankobon" },
+  { id: "short", nameKey: "Short Stories" },
+  { id: "3D", nameKey: "3D Manga" },
+  { id: "doujin_cosplay", nameKey: "Cosplay" },
+  { id: "another", nameKey: "Other Manga" },
+  { id: "meiman", nameKey: "Western Comics" },
+];
+
+export const JM_PRESET_TAGS: string[] = [
+  "全彩",
+  "无修正",
+  "纯爱",
+  "NTR",
+  "人妻",
+  "调教",
+  "巨乳",
+  "萝莉",
+  "御姐",
+  "校园",
+  "汉化",
+  "后宫",
+  "黑丝",
+  "女仆",
+  "短篇",
+  "JK",
+];
+
+export type JmTagFilterState = "include" | "exclude";
+
 export interface JmcomicDialogState {
   currentTab: "search" | "rank" | "favorites" | "downloads" | "settings";
   
+  // Category & Tag filter state
+  searchCategory: string;
+  rankCategory: string;
+  tagFilterMap: Record<string, JmTagFilterState>;
+  recentTags: string[];
+
   // Search state
   searchQuery: string;
   searchOrder: "mr" | "mv" | "mp" | "tf";
@@ -159,4 +203,3 @@ export interface JmcomicDialogState {
     installLogs?: string;
   };
 }
-

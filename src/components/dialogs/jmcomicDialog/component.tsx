@@ -9,6 +9,9 @@ import {
   JmcomicDialogProps,
   JmcomicDialogState,
   JmDownloadTask,
+  JM_CATEGORIES,
+  JM_PRESET_TAGS,
+  JmTagFilterState,
 } from "./interface";
 import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 
@@ -184,9 +187,15 @@ class JmcomicDialog extends React.Component<
     const savedAuth = this.loadAuth();
     const savedUser = this.loadUser();
     const savedCookies = this.loadCookies();
+    const savedRecentTags = this.loadRecentTags();
 
     this.state = {
       currentTab: "search",
+      searchCategory: "0",
+      rankCategory: "0",
+      tagFilterMap: {},
+      recentTags: savedRecentTags,
+
       searchQuery: "",
       searchOrder: "mr",
       searchPage: 1,
@@ -298,6 +307,22 @@ class JmcomicDialog extends React.Component<
       ConfigService.setObjectConfig("jmcomicDownloadTasks", tasks);
     } catch (e) {
       console.error("Failed to persist download tasks:", e);
+    }
+  }
+
+  loadRecentTags(): string[] {
+    try {
+      const tags = ConfigService.getObjectConfig("jmcomicRecentTags");
+      if (Array.isArray(tags)) return tags;
+    } catch (_) {}
+    return [];
+  }
+
+  saveRecentTags(tags: string[]) {
+    try {
+      ConfigService.setObjectConfig("jmcomicRecentTags", tags.slice(0, 30));
+    } catch (e) {
+      console.error("Failed to persist recent tags:", e);
     }
   }
 
@@ -1053,9 +1078,115 @@ class JmcomicDialog extends React.Component<
     } catch (e) {}
   };
 
+  buildQueryFromTags = (
+    baseText: string,
+    filterMap: Record<string, JmTagFilterState>
+  ): string => {
+    const activeTags = Object.keys(filterMap);
+    const tokens = baseText.trim().split(/\s+/).filter(Boolean);
+    const nonTagTokens = tokens.filter((tok) => {
+      const clean = tok.replace(/^[+-]/, "");
+      return !activeTags.includes(clean);
+    });
+
+    const tagTokens: string[] = [];
+    Object.entries(filterMap).forEach(([tag, state]) => {
+      if (state === "include") tagTokens.push(`+${tag}`);
+      else if (state === "exclude") tagTokens.push(`-${tag}`);
+    });
+
+    return [...tagTokens, ...nonTagTokens].join(" ").trim();
+  };
+
+  parseTagsFromQuery = (query: string): Record<string, JmTagFilterState> => {
+    const map: Record<string, JmTagFilterState> = {};
+    const tokens = query.trim().split(/\s+/).filter(Boolean);
+    tokens.forEach((tok) => {
+      if (tok.startsWith("+") && tok.length > 1) {
+        map[tok.slice(1)] = "include";
+      } else if (tok.startsWith("-") && tok.length > 1) {
+        map[tok.slice(1)] = "exclude";
+      }
+    });
+    return map;
+  };
+
+  handleToggleTag = (tag: string) => {
+    this.setState(
+      (prev) => {
+        const current = prev.tagFilterMap[tag];
+        const nextMap = { ...prev.tagFilterMap };
+        if (!current) {
+          nextMap[tag] = "include";
+        } else if (current === "include") {
+          nextMap[tag] = "exclude";
+        } else {
+          delete nextMap[tag];
+        }
+
+        const newQuery = this.buildQueryFromTags(prev.searchQuery, nextMap);
+        let newRecent = prev.recentTags;
+        if (nextMap[tag] === "include" && !newRecent.includes(tag)) {
+          newRecent = [tag, ...newRecent.filter((t) => t !== tag)].slice(0, 30);
+          this.saveRecentTags(newRecent);
+        }
+
+        return {
+          tagFilterMap: nextMap,
+          searchQuery: newQuery,
+          recentTags: newRecent,
+        };
+      },
+      () => {
+        this.handleSearch(1);
+      }
+    );
+  };
+
+  handleClearFilters = () => {
+    this.setState(
+      {
+        searchCategory: "0",
+        tagFilterMap: {},
+        searchQuery: "",
+      },
+      () => {
+        this.handleSearch(1);
+      }
+    );
+  };
+
+  handleQuickTagSearch = (tag: string) => {
+    const cleanTag = tag.trim().replace(/^[+-]/, "");
+    if (!cleanTag) return;
+
+    const nextMap: Record<string, JmTagFilterState> = { [cleanTag]: "include" };
+    const newQuery = `+${cleanTag}`;
+    let newRecent = this.state.recentTags;
+    if (!newRecent.includes(cleanTag)) {
+      newRecent = [cleanTag, ...newRecent.filter((t) => t !== cleanTag)].slice(0, 30);
+      this.saveRecentTags(newRecent);
+    }
+
+    this.setState(
+      {
+        currentTab: "search",
+        selectedAlbumId: null,
+        tagFilterMap: nextMap,
+        searchQuery: newQuery,
+        recentTags: newRecent,
+        searchPage: 1,
+      },
+      () => {
+        this.handleSearch(1);
+      }
+    );
+  };
+
   handleSearch = async (page = 1) => {
-    const { searchQuery, searchOrder, config } = this.state;
-    if (!searchQuery.trim()) return;
+    const { searchQuery, searchOrder, searchCategory, config } = this.state;
+    // Allow searching if searchQuery is provided OR if searchCategory is not "0"
+    if (!searchQuery.trim() && (!searchCategory || searchCategory === "0")) return;
 
     this.setState({ isSearching: true, searchPage: page });
     const ipc = getIpc();
@@ -1065,6 +1196,7 @@ class JmcomicDialog extends React.Component<
           query: searchQuery.trim(),
           page,
           order: searchOrder,
+          category: searchCategory,
           proxy: config.proxy,
           domain: config.domain,
           pythonPath: config.pythonPath,
@@ -1088,7 +1220,7 @@ class JmcomicDialog extends React.Component<
   };
 
   handleRank = async (page = 1) => {
-    const { rankTime, rankOrder, config } = this.state;
+    const { rankTime, rankOrder, rankCategory, config } = this.state;
     this.setState({ isRanking: true, rankPage: page });
     const ipc = getIpc();
 
@@ -1097,6 +1229,7 @@ class JmcomicDialog extends React.Component<
         const res = await ipc.invoke("jmcomic-rank", {
           time: rankTime,
           order: rankOrder,
+          category: rankCategory,
           page,
           proxy: config.proxy,
           domain: config.domain,
@@ -1230,46 +1363,154 @@ class JmcomicDialog extends React.Component<
   };
 
   renderSearchBar() {
-    const { searchQuery, searchOrder, isSearching } = this.state;
+    const {
+      searchQuery,
+      searchOrder,
+      searchCategory,
+      tagFilterMap,
+      recentTags,
+      isSearching,
+    } = this.state;
+
+    // Combine preset tags with recent tags, unique order
+    const mergedTags = Array.from(
+      new Set([...recentTags, ...JM_PRESET_TAGS])
+    ).slice(0, 24);
+
+    const hasActiveFilters =
+      searchCategory !== "0" ||
+      Object.keys(tagFilterMap).length > 0 ||
+      searchQuery.trim().length > 0;
+
     return (
-      <div className="jmcomic-search-bar">
-        <input
-          type="text"
-          className="jmcomic-search-input"
-          placeholder={this.props.t("Search by keyword, author, or JM ID...")}
-          value={searchQuery}
-          onChange={(e) => this.setState({ searchQuery: e.target.value })}
-          onKeyDown={(e) => e.key === "Enter" && this.handleSearch(1)}
-        />
-        <select
-          className="jmcomic-select"
-          value={searchOrder}
-          onChange={(e: any) =>
-            this.setState({ searchOrder: e.target.value }, () =>
-              this.handleSearch(1)
-            )
-          }
-        >
-          <option value="mr">{this.props.t("Latest")}</option>
-          <option value="mv">{this.props.t("Most Views")}</option>
-          <option value="tf">{this.props.t("Most Likes")}</option>
-          <option value="mp">{this.props.t("Most Pictures")}</option>
-        </select>
-        <button
-          className="jmcomic-btn"
-          onClick={() => this.handleSearch(1)}
-          disabled={isSearching}
-        >
-          {isSearching ? this.props.t("Searching...") : this.props.t("Search")}
-        </button>
+      <div className="jmcomic-search-header-container">
+        <div className="jmcomic-search-bar">
+          <select
+            className="jmcomic-select jmcomic-category-select"
+            value={searchCategory}
+            onChange={(e) =>
+              this.setState({ searchCategory: e.target.value }, () =>
+                this.handleSearch(1)
+              )
+            }
+          >
+            {JM_CATEGORIES.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {this.props.t(cat.nameKey)}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            className="jmcomic-search-input"
+            placeholder={this.props.t("Search by keyword, author, or JM ID...")}
+            value={searchQuery}
+            onChange={(e) => {
+              const val = e.target.value;
+              const newTagMap = this.parseTagsFromQuery(val);
+              this.setState({ searchQuery: val, tagFilterMap: newTagMap });
+            }}
+            onKeyDown={(e) => e.key === "Enter" && this.handleSearch(1)}
+          />
+
+          <select
+            className="jmcomic-select"
+            value={searchOrder}
+            onChange={(e: any) =>
+              this.setState({ searchOrder: e.target.value }, () =>
+                this.handleSearch(1)
+              )
+            }
+          >
+            <option value="mr">{this.props.t("Latest")}</option>
+            <option value="mv">{this.props.t("Most Views")}</option>
+            <option value="tf">{this.props.t("Most Likes")}</option>
+            <option value="mp">{this.props.t("Most Pictures")}</option>
+          </select>
+
+          <button
+            className="jmcomic-btn"
+            onClick={() => this.handleSearch(1)}
+            disabled={isSearching}
+          >
+            {isSearching ? this.props.t("Searching...") : this.props.t("Search")}
+          </button>
+
+          {hasActiveFilters && (
+            <button
+              className="jmcomic-btn secondary jmcomic-clear-btn"
+              onClick={this.handleClearFilters}
+              title={this.props.t("Clear Filters")}
+            >
+              <Trans>Clear</Trans>
+            </button>
+          )}
+        </div>
+
+        {/* Tag capsules filter bar */}
+        <div className="jmcomic-tag-filter-bar">
+          <span className="jmcomic-tag-filter-label">
+            <Trans>Tags</Trans>:
+          </span>
+          <div className="jmcomic-tag-capsules-scroll">
+            {mergedTags.map((tag) => {
+              const state = tagFilterMap[tag];
+              let stateClass = "";
+              let prefix = "";
+              if (state === "include") {
+                stateClass = "included";
+                prefix = "+";
+              } else if (state === "exclude") {
+                stateClass = "excluded";
+                prefix = "-";
+              }
+
+              return (
+                <button
+                  key={tag}
+                  className={`jmcomic-tag-capsule ${stateClass}`}
+                  onClick={() => this.handleToggleTag(tag)}
+                  title={
+                    state === "include"
+                      ? this.props.t("Included (Click to Exclude)")
+                      : state === "exclude"
+                      ? this.props.t("Excluded (Click to Cancel)")
+                      : this.props.t("Click to Include (+)")
+                  }
+                >
+                  {prefix && (
+                    <span className="jmcomic-tag-prefix">{prefix}</span>
+                  )}
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   }
 
   renderRankBar() {
-    const { rankTime, rankOrder, isRanking } = this.state;
+    const { rankTime, rankOrder, rankCategory, isRanking } = this.state;
     return (
       <div className="jmcomic-search-bar">
+        <select
+          className="jmcomic-select jmcomic-category-select"
+          value={rankCategory}
+          onChange={(e) =>
+            this.setState({ rankCategory: e.target.value }, () =>
+              this.handleRank(1)
+            )
+          }
+        >
+          {JM_CATEGORIES.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {this.props.t(cat.nameKey)}
+            </option>
+          ))}
+        </select>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { key: "t", label: "Today" },
@@ -1393,7 +1634,15 @@ class JmcomicDialog extends React.Component<
           {album.tags && album.tags.length > 0 && (
             <div className="jmcomic-card-tags">
               {album.tags.slice(0, 3).map((tag, i) => (
-                <span key={i} className="jmcomic-tag">
+                <span
+                  key={i}
+                  className="jmcomic-tag clickable"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    this.handleQuickTagSearch(tag);
+                  }}
+                  title={this.props.t("Filter by this tag")}
+                >
                   {tag}
                 </span>
               ))}
@@ -1503,7 +1752,12 @@ class JmcomicDialog extends React.Component<
                   {selectedAlbumDetail.tags.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {selectedAlbumDetail.tags.map((t, i) => (
-                        <span key={i} className="jmcomic-tag">
+                        <span
+                          key={i}
+                          className="jmcomic-tag clickable"
+                          onClick={() => this.handleQuickTagSearch(t)}
+                          title={this.props.t("Filter by this tag")}
+                        >
                           {t}
                         </span>
                       ))}

@@ -256,6 +256,9 @@ function initJmcomicIpc(ipcMain, getMainWindow) {
     if (params.order) args.push("--order", params.order);
     if (params.time) args.push("--time", params.time);
     if (params.category) args.push("--category", params.category);
+    if (params.mainTag !== undefined && params.mainTag !== null) {
+      args.push("--main_tag", String(params.mainTag));
+    }
     if (params.proxy) args.push("--proxy", params.proxy);
     if (params.domain) args.push("--domain", params.domain);
 

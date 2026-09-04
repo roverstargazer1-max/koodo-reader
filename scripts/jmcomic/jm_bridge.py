@@ -237,12 +237,12 @@ def cmd_search(args):
         query = args.query.strip() if args.query else ""
         page = int(args.page or 1)
         order_by = args.order or "mr"  # mr: latest, mv: most views, mp: most pictures, tf: most likes
-        main_tag = 0
+        main_tag = int(getattr(args, "main_tag", 0) or 0)
         time = args.time or "a"  # a: all time, t: today, w: week, m: month
-        category = args.category or "0"
+        category = (args.category or "0").strip()
 
         # If query is purely numeric, it could be a direct JM album ID
-        if query.isdigit() and len(query) >= 4:
+        if query.isdigit() and len(query) >= 4 and main_tag == 0:
             try:
                 album = client.get_album_detail(query)
                 results = [{
@@ -267,16 +267,43 @@ def cmd_search(args):
             except Exception:
                 pass
 
-        # Perform keyword search
-        search_page = client.search(
-            search_query=query,
-            page=page,
-            main_tag=main_tag,
-            order_by=order_by,
-            time=time,
-            category=category,
-            sub_category=None
-        )
+        # Perform category browse or keyword search
+        if not query:
+            search_page = client.categories_filter(
+                page=page,
+                time=time,
+                category=category,
+                order_by=order_by,
+                sub_category=None
+            )
+        else:
+            if category and category != "0" and hasattr(client, 'req_api'):
+                params = {
+                    'main_tag': main_tag,
+                    'search_query': query,
+                    'page': page,
+                    'o': order_by,
+                    't': time,
+                    'c': category,
+                }
+                resp = client.req_api(client.append_params_to_url(client.API_SEARCH, params))
+                data = resp.model_data
+                if data.get('redirect_aid', None) is not None:
+                    from jmcomic import JmSearchPage
+                    search_page = JmSearchPage.wrap_single_album(client.get_album_detail(data.redirect_aid), page)
+                else:
+                    from jmcomic import JmPageTool
+                    search_page = JmPageTool.parse_api_to_search_page(data, page)
+            else:
+                search_page = client.search(
+                    search_query=query,
+                    page=page,
+                    main_tag=main_tag,
+                    order_by=order_by,
+                    time=time,
+                    category=category,
+                    sub_category=None
+                )
 
         results = []
         for aid, ainfo in search_page.content:
@@ -768,6 +795,7 @@ def main():
     search_p.add_argument("--order", "-o", default="mr", help="Order by (mr: latest, mv: views, mp: pictures, tf: likes)")
     search_p.add_argument("--time", "-t", default="a", help="Time range (a: all, t: today, w: week, m: month)")
     search_p.add_argument("--category", "-c", default="0", help="Category filter")
+    search_p.add_argument("--main_tag", default=0, type=int, help="Main tag filter (0: all, 1: work, 2: author, 3: tag, 4: actor)")
     search_p.add_argument("--proxy", default=None, help="HTTP/SOCKS5 proxy url")
     search_p.add_argument("--domain", default=None, help="JM comic domain")
 
