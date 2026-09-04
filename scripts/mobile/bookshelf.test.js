@@ -82,6 +82,16 @@ function createTestEnvironment() {
       if (key === "blurredBooks") {
         return ["comic-1"];
       }
+      if (key === "shelfList") {
+        return {
+          "科幻": ["novel-1"],
+          "热门漫画": ["comic-1"],
+          "必读书单": ["novel-1", "novel-2"],
+        };
+      }
+      if (key === "sortedShelfList") {
+        return ["科幻", "热门漫画", "必读书单"];
+      }
       return null;
     },
   };
@@ -120,6 +130,7 @@ test("Bookshelf API returns formatted book list with progress and blurred cover 
     assert.equal(comic.name, "Attack on Titan Vol 1");
     assert.equal(comic.format, "cbz");
     assert.equal(comic.category, "comic");
+    assert.deepEqual(comic.shelves, ["热门漫画"]);
     assert.equal(comic.page, 96);
     assert.equal(comic.totalPage, 192);
     assert.equal(comic.percentage, 0.5);
@@ -131,6 +142,7 @@ test("Bookshelf API returns formatted book list with progress and blurred cover 
     const novel = books.find((b) => b.key === "novel-1");
     assert.ok(novel);
     assert.equal(novel.category, "novel");
+    assert.deepEqual(novel.shelves, ["科幻", "必读书单"]);
     assert.equal(novel.percentage, 0.1);
     assert.equal(novel.isBlurred, false);
   } finally {
@@ -180,6 +192,52 @@ test("Cover API streams physical cover, base64 cover, and SVG fallback", async (
     const svgText = await res3.text();
     assert.ok(svgText.includes("<svg"));
     assert.ok(svgText.includes("1984"));
+  } finally {
+    await server.stop();
+    db.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("GET /api/shelves returns ordered shelf list with book counts and book keys", async () => {
+  const { tempDir, db, mockStore } = createTestEnvironment();
+  const server = new MobileServer();
+  const token = "shelves-api-token";
+
+  registerBookshelfRoutes(server, {
+    storagePath: tempDir,
+    getStore: () => mockStore,
+    getDb: () => db,
+  });
+
+  const status = await server.start({
+    port: 28350,
+    host: "127.0.0.1",
+    token,
+  });
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${status.port}/api/shelves?token=${token}`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "application/json; charset=utf-8");
+
+    const shelves = await res.json();
+    assert.equal(shelves.length, 3);
+    assert.deepEqual(shelves[0], {
+      title: "科幻",
+      count: 1,
+      bookKeys: ["novel-1"],
+    });
+    assert.deepEqual(shelves[1], {
+      title: "热门漫画",
+      count: 1,
+      bookKeys: ["comic-1"],
+    });
+    assert.deepEqual(shelves[2], {
+      title: "必读书单",
+      count: 2,
+      bookKeys: ["novel-1", "novel-2"],
+    });
   } finally {
     await server.stop();
     db.close();

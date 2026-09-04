@@ -82,6 +82,54 @@ function registerBookshelfRoutes(server, context = {}) {
     return [];
   };
 
+  const getStoreShelves = () => {
+    try {
+      let shelfList = null;
+      let sortedShelfList = null;
+
+      if (context.getStore) {
+        const s = context.getStore();
+        const rawList = s.get("shelfList");
+        const rawSorted = s.get("sortedShelfList");
+        if (typeof rawList === "string") {
+          try { shelfList = JSON.parse(rawList); } catch (e) {}
+        } else if (typeof rawList === "object" && rawList !== null) {
+          shelfList = rawList;
+        }
+        if (Array.isArray(rawSorted)) {
+          sortedShelfList = rawSorted;
+        } else if (typeof rawSorted === "string") {
+          try { sortedShelfList = JSON.parse(rawSorted); } catch (e) {}
+        }
+      }
+
+      // Fallback to storagePath/config/config.json if store didn't have shelves
+      if (!shelfList || Object.keys(shelfList).length === 0) {
+        try {
+          const configJsonPath = path.join(getStoragePath(), "config", "config.json");
+          if (fs.existsSync(configJsonPath)) {
+            const raw = JSON.parse(fs.readFileSync(configJsonPath, "utf-8"));
+            if (raw && typeof raw.shelfList === "object") {
+              shelfList = raw.shelfList;
+            }
+            if (raw && Array.isArray(raw.sortedShelfList)) {
+              sortedShelfList = raw.sortedShelfList;
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      return {
+        shelfList: shelfList && typeof shelfList === "object" ? shelfList : {},
+        sortedShelfList: Array.isArray(sortedShelfList) ? sortedShelfList : [],
+      };
+    } catch (e) {
+      return { shelfList: {}, sortedShelfList: [] };
+    }
+  };
+
   const getDatabase = () => {
     if (context.getDb) return context.getDb();
     if (context.db) return context.db;
@@ -107,6 +155,18 @@ function registerBookshelfRoutes(server, context = {}) {
       const records = getStoreRecords();
       const blurredBooks = getStoreBlurredBooks();
       const blurredSet = new Set(Array.isArray(blurredBooks) ? blurredBooks : []);
+
+      const { shelfList } = getStoreShelves();
+      const bookShelfMap = new Map();
+      for (const [shelfTitle, bookKeys] of Object.entries(shelfList || {})) {
+        if (!Array.isArray(bookKeys)) continue;
+        for (const k of bookKeys) {
+          if (!bookShelfMap.has(k)) {
+            bookShelfMap.set(k, []);
+          }
+          bookShelfMap.get(k).push(shelfTitle);
+        }
+      }
 
       const result = books.map((book) => {
         const record = records[book.key] || {};
@@ -137,9 +197,24 @@ function registerBookshelfRoutes(server, context = {}) {
           description: book.description || "",
           format: format,
           category,
+          shelves: bookShelfMap.get(book.key) || [],
           size: book.size || 0,
-          page: parseInt(record.page || book.page || 0, 10),
-          totalPage: parseInt(book.page || 0, 10),
+          page: (() => {
+            if (record.page && parseInt(record.page, 10) > 0) {
+              return parseInt(record.page, 10);
+            }
+            if (record.chapterDocIndex !== undefined && record.chapterDocIndex !== "") {
+              return parseInt(record.chapterDocIndex, 10) + 1;
+            }
+            if (percentage > 0 && book.page && parseInt(book.page, 10) > 0) {
+              return Math.min(
+                parseInt(book.page, 10),
+                Math.max(1, Math.round(percentage * parseInt(book.page, 10)))
+              );
+            }
+            return parseInt(book.page || 0, 10);
+          })(),
+          totalPage: parseInt(book.page || record.count || 0, 10),
           percentage: Math.min(1, Math.max(0, percentage)),
           lastReadTime,
           chapterTitle: record.chapterTitle || "",
@@ -160,6 +235,36 @@ function registerBookshelfRoutes(server, context = {}) {
       res.end(JSON.stringify(result));
     } catch (err) {
       console.error("[BookshelfAPI] Handler failure:", err);
+      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  });
+
+  // 1b. GET /api/shelves
+  server.registerRoute("GET", "/api/shelves", (req, res) => {
+    try {
+      const { shelfList, sortedShelfList } = getStoreShelves();
+      const shelfTitles = Object.keys(shelfList || {});
+      const orderedTitles = Array.from(
+        new Set([...(sortedShelfList || []), ...shelfTitles])
+      ).filter((title) => Boolean(title) && title !== "New");
+
+      const result = orderedTitles.map((title) => {
+        const bookKeys = Array.isArray(shelfList[title]) ? shelfList[title] : [];
+        return {
+          title,
+          count: bookKeys.length,
+          bookKeys,
+        };
+      });
+
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-cache",
+      });
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      console.error("[BookshelfAPI] Shelves handler failure:", err);
       res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ error: err.message }));
     }

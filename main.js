@@ -3784,6 +3784,20 @@ const createMainWin = () => {
       return { success: false, error: err.message };
     }
   });
+  ipcMain.handle("mobile-sync-shelves", async (event, { shelfList, sortedShelfList } = {}) => {
+    try {
+      if (shelfList && typeof shelfList === "object") {
+        store.set("shelfList", shelfList);
+      }
+      if (Array.isArray(sortedShelfList)) {
+        store.set("sortedShelfList", sortedShelfList);
+      }
+      return { success: true };
+    } catch (err) {
+      console.error("[Main] Error syncing shelves:", err);
+      return { success: false, error: err.message };
+    }
+  });
   ipcMain.on("get-dirname", (event, arg) => {
     event.returnValue = __dirname;
   });

@@ -78,7 +78,9 @@
   const state = {
     allBooks: [],
     filteredBooks: [],
+    shelves: [],
     activeCategory: "recent",
+    activeShelf: null,
     searchQuery: "",
   };
 
@@ -99,7 +101,12 @@
   const shelfEmpty = document.getElementById("shelf-empty");
   const searchInput = document.getElementById("search-input");
   const searchClear = document.getElementById("search-clear");
-  const filterTabs = document.querySelectorAll(".filter-tab");
+  const filterTabsNav = document.getElementById("filter-tabs");
+  const shelfTabDivider = document.getElementById("shelf-tab-divider");
+  const shelfPickerBtn = document.getElementById("shelf-picker-btn");
+  const shelfModalBackdrop = document.getElementById("shelf-modal-backdrop");
+  const shelfModalClose = document.getElementById("shelf-modal-close");
+  const shelfModalList = document.getElementById("shelf-modal-list");
   const connectionStatus = document.getElementById("connection-status");
   const themeToggle = document.getElementById("theme-toggle");
 
@@ -121,7 +128,7 @@
     });
   }
 
-  // Fetch books from REST API
+  // Fetch books & shelves from REST API
   async function loadBooks() {
     try {
       shelfLoading.style.display = "flex";
@@ -131,20 +138,47 @@
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-      const res = await fetch(api("/api/books"), { signal: controller.signal });
+      const [booksRes, shelvesRes] = await Promise.all([
+        fetch(api("/api/books"), { signal: controller.signal }),
+        fetch(api("/api/shelves"), { signal: controller.signal }).catch((err) => {
+          console.warn("Failed to fetch shelves:", err);
+          return null;
+        }),
+      ]);
       clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        if (res.status === 401) {
+      if (!booksRes.ok) {
+        if (booksRes.status === 401) {
           localStorage.removeItem("koodo_mobile_token");
           window.location.reload();
           return;
         }
-        throw new Error(`HTTP ${res.status}`);
+        throw new Error(`HTTP ${booksRes.status}`);
       }
 
-      state.allBooks = await res.json();
+      state.allBooks = await booksRes.json();
+
+      if (shelvesRes && shelvesRes.ok) {
+        try {
+          state.shelves = await shelvesRes.json();
+        } catch (e) {
+          state.shelves = [];
+        }
+      }
+
+      // If active shelf no longer exists in updated shelves list, fall back
+      if (
+        state.activeCategory === "shelf" &&
+        state.activeShelf &&
+        !state.shelves.some((s) => s.title === state.activeShelf)
+      ) {
+        state.activeCategory = "recent";
+        state.activeShelf = null;
+      }
+
+      renderShelfUI();
       updateConnectionStatus(true, "局域网已连接");
+
       try {
         applyFilters();
       } catch (renderErr) {
@@ -163,6 +197,169 @@
     }
   }
 
+  // Render dynamic shelf tabs and modal list
+  function renderShelfUI() {
+    if (!filterTabsNav) return;
+
+    // Remove existing dynamic shelf tabs
+    const existingShelfTabs = filterTabsNav.querySelectorAll(".filter-tab-shelf");
+    existingShelfTabs.forEach((tab) => tab.remove());
+
+    if (!Array.isArray(state.shelves) || state.shelves.length === 0) {
+      if (shelfTabDivider) shelfTabDivider.style.display = "none";
+      if (shelfPickerBtn) shelfPickerBtn.style.display = "none";
+      return;
+    }
+
+    if (shelfTabDivider) shelfTabDivider.style.display = "inline-block";
+    if (shelfPickerBtn) shelfPickerBtn.style.display = "inline-flex";
+
+    // Build dynamic shelf tabs
+    const fragment = document.createDocumentFragment();
+    for (const shelf of state.shelves) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "filter-tab filter-tab-shelf";
+      tab.setAttribute("data-category", "shelf");
+      tab.setAttribute("data-shelf", shelf.title);
+      if (state.activeCategory === "shelf" && state.activeShelf === shelf.title) {
+        tab.classList.add("active");
+      }
+
+      tab.innerHTML = `
+        <span class="shelf-tab-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+            <path d="M6 6h10"></path>
+            <path d="M6 10h10"></path>
+          </svg>
+        </span>
+        <span class="shelf-tab-title">${escapeHtml(shelf.title)}</span>
+        <span class="shelf-tab-count">${shelf.count}</span>
+      `;
+
+      tab.addEventListener("click", () => {
+        selectShelf(shelf.title);
+      });
+
+      fragment.appendChild(tab);
+    }
+    filterTabsNav.appendChild(fragment);
+
+    renderShelfModalList();
+    updateShelfPickerButtonState();
+  }
+
+  function renderShelfModalList() {
+    if (!shelfModalList) return;
+    shelfModalList.innerHTML = "";
+
+    const fragment = document.createDocumentFragment();
+
+    // All Books option in modal
+    const allItem = document.createElement("button");
+    allItem.type = "button";
+    allItem.className = `shelf-modal-item ${state.activeCategory === "all" ? "active" : ""}`;
+    allItem.innerHTML = `
+      <div class="shelf-modal-item-left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+          <path d="M4 6h16"></path>
+          <path d="M10 2v20"></path>
+        </svg>
+        <span>全部图书</span>
+      </div>
+      <span class="shelf-modal-item-count">${state.allBooks.length}</span>
+    `;
+    allItem.addEventListener("click", () => {
+      closeShelfModal();
+      selectBuiltinCategory("all");
+    });
+    fragment.appendChild(allItem);
+
+    for (const shelf of state.shelves) {
+      const item = document.createElement("button");
+      item.type = "button";
+      const isCurrent = state.activeCategory === "shelf" && state.activeShelf === shelf.title;
+      item.className = `shelf-modal-item ${isCurrent ? "active" : ""}`;
+      item.innerHTML = `
+        <div class="shelf-modal-item-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+            <path d="M6 6h10"></path>
+            <path d="M6 10h10"></path>
+          </svg>
+          <span style="font-weight:${isCurrent ? "600" : "500"};">${escapeHtml(shelf.title)}</span>
+        </div>
+        <span class="shelf-modal-item-count">${shelf.count} 本</span>
+      `;
+      item.addEventListener("click", () => {
+        closeShelfModal();
+        selectShelf(shelf.title);
+      });
+      fragment.appendChild(item);
+    }
+
+    shelfModalList.appendChild(fragment);
+  }
+
+  function updateShelfPickerButtonState() {
+    if (!shelfPickerBtn) return;
+    if (state.activeCategory === "shelf" && state.activeShelf) {
+      shelfPickerBtn.classList.add("active");
+      const textEl = shelfPickerBtn.querySelector(".shelf-picker-text");
+      if (textEl) textEl.textContent = state.activeShelf;
+    } else {
+      shelfPickerBtn.classList.remove("active");
+      const textEl = shelfPickerBtn.querySelector(".shelf-picker-text");
+      if (textEl) textEl.textContent = "书架";
+    }
+  }
+
+  function selectShelf(shelfTitle) {
+    state.activeCategory = "shelf";
+    state.activeShelf = shelfTitle;
+
+    const allTabs = document.querySelectorAll(".filter-tab");
+    allTabs.forEach((t) => {
+      if (
+        t.getAttribute("data-category") === "shelf" &&
+        t.getAttribute("data-shelf") === shelfTitle
+      ) {
+        t.classList.add("active");
+        t.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      } else {
+        t.classList.remove("active");
+      }
+    });
+
+    updateShelfPickerButtonState();
+    renderShelfModalList();
+    applyFilters();
+  }
+
+  function selectBuiltinCategory(category) {
+    state.activeCategory = category;
+    state.activeShelf = null;
+
+    const allTabs = document.querySelectorAll(".filter-tab");
+    allTabs.forEach((t) => {
+      if (
+        t.getAttribute("data-category") === category &&
+        !t.classList.contains("filter-tab-shelf")
+      ) {
+        t.classList.add("active");
+        t.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      } else {
+        t.classList.remove("active");
+      }
+    });
+
+    updateShelfPickerButtonState();
+    renderShelfModalList();
+    applyFilters();
+  }
+
   // Filter & Search Logic
   function applyFilters() {
     let list = [...state.allBooks];
@@ -175,6 +372,22 @@
       list = list.filter((b) => b.category === "comic");
     } else if (state.activeCategory === "novel") {
       list = list.filter((b) => b.category === "novel");
+    } else if (state.activeCategory === "shelf" && state.activeShelf) {
+      const targetShelf = state.shelves.find((s) => s.title === state.activeShelf);
+      const shelfKeySet =
+        targetShelf && Array.isArray(targetShelf.bookKeys)
+          ? new Set(targetShelf.bookKeys)
+          : null;
+
+      list = list.filter((b) => {
+        if (Array.isArray(b.shelves) && b.shelves.includes(state.activeShelf)) {
+          return true;
+        }
+        if (shelfKeySet && shelfKeySet.has(b.key)) {
+          return true;
+        }
+        return false;
+      });
     }
 
     // Search Query Filter
@@ -198,6 +411,22 @@
     if (state.filteredBooks.length === 0) {
       bookGrid.style.display = "none";
       shelfEmpty.style.display = "flex";
+      const titleEl = shelfEmpty.querySelector(".empty-title");
+      const descEl = shelfEmpty.querySelector(".empty-desc");
+      if (state.activeCategory === "shelf" && state.activeShelf) {
+        if (titleEl) titleEl.textContent = `“${state.activeShelf}”书架为空`;
+        if (descEl) {
+          descEl.textContent = state.searchQuery.trim()
+            ? "未搜索到匹配图书"
+            : "可在电脑端向此书架添加书籍";
+        }
+      } else if (state.searchQuery.trim()) {
+        if (titleEl) titleEl.textContent = "未搜索到匹配图书";
+        if (descEl) descEl.textContent = "换个关键词试试";
+      } else {
+        if (titleEl) titleEl.textContent = "书架空空如也";
+        if (descEl) descEl.textContent = "未找到符合条件的图书";
+      }
       return;
     }
 
@@ -297,15 +526,49 @@
     applyFilters();
   });
 
-  // Event Listeners: Filter Tabs
-  filterTabs.forEach((tab) => {
+  // Event Listeners: Filter Tabs (Built-in)
+  const builtinFilterTabs = document.querySelectorAll(".filter-tab:not(.filter-tab-shelf)");
+  builtinFilterTabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      filterTabs.forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
-      state.activeCategory = tab.getAttribute("data-category");
-      applyFilters();
+      selectBuiltinCategory(tab.getAttribute("data-category"));
     });
   });
+
+  // Event Listeners: Shelf Picker Modal
+  function openShelfModal() {
+    if (!shelfModalBackdrop) return;
+    shelfModalBackdrop.style.display = "flex";
+    if (shelfPickerBtn) shelfPickerBtn.classList.add("open");
+  }
+
+  function closeShelfModal() {
+    if (!shelfModalBackdrop) return;
+    shelfModalBackdrop.style.display = "none";
+    if (shelfPickerBtn) shelfPickerBtn.classList.remove("open");
+  }
+
+  if (shelfPickerBtn) {
+    shelfPickerBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (shelfModalBackdrop.style.display === "flex") {
+        closeShelfModal();
+      } else {
+        openShelfModal();
+      }
+    });
+  }
+
+  if (shelfModalClose) {
+    shelfModalClose.addEventListener("click", closeShelfModal);
+  }
+
+  if (shelfModalBackdrop) {
+    shelfModalBackdrop.addEventListener("click", (e) => {
+      if (e.target === shelfModalBackdrop) {
+        closeShelfModal();
+      }
+    });
+  }
 
   // ─────────────────────────────────────────────────────────────
   // Two-Way Progress Sync Engine
