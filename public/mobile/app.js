@@ -2,6 +2,19 @@
 (function () {
   "use strict";
 
+  // 0. Theme Management (Light / Dark)
+  let currentTheme = localStorage.getItem("koodo_mobile_theme") || "dark";
+  function applyTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("koodo_mobile_theme", theme);
+    const meta = document.getElementById("theme-color-meta");
+    if (meta) {
+      meta.setAttribute("content", theme === "light" ? "#f6f7f9" : "#121316");
+    }
+  }
+  applyTheme(currentTheme);
+
   // 1. Token Initialization & Persistence
   const urlParams = new URLSearchParams(window.location.search);
   const tokenFromUrl = urlParams.get("token");
@@ -13,11 +26,16 @@
   const token = tokenFromUrl || localStorage.getItem("koodo_mobile_token");
   if (!token) {
     document.body.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;background:#0f1117;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">
-        <div style="background:#1a1d27;border:1px solid #2e3446;border-radius:16px;padding:32px 24px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
-          <div style="font-size:40px;margin-bottom:12px;">📱</div>
-          <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;">连接电脑端书库</h2>
-          <p style="color:#9ca3af;font-size:13px;line-height:1.6;margin-bottom:20px;">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;background:var(--bg-color);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,sans-serif;">
+        <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:32px 24px;max-width:360px;width:100%;box-shadow:var(--card-shadow);">
+          <div style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:rgba(0,122,255,0.1);color:#007aff;margin-bottom:16px;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="14" height="20" x="5" y="2" rx="2" ry="2"/>
+              <path d="M12 18h.01"/>
+            </svg>
+          </div>
+          <h2 style="margin:0 0 8px;font-size:18px;font-weight:700;">连接电脑端书库</h2>
+          <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:20px;">
             在电脑端 Koodo Reader 顶部导航栏点击“手机连接”，输入或粘贴显示的配对密钥：
           </p>
           <form id="pairing-form" style="display:flex;flex-direction:column;gap:12px;">
@@ -25,19 +43,19 @@
               type="text"
               id="manual-token-input"
               placeholder="输入配对密钥 (Token)..."
-              style="background:#0f1117;border:1px solid #3b4256;border-radius:10px;padding:12px 14px;color:#fff;font-size:14px;outline:none;text-align:center;font-family:monospace;"
+              style="background:var(--input-bg);border:1px solid var(--border-color);border-radius:10px;padding:12px 14px;color:var(--text-primary);font-size:14px;outline:none;text-align:center;font-family:monospace;"
               required
               autocomplete="off"
               autocapitalize="off"
             />
             <button
               type="submit"
-              style="background:#6366f1;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;"
+              style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;"
             >
               立即连接
             </button>
           </form>
-          <div style="margin-top:20px;padding-top:16px;border-top:1px solid #2e3446;color:#6b7280;font-size:12px;">
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);color:var(--text-muted);font-size:12px;">
             提示：亦可使用手机自带相机直接扫描电脑端屏幕上的二维码进入
           </div>
         </div>
@@ -83,6 +101,25 @@
   const searchClear = document.getElementById("search-clear");
   const filterTabs = document.querySelectorAll(".filter-tab");
   const connectionStatus = document.getElementById("connection-status");
+  const themeToggle = document.getElementById("theme-toggle");
+
+  function updateConnectionStatus(connected, text) {
+    if (!connectionStatus) return;
+    connectionStatus.className = `status-pill ${connected ? "connected" : "offline"}`;
+    const textEl = connectionStatus.querySelector(".status-text");
+    if (textEl) {
+      textEl.textContent = text;
+    } else {
+      connectionStatus.innerHTML = `<span class="status-dot"></span><span class="status-text">${escapeHtml(text)}</span>`;
+    }
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const next = currentTheme === "light" ? "dark" : "light";
+      applyTheme(next);
+    });
+  }
 
   // Fetch books from REST API
   async function loadBooks() {
@@ -107,8 +144,7 @@
       }
 
       state.allBooks = await res.json();
-      connectionStatus.className = "status-pill connected";
-      connectionStatus.textContent = "局域网已连接";
+      updateConnectionStatus(true, "局域网已连接");
       try {
         applyFilters();
       } catch (renderErr) {
@@ -117,14 +153,13 @@
       }
     } catch (err) {
       console.error("Failed to load books:", err);
-      connectionStatus.className = "status-pill offline";
-      connectionStatus.textContent = "连接异常";
+      updateConnectionStatus(false, "连接异常");
       shelfLoading.style.display = "none";
       shelfEmpty.style.display = "flex";
       document.querySelector(".empty-title").textContent = "无法加载个人书库";
       document.querySelector(".empty-desc").innerHTML = `${escapeHtml(
         err.message || "请求超时"
-      )}<br><br><button onclick="window.location.reload()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer;font-weight:600;">点击重试</button>`;
+      )}<br><br><button onclick="window.location.reload()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer;font-weight:600;">点击重试</button>`;
     }
   }
 

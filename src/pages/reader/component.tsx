@@ -203,7 +203,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                     }
                   }}
                   style={{
-                    background: "#6366f1",
+                    background: "var(--theme-color, #007aff)",
                     color: "#ffffff",
                     border: "none",
                     borderRadius: "4px",

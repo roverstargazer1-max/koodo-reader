@@ -117,7 +117,7 @@
 }
 
 .mobile-pairing-select:focus {
-  border-color: #6366f1;
+  border-color: var(--theme-color, #007aff);
 }
 
 .mobile-pairing-qr-box {
@@ -164,7 +164,7 @@
 }
 
 .mobile-pairing-btn-copy {
-  background: #6366f1;
+  background: var(--theme-color, #007aff);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -173,11 +173,11 @@
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .mobile-pairing-btn-copy:hover {
-  background: #4f46e5;
+  filter: brightness(0.9);
 }
 
 .mobile-pairing-footer {
