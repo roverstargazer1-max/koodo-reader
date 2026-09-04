@@ -103,6 +103,10 @@ const INVOKE_CHANNELS = new Set([
   "export-share-package",
   "inspect-share-package",
   "import-share-package",
+  "mobile-server-status",
+  "mobile-server-toggle",
+  "mobile-server-reset-token",
+  "mobile-server-select-address",
 ]);
 const SEND_CHANNELS = new Set(["reader-close-ready", "tab-close-ready"]);
 const SEND_SYNC_CHANNELS = new Set([
@@ -139,6 +143,7 @@ const EVENT_CHANNELS = new Set([
   "open-share-package",
   "share-export-progress",
   "share-import-progress",
+  "mobile-progress-updated",
 ]);
 
 const assertChannel = (set, channel) => {

@@ -9,6 +9,7 @@ import {
   KOReaderUtil,
 } from "../../assets/lib/kookit-extra-browser.min";
 import UpdateInfo from "../../components/dialogs/updateDialog";
+import MobilePairingDialog from "../../components/dialogs/mobilePairingDialog";
 import { generateSnapshot } from "../../utils/file/backup";
 import { isElectron } from "react-device-detect";
 import {
@@ -68,6 +69,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
       isHidePro: false,
       isSync: false,
       notificationCount: 0,
+      isShowMobilePairing: false,
     };
   }
   async componentDidMount() {
@@ -101,6 +103,12 @@ class Header extends React.Component<HeaderProps, HeaderState> {
       }
       if (ConfigService.getReaderConfig("isHidePro") === "yes") {
         this.setState({ isHidePro: true });
+      }
+
+      if (window.electronAPI && window.electronAPI.on) {
+        window.electronAPI.on("mobile-progress-updated", () => {
+          this.props.handleFetchBooks();
+        });
       }
 
       //Check for data update
@@ -716,6 +724,24 @@ class Header extends React.Component<HeaderProps, HeaderState> {
           </div>
           <div
             className="setting-icon-container"
+            onClick={() => {
+              this.setState({ isShowMobilePairing: true });
+            }}
+            style={{ marginTop: "2px" }}
+          >
+            <span
+              data-tooltip-id="my-tooltip"
+              data-tooltip-content={this.props.t("Mobile Connection")}
+              data-tooltip-place="left"
+            >
+              <span
+                className="icon-phone setting-icon"
+                style={{ fontSize: "22px" }}
+              ></span>
+            </span>
+          </div>
+          <div
+            className="setting-icon-container"
             onClick={async () => {
               if (
                 ConfigService.getReaderConfig("isEnableKoReaderSync") === "yes"
@@ -763,6 +789,11 @@ class Header extends React.Component<HeaderProps, HeaderState> {
           } as any)}
         />
         <UpdateInfo />
+        {this.state.isShowMobilePairing && (
+          <MobilePairingDialog
+            onClose={() => this.setState({ isShowMobilePairing: false })}
+          />
+        )}
       </div>
     );
   }

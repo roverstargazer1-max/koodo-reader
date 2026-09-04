@@ -1,0 +1,226 @@
+.mobile-pairing-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.18s ease-out;
+}
+
+.mobile-pairing-modal {
+  width: 440px;
+  max-width: 90vw;
+  background-color: #1e222d;
+  color: #f3f4f6;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.mobile-pairing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 14px;
+}
+
+.mobile-pairing-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-pairing-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.mobile-pairing-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-pairing-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+
+.mobile-pairing-status-label {
+  font-size: 0.9rem;
+  color: #d1d5db;
+}
+
+.mobile-pairing-status-badge {
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.status-running {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-stopped {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.mobile-pairing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mobile-pairing-field-label {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.mobile-pairing-select {
+  background: #13161f;
+  color: #f3f4f6;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.mobile-pairing-select:focus {
+  border-color: #6366f1;
+}
+
+.mobile-pairing-qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.mobile-pairing-qr-wrapper {
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.mobile-pairing-qr-tip {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.mobile-pairing-url-row {
+  display: flex;
+  gap: 8px;
+}
+
+.mobile-pairing-url-input {
+  flex: 1;
+  background: #13161f;
+  color: #d1d5db;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-family: monospace;
+}
+
+.mobile-pairing-btn-copy {
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.mobile-pairing-btn-copy:hover {
+  background: #4f46e5;
+}
+
+.mobile-pairing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+.mobile-pairing-btn-reset {
+  background: transparent;
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mobile-pairing-btn-reset:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.mobile-pairing-btn-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mobile-pairing-btn-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}

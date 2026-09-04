@@ -40,9 +40,109 @@ const Database = require("better-sqlite3");
 const { getVoicePlugin } = require("./src/utils/plugins/main/registry");
 const { initJmcomicIpc } = require("./scripts/jmcomic/jmcomicManager");
 const { initPicaIpc } = require("./scripts/pica/picaManager");
+const { mobileServer } = require("./scripts/mobile/mobileServer");
+const { registerBookshelfRoutes } = require("./scripts/mobile/bookshelfRouter");
+const { registerComicStreamerRoutes } = require("./scripts/mobile/comicStreamer");
+const { registerNovelStreamerRoutes } = require("./scripts/mobile/novelStreamer");
+const { registerProgressSyncRoutes } = require("./scripts/mobile/progressSyncRouter");
 const configDir = app.getPath("userData");
 const dirPath = path.join(configDir, "uploads");
 const packageJson = require("./package.json");
+
+const initMobileServer = () => {
+  try {
+    let mobileToken = store.get("mobileCompanionToken");
+    if (!mobileToken) {
+      mobileToken = nodeCrypto.randomBytes(16).toString("hex");
+      store.set("mobileCompanionToken", mobileToken);
+    }
+
+    const resolveStorage = () => {
+      const stored = store.get("storageLocation");
+      if (stored && fs.existsSync(stored)) return stored;
+      const defaultPath = path.join(dirPath, "data");
+      if (fs.existsSync(path.join(defaultPath, "config", "books.db"))) {
+        return defaultPath;
+      }
+      try {
+        const appData = app.getPath("appData");
+        const prodData = path.join(appData, "KoodoReaderPersonal", "uploads", "data");
+        if (fs.existsSync(path.join(prodData, "config", "books.db"))) {
+          return prodData;
+        }
+        const legacyData = path.join(appData, "koodo-reader", "uploads", "data");
+        if (fs.existsSync(path.join(legacyData, "config", "books.db"))) {
+          return legacyData;
+        }
+      } catch (e) {}
+      return defaultPath;
+    };
+
+    const mobileContext = {
+      getStoragePath: resolveStorage,
+      getStore: () => store,
+      getDb: () => {
+        if (dbConnection && dbConnection["books"]) {
+          return dbConnection["books"];
+        }
+        const sPath = resolveStorage();
+        const dbPath = path.join(sPath, "config", "books.db");
+        if (!fs.existsSync(dbPath)) return null;
+        try {
+          return getDBConnection("books", sPath, {
+            createTableStatement: {
+              books:
+                "CREATE TABLE IF NOT EXISTS books (key text PRIMARY KEY, name text, author text, description text, md5 text, cover text, format text, publisher text, size integer, page integer, path text, charset text);",
+            },
+            migrateStatement: {},
+          });
+        } catch (e) {
+          return new Database(dbPath, { readonly: true });
+        }
+      },
+      onProgressUpdated: (bookKey, record) => {
+        try {
+          BrowserWindow.getAllWindows().forEach((win) => {
+            if (win && !win.isDestroyed()) {
+              win.webContents.send("mobile-progress-updated", { bookKey, record });
+            }
+          });
+        } catch (e) {
+          console.warn("[MobileServer] Error sending IPC progress notification:", e.message);
+        }
+      },
+    };
+
+    // Register Bookshelf API routes
+    registerBookshelfRoutes(mobileServer, mobileContext);
+
+    // Register Comic Streamer routes
+    registerComicStreamerRoutes(mobileServer, mobileContext);
+
+    // Register Novel Streamer routes
+    registerNovelStreamerRoutes(mobileServer, mobileContext);
+
+    // Register Two-Way Progress Sync routes
+    registerProgressSyncRoutes(mobileServer, mobileContext);
+
+    const isEnable = store.get("isEnableMobileCompanion");
+    if (isEnable !== "no") {
+      mobileServer
+        .start({
+          token: mobileToken,
+          selectedAddress: store.get("mobileSelectedAddress") || null,
+        })
+        .then((status) => {
+          console.info(`[MobileServer] Running at ${status.connectionUrl}`);
+        })
+        .catch((err) => {
+          console.warn("[MobileServer] Failed to auto-start:", err.message);
+        });
+    }
+  } catch (err) {
+    console.error("[MobileServer] Init error:", err.message);
+  }
+};
 let mainWin;
 let tray = null;
 let isQuitting = false;
@@ -3528,6 +3628,36 @@ const createMainWin = () => {
         linkWindow && !linkWindow.isDestroyed() ? true : false;
     }
   });
+  ipcMain.handle("mobile-server-status", async () => {
+    return mobileServer.getStatus();
+  });
+  ipcMain.handle("mobile-server-toggle", async (event, enabled) => {
+    if (enabled) {
+      store.set("isEnableMobileCompanion", "yes");
+      let token = store.get("mobileCompanionToken");
+      if (!token) {
+        token = nodeCrypto.randomBytes(16).toString("hex");
+        store.set("mobileCompanionToken", token);
+      }
+      return await mobileServer.start({
+        token,
+        selectedAddress: store.get("mobileSelectedAddress") || null,
+      });
+    } else {
+      store.set("isEnableMobileCompanion", "no");
+      return await mobileServer.stop();
+    }
+  });
+  ipcMain.handle("mobile-server-reset-token", async () => {
+    const newToken = mobileServer.resetToken();
+    store.set("mobileCompanionToken", newToken);
+    return mobileServer.getStatus();
+  });
+  ipcMain.handle("mobile-server-select-address", async (event, address) => {
+    mobileServer.setSelectedAddress(address);
+    store.set("mobileSelectedAddress", address);
+    return mobileServer.getStatus();
+  });
   ipcMain.on("get-dirname", (event, arg) => {
     event.returnValue = __dirname;
   });
@@ -3663,10 +3793,12 @@ const applyCorsToRendererRequests = () => {
 app.on("ready", async () => {
   applyCorsToRendererRequests();
   await applyProxyToSession();
+  initMobileServer();
   createMainWin();
 });
 app.on("before-quit", () => {
   isQuitting = true;
+  mobileServer.stop();
   destroyDiscordRPC();
   closeAllDatabases();
 });

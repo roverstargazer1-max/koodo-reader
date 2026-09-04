@@ -45,4 +45,5 @@ export interface HeaderState {
   isHidePro: boolean;
   isSync: boolean;
   notificationCount: number;
+  isShowMobilePairing: boolean;
 }
