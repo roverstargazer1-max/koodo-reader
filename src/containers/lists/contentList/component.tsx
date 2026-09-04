@@ -51,7 +51,7 @@ class ContentList extends React.Component<ContentListProps, ContentListState> {
         // 检查当前项是否匹配当前章节
         const isCurrentChapter =
           item.href === bookLocation.chapterHref ||
-          (bookLocation.chapterHref &&
+          (typeof bookLocation.chapterHref === "string" &&
             bookLocation.chapterHref.includes(item.href.split("#")[0]));
 
         if (isCurrentChapter) {
@@ -87,7 +87,7 @@ class ContentList extends React.Component<ContentListProps, ContentListState> {
   checkIfContainsCurrentChapter = (item: any, bookLocation: any): boolean => {
     const isCurrentChapter =
       item.href === bookLocation.chapterHref ||
-      (bookLocation.chapterHref &&
+      (typeof bookLocation.chapterHref === "string" &&
         bookLocation.chapterHref.includes(item.href.split("#")[0]));
 
     if (isCurrentChapter) return true;
