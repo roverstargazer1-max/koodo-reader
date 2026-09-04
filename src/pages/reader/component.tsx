@@ -322,6 +322,15 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       this.cancelEnterReader(position);
       this.cancelLeaveReader(position);
     });
+    // Flush current reading position before the component tears down so that
+    // any pages read since the last "rendered" event are not lost.
+    try {
+      if (this.props.htmlBook && this.props.htmlBook.rendition) {
+        this.handleLocation();
+      }
+    } catch (e) {
+      // ignore — rendition may already be detached
+    }
     // Flush any in-flight session time before the component tears down
     this.readingTimeUtil.stop();
     if (isElectron && this.mobileProgressHandler && window.electronAPI?.removeListener) {

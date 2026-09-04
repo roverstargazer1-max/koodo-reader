@@ -126,6 +126,10 @@ function registerBookshelfRoutes(server, context = {}) {
           category = "novel";
         }
 
+        // Normalize timestamp to milliseconds for consistent sorting/display
+        const rawTs = record.timestamp || record.time || 0;
+        const lastReadTime = rawTs > 0 && rawTs < 1e11 ? rawTs * 1000 : rawTs;
+
         return {
           key: book.key,
           name: book.name || "Untitled",
@@ -137,8 +141,13 @@ function registerBookshelfRoutes(server, context = {}) {
           page: parseInt(record.page || book.page || 0, 10),
           totalPage: parseInt(book.page || 0, 10),
           percentage: Math.min(1, Math.max(0, percentage)),
-          lastReadTime: record.timestamp || record.time || 0,
+          lastReadTime,
           chapterTitle: record.chapterTitle || "",
+          // Paragraph-level position fields for accurate cross-device restore
+          chapterDocIndex: record.chapterDocIndex !== undefined ? String(record.chapterDocIndex) : "",
+          chapterHref: record.chapterHref || "",
+          text: record.text || "",
+          count: record.count !== undefined ? String(record.count) : "",
           isBlurred: blurredSet.has(book.key),
           coverUrl: `/api/cover/${encodeURIComponent(book.key)}`,
         };

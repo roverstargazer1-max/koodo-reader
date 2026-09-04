@@ -88,6 +88,22 @@ class OperationPanel extends React.Component<
   }
   async handleExit() {
     ConfigService.setReaderConfig("isFullscreen", "no");
+    // Flush current reading position before closing so that the last pages
+    // read are not lost when the window tears down faster than event handlers.
+    try {
+      if (this.props.htmlBook && this.props.htmlBook.rendition) {
+        const position = this.props.htmlBook.rendition.getPosition();
+        if (position && this.props.currentBook && this.props.currentBook.key) {
+          ConfigService.setObjectConfig(
+            this.props.currentBook.key,
+            position,
+            "recordLocation"
+          );
+        }
+      }
+    } catch (e) {
+      // ignore — rendition may already be detached
+    }
     this.props.handleReadingState(false);
     this.props.handleSearch(false);
     window.speechSynthesis && window.speechSynthesis.cancel();

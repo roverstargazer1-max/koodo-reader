@@ -2,6 +2,18 @@ const fs = require("fs");
 const path = require("path");
 
 /**
+ * Normalize a timestamp to milliseconds.
+ * Kookit engine records timestamps in seconds (10-digit integer), while
+ * mobile and standard JS use milliseconds (13-digit). Comparing them
+ * directly caused desktop updates to appear permanently "older" than
+ * any mobile record, silently discarding desktop progress.
+ */
+function normalizeTimestampMs(ts) {
+  if (!ts) return Date.now();
+  return ts < 1e11 ? ts * 1000 : ts;
+}
+
+/**
  * Register Two-Way Reading Progress Sync routes onto mobile server.
  *
  * @param {object} server MobileServer instance
@@ -90,13 +102,16 @@ function registerProgressSyncRoutes(server, context = {}) {
           return;
         }
 
-        const incomingTime = incoming.timestamp || Date.now();
+        const incomingTime = normalizeTimestampMs(incoming.timestamp);
 
         const records = getStoreRecords();
         const existing = records[bookKey];
 
-        // Timestamp conflict resolution: latest timestamp wins
-        if (existing && existing.timestamp && existing.timestamp > incomingTime) {
+        // Timestamp conflict resolution: latest timestamp wins (both normalized to ms).
+        // We normalize at comparison time only — we store the original value so that
+        // subsequent reads don't normalize an already-normalized timestamp a second time.
+        const existingTime = normalizeTimestampMs(existing && existing.timestamp);
+        if (existing && existingTime > incomingTime) {
           res.writeHead(200, {
             "Content-Type": "application/json; charset=utf-8",
           });
@@ -116,15 +131,27 @@ function registerProgressSyncRoutes(server, context = {}) {
           page: String(incoming.page || (existing && existing.page) || 1),
           percentage: String(incoming.percentage !== undefined ? incoming.percentage : (existing && existing.percentage) || 0),
           count: String(incoming.totalPages || incoming.count || (existing && existing.count) || incoming.page || 1),
-          timestamp: incomingTime,
+          // Store the original incoming timestamp. If the source is Kookit engine
+          // (10-digit seconds), normalizeTimestampMs will correctly up-scale it on
+          // read. Storing already-normalized values would cause double-scaling.
+          timestamp: incoming.timestamp || Date.now(),
           chapterTitle: incoming.chapterTitle || (existing && existing.chapterTitle) || "",
-          // Clear outdated desktop CFI/xpath so desktop navigates using latest mobile percentage/page
+          // Clear outdated desktop CFI/xpath so desktop navigates using latest mobile position
           cfi: "",
           xpath: "",
-          text: "",
         };
+
+        // Preserve paragraph-level fields from mobile reader for accurate desktop restore
+        if (incoming.text) {
+          updatedRecord.text = incoming.text;
+        } else {
+          updatedRecord.text = "";
+        }
         if (incoming.chapterDocIndex !== undefined) {
           updatedRecord.chapterDocIndex = String(incoming.chapterDocIndex);
+        }
+        if (incoming.chapterHref) {
+          updatedRecord.chapterHref = incoming.chapterHref;
         }
 
         records[bookKey] = updatedRecord;

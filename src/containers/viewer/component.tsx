@@ -488,14 +488,16 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         ConfigService.getReaderConfig("isEnableKoReaderSync") === "yes" &&
         bookLocation.xpath
       ) {
+        // 1. KoReader XPath sync (explicit user setting)
         await rendition.goToXpath(bookLocation.xpath);
       } else if (
-        !bookLocation.cfi &&
-        bookLocation.percentage &&
-        typeof rendition.goToPercentage === "function"
+        bookLocation.cfi ||
+        bookLocation.text ||
+        bookLocation.chapterDocIndex
       ) {
-        await rendition.goToPercentage(parseFloat(bookLocation.percentage));
-      } else {
+        // 2. Paragraph-level restore: use goToPosition whenever we have any
+        //    of: cfi, visible paragraph text, or chapter/doc index.
+        //    This is the precise path and must take priority over goToPercentage.
         await rendition.goToPosition(
           JSON.stringify({
             text: bookLocation.text || "",
@@ -511,10 +513,39 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
             isFirst: true,
           })
         );
+      } else if (
+        bookLocation.percentage &&
+        typeof rendition.goToPercentage === "function"
+      ) {
+        // 3. Last resort: only raw percentage available (e.g. fresh sync from
+        //    an older mobile client that didn't send paragraph-level fields).
+        //    goToPercentage jumps to the chapter START, so after the "rendered"
+        //    event fires we do NOT overwrite the stored location — the coarse
+        //    chapter position is intentionally ephemeral.
+        await rendition.goToPercentage(parseFloat(bookLocation.percentage));
       }
     }
+    // Track whether the initial restore was via the imprecise goToPercentage
+    // fallback so we can avoid overwriting the stored location with the coarse
+    // chapter-start position on the very first "rendered" event.
+    const restoredViaPercentageOnly = !!(
+      !bookLocation.cfi &&
+      !bookLocation.text &&
+      !bookLocation.chapterDocIndex &&
+      bookLocation.percentage
+    );
+    let isFirstRender = true;
     rendition.on("rendered", async () => {
-      this.handleLocation();
+      // Skip handleLocation on the very first render when we fell back to
+      // goToPercentage — the rendition is at the chapter START, not the real
+      // position, so saving it would permanently destroy the stored progress.
+      if (isFirstRender && restoredViaPercentageOnly) {
+        isFirstRender = false;
+        // Still need to update UI state (chapter title, etc.) but NOT save position
+      } else {
+        isFirstRender = false;
+        this.handleLocation();
+      }
       let bookLocation: {
         text: string;
         count: string;

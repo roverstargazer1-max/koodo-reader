@@ -7,6 +7,20 @@ let isApplyingFromMobile = false;
 let isInitialized = false;
 
 /**
+ * Normalize a timestamp to milliseconds.
+ * Kookit engine records timestamps in seconds (10-digit), while mobile and
+ * standard JS use milliseconds (13-digit). This mismatch caused all desktop
+ * progress updates to be silently discarded by the conflict-resolution logic.
+ */
+function normalizeTimestamp(ts: number | undefined): number {
+  if (!ts) return Date.now();
+  // If the timestamp looks like seconds (≤ 2099-01-01 in seconds = 4070908800),
+  // convert it to milliseconds
+  if (ts < 1e11) return ts * 1000;
+  return ts;
+}
+
+/**
  * Two-way Progress Synchronization Bridge
  * Connects desktop renderer (localStorage via ConfigService) with Electron main process store.
  */
@@ -26,7 +40,9 @@ export function initProgressSyncBridge(storeInstance?: any) {
       name === "recordLocation" && !isApplyingFromMobile
         ? {
             ...(val || {}),
-            timestamp: val?.timestamp || Date.now(),
+            // Always use millisecond timestamps — normalize in case Kookit
+            // engine wrote a second-resolution timestamp (10-digit integer)
+            timestamp: normalizeTimestamp(val?.timestamp),
           }
         : val;
 
@@ -107,7 +123,18 @@ export function initProgressSyncBridge(storeInstance?: any) {
   // 2. Initial Bi-Directional Reconciliation with Main Process Store
   if (window.electronAPI.invoke) {
     try {
-      const allDesktopRecords = ConfigService.getAllObjectConfig("recordLocation");
+      // Normalize all desktop record timestamps before sending to main process,
+      // so that the conflict-resolution comparison uses consistent units.
+      const rawDesktopRecords = ConfigService.getAllObjectConfig("recordLocation");
+      const allDesktopRecords: Record<string, any> = {};
+      for (const [bookKey, rec] of Object.entries(rawDesktopRecords || {})) {
+        if (!rec) continue;
+        allDesktopRecords[bookKey] = {
+          ...(rec as any),
+          timestamp: normalizeTimestamp((rec as any).timestamp),
+        };
+      }
+
       window.electronAPI
         .invoke("mobile-sync-all-progress", allDesktopRecords)
         .then((res: any) => {
@@ -118,15 +145,25 @@ export function initProgressSyncBridge(storeInstance?: any) {
               for (const [bookKey, newerRecord] of Object.entries(res.newerRecords)) {
                 if (!newerRecord) continue;
                 const existing = ConfigService.getObjectConfig(bookKey, "recordLocation", {});
-                const merged = {
+                const nr = newerRecord as any;
+                const merged: any = {
                   ...existing,
-                  ...(newerRecord as any),
-                  timestamp: (newerRecord as any).timestamp || Date.now(),
-                  // Clear stale desktop CFI and xpath so desktop opens at the mobile position
-                  cfi: "",
-                  xpath: "",
-                  text: "",
+                  ...nr,
+                  timestamp: normalizeTimestamp(nr.timestamp),
                 };
+                // Only clear CFI/xpath if the mobile record has actual position context
+                // (chapterDocIndex or text). If it only has percentage, preserve them
+                // so that desktop can attempt a more accurate restore.
+                if (nr.chapterDocIndex !== undefined || nr.text) {
+                  merged.cfi = "";
+                  merged.xpath = "";
+                }
+                // Preserve paragraph-level fields from mobile record
+                if (nr.text) merged.text = nr.text;
+                if (nr.count !== undefined) merged.count = String(nr.count);
+                if (nr.chapterDocIndex !== undefined) merged.chapterDocIndex = String(nr.chapterDocIndex);
+                if (nr.chapterHref) merged.chapterHref = nr.chapterHref;
+
                 originalSetObjectConfig.call(
                   ConfigService,
                   bookKey,
@@ -166,26 +203,42 @@ export function initProgressSyncBridge(storeInstance?: any) {
       console.info("[ProgressSyncBridge] Live progress received:", bookKey, record.percentage, record.chapterTitle);
       const existing = ConfigService.getObjectConfig(bookKey, "recordLocation", {});
 
-      const incomingTime = record.timestamp || Date.now();
-      if (existing && existing.timestamp && existing.timestamp > incomingTime) {
+      const incomingTime = normalizeTimestamp(record.timestamp);
+      const existingTime = normalizeTimestamp(existing?.timestamp);
+      if (existing && existingTime > incomingTime) {
+        console.info("[ProgressSyncBridge] Desktop is newer, skipping mobile update:", bookKey);
         return; // existing desktop is strictly newer
       }
 
-      const merged = {
+      const merged: any = {
         ...existing,
         page: String(record.page || existing.page || 1),
         percentage: String(record.percentage !== undefined ? record.percentage : existing.percentage || 0),
-        count: String(record.count || record.totalPages || existing.count || 1),
         chapterTitle: record.chapterTitle || existing.chapterTitle || "",
         timestamp: incomingTime,
-        // Clear stale desktop CFI and xpath so desktop opens at the mobile position
-        cfi: "",
-        xpath: "",
-        text: "",
       };
+
+      // Preserve paragraph-level fields from mobile record when available;
+      // only fall back to desktop values when mobile didn't send them.
+      if (record.text) {
+        merged.text = record.text;
+      }
+      if (record.count !== undefined) {
+        merged.count = String(record.count);
+      } else {
+        merged.count = String(record.totalPages || existing.count || 1);
+      }
       if (record.chapterDocIndex !== undefined) {
         merged.chapterDocIndex = String(record.chapterDocIndex);
       }
+      if (record.chapterHref) {
+        merged.chapterHref = record.chapterHref;
+      }
+
+      // Clear stale desktop CFI/xpath only when mobile provided position context,
+      // so that the desktop reader can use paragraph-level restoration
+      merged.cfi = "";
+      merged.xpath = "";
 
       isApplyingFromMobile = true;
       try {

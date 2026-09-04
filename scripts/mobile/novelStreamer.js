@@ -234,7 +234,7 @@ async function parseEpubChapters(novelPath, bookKey = "") {
               }
             }
 
-            chapters.push({ id, title, paragraphs: blocks });
+            chapters.push({ id, title, href: normHref, chapterDocIndex: chapters.length, paragraphs: blocks });
           }
 
           zipfile.close();
@@ -272,7 +272,7 @@ function parseTxtChapters(novelPath, defaultTitle) {
   const chapters = [];
   if (matches.length === 0) {
     const paragraphs = rawText.split(/\r?\n+/).map((p) => p.trim()).filter(Boolean);
-    chapters.push({ id: "ch1", title: defaultTitle || "正文", paragraphs });
+    chapters.push({ id: "ch1", title: defaultTitle || "正文", href: "ch1", chapterDocIndex: 0, paragraphs });
   } else {
     if (matches[0].index > 0) {
       const introText = rawText.slice(0, matches[0].index).trim();
@@ -280,6 +280,8 @@ function parseTxtChapters(novelPath, defaultTitle) {
         chapters.push({
           id: "ch0",
           title: "序言 / 前言",
+          href: "ch0",
+          chapterDocIndex: 0,
           paragraphs: introText.split(/\r?\n+/).map((p) => p.trim()).filter(Boolean),
         });
       }
@@ -290,7 +292,8 @@ function parseTxtChapters(novelPath, defaultTitle) {
       const endIndex = i < matches.length - 1 ? matches[i + 1].index : rawText.length;
       const body = rawText.slice(startIndex, endIndex).trim();
       const paragraphs = body.split(/\r?\n+/).map((p) => p.trim()).filter(Boolean);
-      chapters.push({ id: `ch${i + 1}`, title, paragraphs });
+      const id = `ch${i + 1}`;
+      chapters.push({ id, title, href: id, chapterDocIndex: chapters.length, paragraphs });
     }
   }
   return chapters;

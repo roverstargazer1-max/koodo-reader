@@ -3658,6 +3658,18 @@ const createMainWin = () => {
     store.set("mobileSelectedAddress", address);
     return mobileServer.getStatus();
   });
+  /**
+   * Normalize a timestamp to milliseconds.
+   * Kookit engine records timestamps in seconds (10-digit integer), while
+   * mobile and standard JS use milliseconds (13-digit). Comparing them
+   * directly caused desktop updates to appear permanently "older" than
+   * any mobile record, so they were silently discarded.
+   */
+  const normalizeTimestampMs = (ts) => {
+    if (!ts) return Date.now();
+    return ts < 1e11 ? ts * 1000 : ts;
+  };
+
   ipcMain.handle("mobile-sync-progress", async (event, { bookKey, record }) => {
     if (!bookKey || !record) return { success: false, reason: "Missing bookKey or record" };
     try {
@@ -3670,15 +3682,19 @@ const createMainWin = () => {
       }
 
       const existing = records[bookKey];
-      const incomingTime = record.timestamp || Date.now();
-      if (existing && existing.timestamp && existing.timestamp > incomingTime) {
+      const incomingTime = normalizeTimestampMs(record.timestamp);
+      const existingTime = normalizeTimestampMs(existing && existing.timestamp);
+      if (existing && existingTime > incomingTime) {
         return { success: true, updated: false, reason: "Existing record is newer" };
       }
 
       records[bookKey] = {
         ...(existing || {}),
         ...record,
-        timestamp: incomingTime,
+        // Store the original timestamp value — normalizeTimestampMs is applied
+        // only at comparison time, so storing the normalized value would cause
+        // double-scaling on the next read.
+        timestamp: record.timestamp || Date.now(),
       };
       store.set("recordLocation", JSON.stringify(records));
 
@@ -3715,18 +3731,26 @@ const createMainWin = () => {
         for (const [key, dRec] of Object.entries(desktopRecords)) {
           if (!dRec) continue;
           const mRec = records[key];
-          const dTime = dRec.timestamp || 0;
-          const mTime = mRec ? (mRec.timestamp || 0) : 0;
+          // Normalize both timestamps to milliseconds for comparison only.
+          // Store original values to avoid double-normalization on next read.
+          const dTime = normalizeTimestampMs(dRec.timestamp) || 0;
+          const mTime = mRec ? (normalizeTimestampMs(mRec.timestamp) || 0) : 0;
 
           if (!mRec) {
-            records[key] = { ...dRec, timestamp: dTime || Date.now() };
+            // Desktop has a book not in main store: persist as-is
+            records[key] = { ...dRec };
             changed = true;
           } else if (dTime >= mTime) {
-            records[key] = { ...mRec, ...dRec, timestamp: dTime || Date.now() };
+            // Desktop is equal-or-newer: merge, keep original timestamps
+            records[key] = { ...mRec, ...dRec };
             changed = true;
           } else {
-            // Mobile record is newer than desktop record
-            newerRecordsFromMobile[key] = mRec;
+            // Mobile record is newer than desktop record — return to renderer bridge.
+            // Bridge expects normalized ms timestamps for its own comparison.
+            newerRecordsFromMobile[key] = {
+              ...mRec,
+              timestamp: normalizeTimestampMs(mRec.timestamp),
+            };
           }
         }
       }
@@ -3734,7 +3758,10 @@ const createMainWin = () => {
       // Also check if mobile store has any books that desktop completely lacks
       for (const [key, mRec] of Object.entries(records)) {
         if (!desktopRecords || !desktopRecords[key]) {
-          newerRecordsFromMobile[key] = mRec;
+          newerRecordsFromMobile[key] = {
+            ...mRec,
+            timestamp: normalizeTimestampMs(mRec.timestamp),
+          };
         }
       }
 

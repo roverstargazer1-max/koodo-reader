@@ -287,20 +287,20 @@
         <div class="novel-content-wrapper" id="novel-styled-content" style="font-size:${state.fontSize}px; line-height:${state.lineHeight};">
           ${state.chapters
             .map(
-              (ch) => `
-            <div class="novel-chapter">
+              (ch, chIdx) => `
+            <div class="novel-chapter" data-chapter-index="${chIdx}">
               <h2 class="novel-chapter-title">${escapeHtml(ch.title)}</h2>
               ${ch.paragraphs
-                .map((p) => {
+                .map((p, pIdx) => {
                   if (typeof p === "object" && p && p.type === "image") {
                     const src = window.koodoApi ? window.koodoApi(p.src) : p.src;
                     return `
-                      <div class="novel-image-container">
+                      <div class="novel-image-container" data-chapter-index="${chIdx}" data-para-index="${pIdx}">
                         <img class="novel-image" src="${escapeHtml(src)}" alt="${escapeHtml(p.alt || '')}" loading="lazy" />
                       </div>
                     `;
                   }
-                  return `<p class="novel-paragraph">${escapeHtml(p)}</p>`;
+                  return `<p class="novel-paragraph" data-chapter-index="${chIdx}" data-para-index="${pIdx}">${escapeHtml(p)}</p>`;
                 })
                 .join("")}
             </div>
@@ -336,12 +336,41 @@
       }
     });
 
-    // Jump to restored progress
+    // Restore scroll position robustly by waiting for all images to finish
+    // loading before computing maxScroll. The old 100ms setTimeout fired before
+    // images had loaded, causing scrollHeight to be too small and the actual
+    // restored position to be wrong (typically too low).
     if (state.percentage > 0) {
-      setTimeout(() => {
+      const doRestoreScroll = () => {
         const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
-        scrollEl.scrollTop = maxScroll * state.percentage;
-      }, 100);
+        if (maxScroll > 0) {
+          scrollEl.scrollTop = maxScroll * state.percentage;
+        }
+      };
+
+      const images = scrollEl.querySelectorAll("img");
+      if (images.length === 0) {
+        // No images — layout is immediate, restore right away
+        requestAnimationFrame(doRestoreScroll);
+      } else {
+        // Wait for all images to load (or error) before restoring scroll
+        let pending = images.length;
+        const onSettled = () => {
+          pending--;
+          if (pending <= 0) doRestoreScroll();
+        };
+        images.forEach((img) => {
+          if (img.complete) {
+            pending--;
+          } else {
+            img.addEventListener("load", onSettled, { once: true });
+            img.addEventListener("error", onSettled, { once: true });
+          }
+        });
+        if (pending <= 0) {
+          requestAnimationFrame(doRestoreScroll);
+        }
+      }
     }
   }
 
@@ -549,6 +578,42 @@
     }
   }
 
+  /**
+   * Find the currently visible paragraph in scroll mode and return its
+   * chapter/para context for paragraph-level position sync.
+   */
+  function getScrollModeParaContext() {
+    const scrollEl = document.getElementById("novel-scroll");
+    if (!scrollEl) return null;
+    const viewTop = scrollEl.scrollTop;
+    const viewBottom = viewTop + scrollEl.clientHeight;
+    // Walk all tagged paragraphs/images and find the first one visible
+    const tagged = scrollEl.querySelectorAll("[data-chapter-index][data-para-index]");
+    let best = null;
+    for (const el of tagged) {
+      const elTop = el.offsetTop;
+      const elBottom = elTop + el.offsetHeight;
+      // Element is at least partially visible
+      if (elBottom > viewTop && elTop < viewBottom) {
+        best = el;
+        break;
+      }
+    }
+    if (!best) return null;
+    const chIdx = parseInt(best.dataset.chapterIndex, 10);
+    const pIdx = parseInt(best.dataset.paraIndex, 10);
+    const ch = state.chapters[chIdx];
+    if (!ch) return null;
+    const para = ch.paragraphs[pIdx];
+    const text = typeof para === "string" ? para : (para && para.alt) ? para.alt : "";
+    return {
+      chapterDocIndex: ch.chapterDocIndex !== undefined ? ch.chapterDocIndex : chIdx,
+      chapterHref: ch.href || ch.id || "",
+      text: text.slice(0, 80), // first 80 chars of the visible paragraph
+      count: String(ch.paragraphs.length),
+    };
+  }
+
   function reportProgress(immediate = false) {
     if (!state.book) return;
     const payload = {
@@ -560,6 +625,25 @@
       format: state.book.format || "epub",
       chapterTitle: getCurrentChapterTitle() || state.book.name,
     };
+
+    // Enrich payload with paragraph-level context for accurate desktop restore
+    if (state.layoutMode === "scroll") {
+      const ctx = getScrollModeParaContext();
+      if (ctx) {
+        payload.chapterDocIndex = ctx.chapterDocIndex;
+        payload.chapterHref = ctx.chapterHref;
+        payload.text = ctx.text;
+        payload.count = ctx.count;
+      }
+    } else {
+      // Paged mode: use currentChapterIndex from state
+      const ch = state.chapters[state.currentChapterIndex];
+      if (ch) {
+        payload.chapterDocIndex = ch.chapterDocIndex !== undefined ? ch.chapterDocIndex : state.currentChapterIndex;
+        payload.chapterHref = ch.href || ch.id || "";
+        payload.count = String(ch.paragraphs.length);
+      }
+    }
 
     if (window.syncProgress) {
       window.syncProgress(payload, immediate);
