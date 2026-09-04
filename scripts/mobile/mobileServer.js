@@ -266,10 +266,11 @@ class MobileServer {
 
       const ext = path.extname(safePath).toLowerCase();
       const contentType = MIME_TYPES[ext] || "application/octet-stream";
+      const isDynamic = ext === ".html" || ext === ".js" || ext === ".css";
       res.writeHead(200, {
         "Content-Type": contentType,
         "Content-Length": stats.size,
-        "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=86400",
+        "Cache-Control": isDynamic ? "no-cache, must-revalidate" : "public, max-age=86400",
       });
 
       fs.createReadStream(safePath).pipe(res);

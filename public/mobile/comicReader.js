@@ -69,7 +69,6 @@
           <button class="comic-mode-btn" id="comic-mode-toggle">
             ${state.mode === "waterfall" ? "切换为横向翻页" : "切换为竖卷瀑布流"}
           </button>
-          <span style="font-size:0.75rem;color:#9ca3af;">双击 2x 缩放 | 双指捏合</span>
         </div>
       </div>
     `;
@@ -466,8 +465,16 @@
   window.reportComicProgress = reportProgress;
 
   function escapeHtml(str) {
-    if (!str) return "";
+    if (str === null || str === undefined) return "";
+    if (typeof str !== "string") {
+      if (typeof str === "object" && typeof str.text === "string") {
+        str = str.text;
+      } else {
+        return "";
+      }
+    }
     return str
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")

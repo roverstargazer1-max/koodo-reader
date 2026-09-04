@@ -43,22 +43,22 @@
           }
         }
       } catch (chaptersErr) {
-        console.warn("Structured chapters endpoint failed, falling back:", chaptersErr);
+        console.warn("Structured chapters endpoint failed, checking fallback:", chaptersErr);
       }
 
-      // 2. Fallback to raw file stream
+      // 2. Fallback to raw file stream (for plain text formats like .txt, .md)
+      const format = (book.format || "").toLowerCase();
+      if (format === "epub") {
+        throw new Error("EPUB 章节解析未返回有效内容，请刷新重试");
+      }
+
       const res = await fetch(
         window.koodoApi(`/api/book/${encodeURIComponent(book.key)}/file`)
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const format = (book.format || "").toLowerCase();
-      if (format === "epub") {
-        await loadEpubContent(res);
-      } else {
-        const text = await res.text();
-        parseTxtContent(text);
-      }
+      const text = await res.text();
+      parseTxtContent(text);
 
       renderNovelContent();
     } catch (err) {
@@ -66,6 +66,7 @@
       document.getElementById("novel-content-area").innerHTML = `
         <div class="empty-container" style="color:#ef4444;height:100%;justify-content:center;">
           <p>加载图书内容失败: ${escapeHtml(err.message)}</p>
+          <button onclick="window.launchNovelReader(state.book)" style="margin-top:12px;padding:8px 18px;border-radius:8px;border:1px solid #ef4444;background:rgba(239,68,68,0.1);color:#ef4444;font-size:14px;cursor:pointer;">重新加载</button>
         </div>
       `;
     }
@@ -251,20 +252,14 @@
     }
   }
 
-  // Parse EPUB content: extracts text from readable chapters
-  async function loadEpubContent(response) {
-    try {
-      const buffer = await response.arrayBuffer();
-      // Fast text extraction: find strings and paragraphs
-      const decoder = new TextDecoder("utf-8");
-      const raw = decoder.decode(buffer);
-      // Clean HTML tags from raw content
-      const cleanText = raw.replace(/<[^>]+>/g, "\n");
-      parseTxtContent(cleanText);
-    } catch (e) {
-      console.warn("Fast epub text extraction failed, fallback text:", e);
-      state.chapters = [{ title: state.book.name, paragraphs: ["无法直接解析 EPUB 内容"] }];
-    }
+  // Fallback for EPUB content
+  function loadEpubContent() {
+    state.chapters = [
+      {
+        title: state.book ? state.book.name : "EPUB",
+        paragraphs: ["EPUB 章节解析需由服务器完成，请刷新页面重新加载。"],
+      },
+    ];
   }
 
   // Render Content based on layoutMode
@@ -295,7 +290,19 @@
               (ch) => `
             <div class="novel-chapter">
               <h2 class="novel-chapter-title">${escapeHtml(ch.title)}</h2>
-              ${ch.paragraphs.map((p) => `<p class="novel-paragraph">${escapeHtml(p)}</p>`).join("")}
+              ${ch.paragraphs
+                .map((p) => {
+                  if (typeof p === "object" && p && p.type === "image") {
+                    const src = window.koodoApi ? window.koodoApi(p.src) : p.src;
+                    return `
+                      <div class="novel-image-container">
+                        <img class="novel-image" src="${escapeHtml(src)}" alt="${escapeHtml(p.alt || '')}" loading="lazy" />
+                      </div>
+                    `;
+                  }
+                  return `<p class="novel-paragraph">${escapeHtml(p)}</p>`;
+                })
+                .join("")}
             </div>
           `
             )
@@ -344,18 +351,35 @@
     const allParagraphs = [];
     state.chapters.forEach((ch) => {
       allParagraphs.push({ isTitle: true, text: ch.title });
-      ch.paragraphs.forEach((p) => allParagraphs.push({ isTitle: false, text: p }));
+      ch.paragraphs.forEach((p) => {
+        if (typeof p === "object" && p && p.type === "image") {
+          allParagraphs.push({ isTitle: false, isImage: true, src: p.src, alt: p.alt || "" });
+        } else {
+          allParagraphs.push({ isTitle: false, isImage: false, text: p });
+        }
+      });
     });
 
     // Chunk roughly by character length (~400 chars per mobile screen)
+    // Images get their own dedicated page
     const pages = [];
     let curPage = [];
     let curChars = 0;
     const maxChars = Math.max(200, Math.floor(400 * (17 / state.fontSize)));
 
     for (const item of allParagraphs) {
+      if (item.isImage) {
+        if (curPage.length > 0) {
+          pages.push(curPage);
+          curPage = [];
+          curChars = 0;
+        }
+        pages.push([item]);
+        continue;
+      }
+
       curPage.push(item);
-      curChars += item.text.length;
+      curChars += (item.text || "").length;
       if (curChars >= maxChars) {
         pages.push(curPage);
         curPage = [];
@@ -381,11 +405,20 @@
       <div class="novel-paged-container">
         <div class="novel-paged-content" id="novel-styled-content" style="font-size:${state.fontSize}px; line-height:${state.lineHeight};">
           ${pageItems
-            .map((item) =>
-              item.isTitle
-                ? `<h2 class="novel-chapter-title">${escapeHtml(item.text)}</h2>`
-                : `<p class="novel-paragraph">${escapeHtml(item.text)}</p>`
-            )
+            .map((item) => {
+              if (item.isTitle) {
+                return `<h2 class="novel-chapter-title">${escapeHtml(item.text)}</h2>`;
+              }
+              if (item.isImage) {
+                const src = window.koodoApi ? window.koodoApi(item.src) : item.src;
+                return `
+                  <div class="novel-image-container novel-image-paged">
+                    <img class="novel-image" src="${escapeHtml(src)}" alt="${escapeHtml(item.alt || '')}" loading="lazy" />
+                  </div>
+                `;
+              }
+              return `<p class="novel-paragraph">${escapeHtml(item.text)}</p>`;
+            })
             .join("")}
         </div>
         <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--novel-muted);padding-top:8px;">
@@ -507,8 +540,16 @@
   window.reportNovelProgress = reportProgress;
 
   function escapeHtml(str) {
-    if (!str) return "";
+    if (str === null || str === undefined) return "";
+    if (typeof str !== "string") {
+      if (typeof str === "object" && typeof str.text === "string") {
+        str = str.text;
+      } else {
+        return "";
+      }
+    }
     return str
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
