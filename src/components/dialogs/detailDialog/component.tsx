@@ -7,6 +7,7 @@ import DOMPurify from "dompurify";
 import EmptyCover from "../../emptyCover";
 import CoverUtil from "../../../utils/file/coverUtil";
 import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { GlobalTranslationManager } from "../../../utils/translation/translationManager";
 class DetailDialog extends React.Component<
   DetailDialogProps,
   DetailDialogState
@@ -196,13 +197,53 @@ class DetailDialog extends React.Component<
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "14px",
+            position: "absolute",
+            bottom: "10px",
+            width: "100%",
+            left: 0,
+          }}
+        >
+          {(() => {
+            const format = this.props.currentBook?.format?.toLowerCase();
+            const isSupported = format === "epub" || format === "txt";
+            return (
+              <div
+                className="new-version-open"
+                style={
+                  isSupported
+                    ? {
+                        backgroundColor: "var(--primary-color, #1890ff)",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }
+                    : { opacity: 0.5, cursor: "not-allowed" }
+                }
+                title={
+                  isSupported
+                    ? ""
+                    : "全书翻译目前仅支持 EPUB 和 TXT 格式"
+                }
+                onClick={() => {
+                  if (isSupported) {
+                    GlobalTranslationManager.setDialogOpen(true);
+                    this.handleClose();
+                  }
+                }}
+              >
+                翻译整书
+              </div>
+            );
+          })()}
           <div
             className="new-version-open"
             onClick={() => {
               this.handleClose();
             }}
-            style={{ marginTop: "10px", position: "absolute", bottom: "10px" }}
           >
             <Trans>Close</Trans>
           </div>

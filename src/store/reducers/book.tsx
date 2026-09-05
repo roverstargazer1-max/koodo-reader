@@ -3,6 +3,7 @@ const initState = {
   isOpenDeleteDialog: false,
   isOpenAddDialog: false,
   isOpenActionDialog: false,
+  isOpenTranslateDialog: false,
   isReading: false,
   currentBook: {},
   renderBookFunc: () => {},
@@ -54,6 +55,11 @@ export function book(
       return {
         ...state,
         isOpenActionDialog: action.payload,
+      };
+    case "HANDLE_TRANSLATE_DIALOG":
+      return {
+        ...state,
+        isOpenTranslateDialog: action.payload,
       };
     case "HANDLE_READING_STATE":
       return {

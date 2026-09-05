@@ -9,6 +9,7 @@ import {
   handleReadingBook,
   handleFetchBooks,
   handleDetailDialog,
+  handleTranslateDialog,
 } from "../../../store/actions";
 
 import { stateType } from "../../../store";
@@ -34,6 +35,7 @@ const actionCreator = {
   handleActionDialog,
   handleFetchBooks,
   handleDetailDialog,
+  handleTranslateDialog,
   handleSelectBook,
   handleSelectedBooks,
 };

@@ -10,6 +10,7 @@ import {
   CONTEXT_MENU_WIDTH,
   shouldSubmenuOpenLeft,
 } from "../../../utils/common";
+import { GlobalTranslationManager } from "../../../utils/translation/translationManager";
 declare var window: any;
 class ActionDialog extends React.Component<
   ActionDialogProps,
@@ -37,6 +38,14 @@ class ActionDialog extends React.Component<
   handleDetailBook = () => {
     this.props.handleDetailDialog(true);
     this.props.handleReadingBook(this.props.currentBook);
+    this.props.handleActionDialog(false);
+  };
+  handleTranslateBook = () => {
+    this.props.handleReadingBook(this.props.currentBook);
+    if (this.props.handleTranslateDialog) {
+      this.props.handleTranslateDialog(true);
+    }
+    GlobalTranslationManager.setDialogOpen(true);
     this.props.handleActionDialog(false);
   };
   handleAddShelf = () => {
@@ -303,6 +312,35 @@ class ActionDialog extends React.Component<
                 <Trans>Details</Trans>
               </p>
             </div>
+            {(() => {
+              const format = this.props.currentBook?.format?.toLowerCase();
+              const isSupported = format === "epub" || format === "txt";
+              return (
+                <div
+                  className={`action-dialog-edit${isSupported ? "" : " action-dialog-disabled"}`}
+                  style={isSupported ? {} : { opacity: 0.45, cursor: "not-allowed" }}
+                  data-tooltip-id="action-tooltip"
+                  data-tooltip-content={
+                    isSupported
+                      ? ""
+                      : "全书翻译目前仅支持 EPUB 和 TXT 格式"
+                  }
+                  onClick={() => {
+                    if (isSupported) {
+                      this.handleTranslateBook();
+                    }
+                  }}
+                >
+                  <span
+                    className="icon-translate view-icon"
+                    style={{ fontSize: "17px" }}
+                  ></span>
+                  <p className="action-name" style={{ marginLeft: "12px" }}>
+                    翻译整书
+                  </p>
+                </div>
+              );
+            })()}
             <div
               className="action-dialog-edit"
               onMouseEnter={(event) => {
