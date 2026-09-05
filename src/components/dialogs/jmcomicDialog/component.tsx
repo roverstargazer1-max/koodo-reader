@@ -1669,22 +1669,6 @@ class JmcomicDialog extends React.Component<
           }
         }}
       >
-        {isBatch && (
-          <input
-            type="checkbox"
-            className="jmcomic-card-checkbox"
-            checked={isSelected}
-            onChange={(e) => {
-              e.stopPropagation();
-              if (onToggleSelect) onToggleSelect(album.id);
-            }}
-          />
-        )}
-        {inLibrary && (
-          <div className="jmcomic-card-in-library-badge">
-            ✓ <Trans>In Library</Trans>
-          </div>
-        )}
         <div className="jmcomic-card-cover-box">
           <img
             src={album.cover}
@@ -1694,6 +1678,26 @@ class JmcomicDialog extends React.Component<
             referrerPolicy="no-referrer"
             onError={this.handleImageError}
           />
+          {isBatch && (
+            <input
+              type="checkbox"
+              className="jmcomic-card-checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                if (onToggleSelect) onToggleSelect(album.id);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+          {inLibrary && (
+            <div
+              className="jmcomic-card-in-library-badge"
+              title={this.props.t("In Library")}
+            >
+              ✓ <Trans>In Library</Trans>
+            </div>
+          )}
         </div>
         <div className="jmcomic-card-info">
           <div className="jmcomic-card-title" title={album.title}>
