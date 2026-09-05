@@ -64,6 +64,8 @@ export interface JmDownloadTask {
   errorMsg?: string;
   createdFiles?: { path: string; name: string; size: number }[];
   imported?: boolean;
+  photoIds?: string[];
+  combine?: boolean;
 }
 
 export interface JmcomicConfig {

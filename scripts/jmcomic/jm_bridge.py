@@ -12,6 +12,7 @@ import json
 import shutil
 import zipfile
 import argparse
+import threading
 from typing import List, Optional, Dict, Any
 
 # Ensure standard output and error streams use UTF-8 encoding on Windows
@@ -39,9 +40,26 @@ try:
         new_downloader,
     )
     HAS_JMCOMIC = True
+
+    class ProgressDownloader(JmModuleConfig.downloader_class()):
+        """Downloader that emits per-page progress events."""
+        def __init__(self, option, on_image_done=None):
+            super().__init__(option)
+            self.on_image_done = on_image_done
+            self._progress_lock = threading.Lock()
+
+        def after_image(self, image, img_save_path):
+            super().after_image(image, img_save_path)
+            if self.on_image_done:
+                with self._progress_lock:
+                    try:
+                        self.on_image_done(image)
+                    except Exception:
+                        pass
 except ImportError as e:
     HAS_JMCOMIC = False
     IMPORT_ERROR = str(e)
+    ProgressDownloader = None
 
 
 def emit_json(data: dict):
@@ -510,17 +528,44 @@ def cmd_download(args):
 
         created_files = []
 
-        with new_downloader(option) as dler:
+        current_episode_info = {"idx": 1, "title": "", "total": total_photos}
+
+        def on_image_done(image):
+            idx = current_episode_info["idx"]
+            ptitle = current_episode_info["title"]
+            photo = getattr(image, "from_photo", None)
+            total_pages = len(photo) if photo and hasattr(photo, "__len__") else 1
+            cur_page = getattr(image, "index", 1)
+            if cur_page <= 0:
+                cur_page = 1
+            cur_page = min(cur_page, total_pages)
+            page_ratio = cur_page / max(1, total_pages)
+            overall_ratio = ((idx - 1) + page_ratio) / total_photos
+            pct = 2.0 + overall_ratio * 88.0
+            emit_progress(
+                percent=pct,
+                photo_title=f"{ptitle} ({cur_page}/{total_pages})",
+                current_page=cur_page,
+                total_pages=total_pages,
+                photo_index=idx,
+                total_photos=total_photos,
+                msg=f"正在下载第 {idx}/{total_photos} 话: {ptitle} ({cur_page}/{total_pages})"
+            )
+
+        downloader_cls = ProgressDownloader if HAS_JMCOMIC and ProgressDownloader else None
+        with new_downloader(option, downloader=downloader_cls) as dler:
             for current_idx, (pid, pindex, ptitle) in enumerate(episodes_to_download, 1):
                 photo_title_sanitized = sanitize_filename(ptitle)
+                current_episode_info["idx"] = current_idx
+                current_episode_info["title"] = ptitle
                 emit_progress(
-                    percent=((current_idx - 1) / total_photos) * 90.0 + 2.0,
-                    photo_title=ptitle,
+                    percent=((current_idx - 1) / total_photos) * 88.0 + 2.0,
+                    photo_title=f"{ptitle} (准备中)",
                     current_page=0,
                     total_pages=0,
                     photo_index=current_idx,
                     total_photos=total_photos,
-                    msg=f"正在下载第 {current_idx}/{total_photos} 话: {ptitle}"
+                    msg=f"正在准备下载第 {current_idx}/{total_photos} 话: {ptitle}"
                 )
 
                 photo_detail = dler.download_photo(pid)

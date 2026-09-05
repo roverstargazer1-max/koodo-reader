@@ -18,8 +18,13 @@ import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 const getIpc = () => (window as any).electronAPI || (window as any).ipcRenderer;
 
 const extractPayload = (arg1: any, arg2: any) => {
-  if (arg2 !== undefined) return arg2;
-  return arg1;
+  if (arg1 && typeof arg1 === "object" && !("sender" in arg1 && "preventDefault" in arg1)) {
+    return arg1;
+  }
+  if (arg2 && typeof arg2 === "object" && !("sender" in arg2 && "preventDefault" in arg2)) {
+    return arg2;
+  }
+  return arg1 || arg2;
 };
 
 interface JmcomicPaginationProps {
@@ -296,7 +301,14 @@ class JmcomicDialog extends React.Component<
 
   loadTasks(): Record<string, JmDownloadTask> {
     try {
-      return ConfigService.getObjectConfig("jmcomicDownloadTasks") || {};
+      const raw = ConfigService.getObjectConfig("jmcomicDownloadTasks") || {};
+      const clean: Record<string, JmDownloadTask> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        if (k && k !== "undefined" && v && (v as any).albumId && (v as any).albumId !== "undefined") {
+          clean[k] = v as JmDownloadTask;
+        }
+      }
+      return clean;
     } catch {
       return {};
     }
@@ -304,7 +316,13 @@ class JmcomicDialog extends React.Component<
 
   saveTasks(tasks: Record<string, JmDownloadTask>) {
     try {
-      ConfigService.setObjectConfig("jmcomicDownloadTasks", tasks);
+      const clean: Record<string, JmDownloadTask> = {};
+      for (const [k, v] of Object.entries(tasks)) {
+        if (k && k !== "undefined" && v && v.albumId && v.albumId !== "undefined") {
+          clean[k] = v;
+        }
+      }
+      ConfigService.setObjectConfig("jmcomicDownloadTasks", clean);
     } catch (e) {
       console.error("Failed to persist download tasks:", e);
     }
@@ -385,10 +403,13 @@ class JmcomicDialog extends React.Component<
         if (!data) return;
         const { albumId, percent, photo_title, photo_index, total_photos } =
           data;
+        const targetId = albumId ? String(albumId) : "";
+        if (!targetId || targetId === "undefined") return;
+
         this.setState((prev) => {
-          const task = prev.downloadTasks[albumId] || {
-            albumId,
-            title: `JM${albumId}`,
+          const task = prev.downloadTasks[targetId] || {
+            albumId: targetId,
+            title: `JM${targetId}`,
             author: "",
             coverUrl: "",
             status: "downloading",
@@ -397,7 +418,7 @@ class JmcomicDialog extends React.Component<
 
           const newTasks = {
             ...prev.downloadTasks,
-            [albumId]: {
+            [targetId]: {
               ...task,
               status: percent >= 92 ? ("packaging" as const) : ("downloading" as const),
               percent,
@@ -415,10 +436,13 @@ class JmcomicDialog extends React.Component<
         const data = extractPayload(arg1, arg2);
         if (!data) return;
         const { albumId, files, title, author, cover_url } = data;
+        const targetId = albumId ? String(albumId) : "";
+        if (!targetId || targetId === "undefined") return;
+
         this.setState((prev) => {
-          const task = prev.downloadTasks[albumId] || {
-            albumId,
-            title: title || `JM${albumId}`,
+          const task = prev.downloadTasks[targetId] || {
+            albumId: targetId,
+            title: title || `JM${targetId}`,
             author: author || "",
             coverUrl: cover_url || "",
             status: "completed",
@@ -427,7 +451,7 @@ class JmcomicDialog extends React.Component<
 
           const newTasks = {
             ...prev.downloadTasks,
-            [albumId]: {
+            [targetId]: {
               ...task,
               title: title || task.title,
               author: author || task.author,
@@ -445,7 +469,7 @@ class JmcomicDialog extends React.Component<
         });
 
         toast.success(
-          `${this.props.t("Download Completed")}: ${title || albumId}`
+          `${this.props.t("Download Completed")}: ${title || targetId}`
         );
 
         // Auto import into Koodo library if enabled
@@ -463,10 +487,13 @@ class JmcomicDialog extends React.Component<
         const data = extractPayload(arg1, arg2);
         if (!data) return;
         const { albumId, msg } = data;
+        const targetId = albumId ? String(albumId) : "";
+        if (!targetId || targetId === "undefined") return;
+
         this.setState((prev) => {
-          const task = prev.downloadTasks[albumId] || {
-            albumId,
-            title: `JM${albumId}`,
+          const task = prev.downloadTasks[targetId] || {
+            albumId: targetId,
+            title: `JM${targetId}`,
             author: "",
             coverUrl: "",
             status: "failed",
@@ -475,7 +502,7 @@ class JmcomicDialog extends React.Component<
 
           const newTasks = {
             ...prev.downloadTasks,
-            [albumId]: {
+            [targetId]: {
               ...task,
               status: "failed" as const,
               errorMsg: msg,
@@ -526,6 +553,7 @@ class JmcomicDialog extends React.Component<
     const toQueue: string[] = [];
 
     for (const aid of albumIds) {
+      if (!aid || aid === "undefined") continue;
       if (
         !newTasks[aid] ||
         newTasks[aid].status === "failed" ||
@@ -589,20 +617,51 @@ class JmcomicDialog extends React.Component<
     const ipc = getIpc();
     try {
       if (ipc) {
-        await ipc.invoke("jmcomic-download", {
+        const res = await ipc.invoke("jmcomic-download", {
           albumId: nextAlbumId,
-          photoIds: [],
-          combine: config.combineCbz !== false,
+          photoIds: task.photoIds || [],
+          combine:
+            task.combine !== undefined
+              ? task.combine
+              : config.combineCbz !== false,
           threads: config.threads || 5,
           proxy: config.proxy,
           domain: config.domain,
           outputDir: config.outputDir,
           pythonPath: config.pythonPath,
         });
+
+        if (res && res.code !== 0) {
+          this.setState((prev) => {
+            const updated = {
+              ...prev.downloadTasks,
+              [nextAlbumId]: {
+                ...task,
+                status: "failed" as const,
+                errorMsg: res.msg || "Download initiation failed",
+              },
+            };
+            this.saveTasks(updated);
+            return { downloadTasks: updated, isQueueRunning: false };
+          }, () => {
+            setTimeout(() => this.processNextInQueue(), 800);
+          });
+        }
       }
     } catch (err: any) {
       console.error("Queue start error:", err);
-      this.setState({ isQueueRunning: false }, () => this.processNextInQueue());
+      this.setState((prev) => {
+        const updated = {
+          ...prev.downloadTasks,
+          [nextAlbumId]: {
+            ...task,
+            status: "failed" as const,
+            errorMsg: err.message || "Queue start error",
+          },
+        };
+        this.saveTasks(updated);
+        return { downloadTasks: updated, isQueueRunning: false };
+      }, () => this.processNextInQueue());
     }
   };
 
@@ -1287,12 +1346,13 @@ class JmcomicDialog extends React.Component<
     }
   };
 
-  startDownload = async (
+  startDownload = (
     albumId: string,
     photoIds: string[] = [],
     combine = true
   ) => {
-    const { config, selectedAlbumDetail } = this.state;
+    if (!albumId || albumId === "undefined") return;
+    const { selectedAlbumDetail } = this.state;
     const title = selectedAlbumDetail
       ? selectedAlbumDetail.title
       : `JM${albumId}`;
@@ -1300,66 +1360,75 @@ class JmcomicDialog extends React.Component<
     const coverUrl = selectedAlbumDetail ? selectedAlbumDetail.cover : "";
 
     this.setState((prev) => {
+      const newTask: JmDownloadTask = {
+        albumId,
+        title,
+        author,
+        coverUrl,
+        status: "pending",
+        percent: 0,
+        photoIds,
+        combine,
+      };
+
       const newTasks = {
         ...prev.downloadTasks,
-        [albumId]: {
-          albumId,
-          title,
-          author,
-          coverUrl,
-          status: "pending" as const,
-          percent: 0,
-        },
+        [albumId]: newTask,
       };
       this.saveTasks(newTasks);
+
+      const newQueue = prev.downloadQueue.includes(albumId)
+        ? prev.downloadQueue
+        : [...prev.downloadQueue, albumId];
+
       return {
         downloadTasks: newTasks,
+        downloadQueue: newQueue,
         selectedAlbumId: null, // close detail modal
       };
+    }, () => {
+      toast.success(`${this.props.t("Added to Download Queue")}: ${title}`);
+      this.processNextInQueue();
     });
-
-    toast(this.props.t("Download started in background"), { icon: "📥" });
-    const ipc = getIpc();
-
-    try {
-      if (ipc) {
-        await ipc.invoke("jmcomic-download", {
-          albumId,
-          photoIds,
-          combine,
-          threads: config.threads,
-          proxy: config.proxy,
-          domain: config.domain,
-          outputDir: config.outputDir,
-          pythonPath: config.pythonPath,
-        });
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Download initiation error");
-    }
   };
 
   cancelDownload = async (albumId: string) => {
+    if (!albumId) return;
     const ipc = getIpc();
     try {
       if (ipc) {
         await ipc.invoke("jmcomic-cancel-download", { albumId });
-        this.setState((prev) => {
-          const newTasks = {
-            ...prev.downloadTasks,
-            [albumId]: {
-              ...prev.downloadTasks[albumId],
-              status: "cancelled" as const,
-            },
-          };
-          this.saveTasks(newTasks);
-          return { downloadTasks: newTasks };
-        });
-        toast(this.props.t("Download Cancelled"));
       }
     } catch (err: any) {
-      toast.error(err.message || "Cancel failed");
+      console.warn("Cancel invoke warning:", err);
     }
+    this.setState((prev) => {
+      const task = prev.downloadTasks[albumId];
+      const newTasks = {
+        ...prev.downloadTasks,
+        [albumId]: {
+          ...(task || {
+            albumId,
+            title: `JM${albumId}`,
+            author: "",
+            coverUrl: "",
+            status: "pending" as const,
+            percent: 0,
+          }),
+          status: "cancelled" as const,
+        },
+      };
+      const newQueue = prev.downloadQueue.filter((id) => id !== albumId);
+      this.saveTasks(newTasks);
+      return {
+        downloadTasks: newTasks,
+        downloadQueue: newQueue,
+        isQueueRunning: false,
+      };
+    }, () => {
+      this.processNextInQueue();
+    });
+    toast(this.props.t("Download Cancelled"));
   };
 
   renderSearchBar() {
@@ -2205,8 +2274,12 @@ class JmcomicDialog extends React.Component<
     this.setState((prev) => {
       const copy = { ...prev.downloadTasks };
       delete copy[albumId];
+      if (albumId === "undefined" || !albumId) {
+        delete copy["undefined"];
+      }
+      const newQueue = prev.downloadQueue.filter((id) => id !== albumId && id !== "undefined");
       this.saveTasks(copy);
-      return { downloadTasks: copy };
+      return { downloadTasks: copy, downloadQueue: newQueue };
     });
   };
 

@@ -17,8 +17,13 @@ import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 const getIpc = () => (window as any).electronAPI || (window as any).ipcRenderer;
 
 const extractPayload = (arg1: any, arg2: any) => {
-  if (arg2 !== undefined) return arg2;
-  return arg1;
+  if (arg1 && typeof arg1 === "object" && !("sender" in arg1 && "preventDefault" in arg1)) {
+    return arg1;
+  }
+  if (arg2 && typeof arg2 === "object" && !("sender" in arg2 && "preventDefault" in arg2)) {
+    return arg2;
+  }
+  return arg1 || arg2;
 };
 
 interface PicaPaginationProps {
@@ -305,7 +310,14 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
   loadTasks(): Record<string, PicaDownloadTask> {
     try {
-      return ConfigService.getObjectConfig("picaDownloadTasks") || {};
+      const raw = ConfigService.getObjectConfig("picaDownloadTasks") || {};
+      const clean: Record<string, PicaDownloadTask> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        if (k && k !== "undefined" && v && (v as any).comicId && (v as any).comicId !== "undefined") {
+          clean[k] = v as PicaDownloadTask;
+        }
+      }
+      return clean;
     } catch {
       return {};
     }
@@ -313,7 +325,13 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
   saveTasks(tasks: Record<string, PicaDownloadTask>) {
     try {
-      ConfigService.setObjectConfig("picaDownloadTasks", tasks);
+      const clean: Record<string, PicaDownloadTask> = {};
+      for (const [k, v] of Object.entries(tasks)) {
+        if (k && k !== "undefined" && v && v.comicId && v.comicId !== "undefined") {
+          clean[k] = v;
+        }
+      }
+      ConfigService.setObjectConfig("picaDownloadTasks", clean);
     } catch (e) {
       console.error("Failed to persist pica download tasks:", e);
     }
@@ -405,10 +423,13 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
         const data = extractPayload(arg1, arg2);
         if (!data) return;
         const { comicId, percent, currentEpTitle, currentEpIndex, totalEps, status } = data;
+        const targetId = comicId ? String(comicId) : "";
+        if (!targetId || targetId === "undefined") return;
+
         this.setState((prev) => {
-          const task = prev.downloadTasks[comicId] || {
-            comicId,
-            title: `Pica-${comicId}`,
+          const task = prev.downloadTasks[targetId] || {
+            comicId: targetId,
+            title: `Pica-${targetId}`,
             author: "",
             coverUrl: "",
             status: "downloading",
@@ -417,7 +438,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
           const newTasks = {
             ...prev.downloadTasks,
-            [comicId]: {
+            [targetId]: {
               ...task,
               status: status || (percent >= 90 ? "packaging" : "downloading"),
               percent: percent !== undefined ? percent : task.percent,
@@ -435,10 +456,13 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
         const data = extractPayload(arg1, arg2);
         if (!data) return;
         const { comicId, files, title, author, coverUrl } = data;
+        const targetId = comicId ? String(comicId) : "";
+        if (!targetId || targetId === "undefined") return;
+
         this.setState((prev) => {
-          const task = prev.downloadTasks[comicId] || {
-            comicId,
-            title: title || `Pica-${comicId}`,
+          const task = prev.downloadTasks[targetId] || {
+            comicId: targetId,
+            title: title || `Pica-${targetId}`,
             author: author || "",
             coverUrl: coverUrl || "",
             status: "completed",
@@ -447,7 +471,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
           const newTasks = {
             ...prev.downloadTasks,
-            [comicId]: {
+            [targetId]: {
               ...task,
               title: title || task.title,
               author: author || task.author,
@@ -464,7 +488,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
           setTimeout(() => this.processNextInQueue(), 600);
         });
 
-        toast.success(`${this.props.t("Download Completed")}: ${title || comicId}`);
+        toast.success(`${this.props.t("Download Completed")}: ${title || targetId}`);
 
         // Auto import into Koodo library
         if (this.state.config.autoImport && files && files.length > 0) {
@@ -481,10 +505,13 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
         const data = extractPayload(arg1, arg2);
         if (!data) return;
         const { comicId, msg } = data;
+        const targetId = comicId ? String(comicId) : "";
+        if (!targetId || targetId === "undefined") return;
+
         this.setState((prev) => {
-          const task = prev.downloadTasks[comicId] || {
-            comicId,
-            title: `Pica-${comicId}`,
+          const task = prev.downloadTasks[targetId] || {
+            comicId: targetId,
+            title: `Pica-${targetId}`,
             author: "",
             coverUrl: "",
             status: "failed",
@@ -493,7 +520,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
           const newTasks = {
             ...prev.downloadTasks,
-            [comicId]: {
+            [targetId]: {
               ...task,
               status: "failed" as const,
               errorMsg: msg,
@@ -1008,26 +1035,50 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
   cancelDownload = async (comicId: string) => {
     const ipc = getIpc();
-    if (ipc) {
-      await ipc.invoke("pica-cancel-download", { comicId });
+    if (ipc && comicId && comicId !== "undefined") {
+      try {
+        await ipc.invoke("pica-cancel-download", { comicId });
+      } catch (e) {}
     }
     this.setState((prev) => {
       const task = prev.downloadTasks[comicId];
-      if (!task) return null;
       const newTasks = {
         ...prev.downloadTasks,
         [comicId]: {
-          ...task,
+          ...(task || {
+            comicId,
+            title: `Pica-${comicId}`,
+            author: "",
+            coverUrl: "",
+            status: "pending" as const,
+            percent: 0,
+          }),
           status: "cancelled" as const,
         },
       };
-      const newQueue = prev.downloadQueue.filter((id) => id !== comicId);
+      if (comicId === "undefined") {
+        delete newTasks["undefined"];
+      }
+      const newQueue = prev.downloadQueue.filter((id) => id !== comicId && id !== "undefined");
       this.saveTasks(newTasks);
       return { downloadTasks: newTasks, downloadQueue: newQueue, isQueueRunning: false };
     }, () => {
       this.processNextInQueue();
     });
     toast(this.props.t("Download Cancelled"));
+  };
+
+  deleteTask = (comicId: string) => {
+    this.setState((prev) => {
+      const copy = { ...prev.downloadTasks };
+      delete copy[comicId];
+      if (comicId === "undefined" || !comicId) {
+        delete copy["undefined"];
+      }
+      const newQueue = prev.downloadQueue.filter((id) => id !== comicId && id !== "undefined");
+      this.saveTasks(copy);
+      return { downloadTasks: copy, downloadQueue: newQueue };
+    });
   };
 
   retryDownload = (comicId: string) => {
@@ -1045,7 +1096,12 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
     this.setState((prev) => {
       const newTasks: Record<string, PicaDownloadTask> = {};
       Object.entries(prev.downloadTasks).forEach(([id, task]) => {
-        if (task.status !== "completed" && task.status !== "cancelled") {
+        if (
+          id !== "undefined" &&
+          task.status !== "completed" &&
+          task.status !== "cancelled" &&
+          task.comicId !== "undefined"
+        ) {
           newTasks[id] = task;
         }
       });
@@ -1892,7 +1948,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                         {task.status === "failed" && (
                           <button
                             className="pica-btn secondary"
@@ -1909,6 +1965,14 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                             {t("Cancel")}
                           </button>
                         )}
+                        <button
+                          className="pica-btn secondary"
+                          style={{ padding: "4px 8px", fontSize: "11px", opacity: 0.7 }}
+                          onClick={() => this.deleteTask(task.comicId)}
+                          title={t("Delete")}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </div>
                   ))}

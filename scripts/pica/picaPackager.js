@@ -135,14 +135,21 @@ async function downloadImageBuffer(url, client = null, maxRetries = 3) {
 /**
  * Concurrently download an array of items with a worker pool and delay
  */
-async function runConcurrentPool(items, workerFn, concurrency = 3, delayMs = 150) {
+async function runConcurrentPool(items, workerFn, concurrency = 3, delayMs = 150, onItemDone = null) {
   const results = new Array(items.length);
   let index = 0;
+  let completed = 0;
 
   async function worker() {
     while (index < items.length) {
       const curIndex = index++;
       results[curIndex] = await workerFn(items[curIndex], curIndex);
+      completed++;
+      if (typeof onItemDone === "function") {
+        try {
+          onItemDone(completed, items.length);
+        } catch (_) {}
+      }
       if (delayMs > 0) {
         const jitter = Math.floor(Math.random() * 80);
         await new Promise((r) => setTimeout(r, delayMs + jitter));
@@ -274,7 +281,19 @@ async function downloadComicPackage({
             return { buf, pIdx };
           },
           threads,
-          delayMs
+          delayMs,
+          (doneCount, totalCount) => {
+            const pageRatio = doneCount / Math.max(1, totalCount);
+            const overallRatio = (epIdx + pageRatio) / totalEpisodes;
+            const pct = Math.min(90, Math.floor(2 + overallRatio * 88));
+            onProgress({
+              percent: pct,
+              currentEpTitle: `${ep.title} (${doneCount}/${totalCount})`,
+              currentEpIndex: epIdx + 1,
+              totalEps: totalEpisodes,
+              status: "downloading",
+            });
+          }
         );
 
         pageBuffers.forEach(({ buf }) => {
@@ -346,7 +365,19 @@ async function downloadComicPackage({
             return downloadImageBuffer(imgUrl, client);
           },
           threads,
-          delayMs
+          delayMs,
+          (doneCount, totalCount) => {
+            const pageRatio = doneCount / Math.max(1, totalCount);
+            const overallRatio = (epIdx + pageRatio) / totalEpisodes;
+            const pct = Math.min(90, Math.floor(2 + overallRatio * 88));
+            onProgress({
+              percent: pct,
+              currentEpTitle: `${ep.title} (${doneCount}/${totalCount})`,
+              currentEpIndex: epIdx + 1,
+              totalEps: totalEpisodes,
+              status: "downloading",
+            });
+          }
         );
 
         const fileEntries = pageBuffers.map((buf, pIdx) => ({
