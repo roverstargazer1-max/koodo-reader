@@ -335,8 +335,9 @@ class ActionDialog extends React.Component<
                     className="icon-translate view-icon"
                     style={{ fontSize: "17px" }}
                   ></span>
-                  <p className="action-name" style={{ marginLeft: "12px" }}>
-                    翻译整书
+                  <p className="action-name" style={{ marginLeft: "12px", display: "flex", alignItems: "center" }}>
+                    <span>翻译整书</span>
+                    <span className="action-dialog-beta-badge">Beta</span>
                   </p>
                 </div>
               );

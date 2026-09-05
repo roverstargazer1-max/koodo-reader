@@ -29,6 +29,19 @@
   white-space: nowrap;
 }
 
+.translation-widget-beta {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .translation-widget-icon {
   display: inline-block;
   font-size: 16px;

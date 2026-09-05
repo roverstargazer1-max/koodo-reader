@@ -346,6 +346,9 @@ class TranslateBookDialog extends React.Component<
             <span className="translate-dialog-meta-label">文件大小:</span>
             <span className="translate-dialog-meta-value">{sizeKb} KB</span>
           </div>
+          <div className="translate-dialog-meta-row" style={{ marginTop: "4px", opacity: 0.7, fontSize: "11px" }}>
+            <span>💡 全书 AI 翻译当前处于 Beta 测试阶段，欢迎体验与反馈</span>
+          </div>
         </div>
 
         <div className="translate-dialog-form-item">
@@ -758,6 +761,7 @@ class TranslateBookDialog extends React.Component<
             <div className="translate-dialog-title">
               <span className="icon-translate" style={{ color: "var(--primary-color, #1890ff)" }} />
               <span>整本书 AI 翻译</span>
+              <span className="translate-beta-badge">Beta</span>
             </div>
             <div className="translate-dialog-header-actions">
               {step === "progress" && (

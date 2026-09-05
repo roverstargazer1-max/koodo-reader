@@ -43,3 +43,16 @@
   margin-left: 15px;
   font-weight: 500;
 }
+
+.action-dialog-beta-badge {
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(24, 144, 255, 0.15);
+  color: var(--primary-color, #1890ff);
+  font-weight: 600;
+  margin-left: 6px;
+  letter-spacing: 0.5px;
+}
+

@@ -72,6 +72,7 @@ class TranslationWidget extends React.Component<
           }`}
         />
         <span className="translation-widget-label">{label}</span>
+        <span className="translation-widget-beta">Beta</span>
         <span className="translation-widget-percentage">
           {progress.percentage}%
         </span>

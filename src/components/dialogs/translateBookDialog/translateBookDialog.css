@@ -56,6 +56,19 @@
   color: var(--title-color, #111111);
 }
 
+.translate-beta-badge {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--primary-color, #1890ff);
+  color: #fff;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+
 .translate-dialog-header-actions {
   display: flex;
   align-items: center;

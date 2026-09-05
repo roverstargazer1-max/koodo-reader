@@ -235,7 +235,8 @@ class DetailDialog extends React.Component<
                   }
                 }}
               >
-                翻译整书
+                <span>翻译整书</span>
+                <span className="detail-beta-badge">Beta</span>
               </div>
             );
           })()}
