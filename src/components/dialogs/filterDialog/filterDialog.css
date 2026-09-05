@@ -1,0 +1,295 @@
+.filter-dialog-container {
+  width: 440px;
+  max-width: 90vw;
+  max-height: 560px;
+  position: fixed;
+  z-index: 30;
+  border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+  animation: filterPopup 0.15s cubic-bezier(0.16, 1, 0.3, 1) 0s 1;
+  user-select: none;
+  overflow: hidden;
+}
+
+.filter-dialog-container.dragging {
+  opacity: 0.95;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.3);
+  transition: none !important;
+}
+
+@keyframes filterPopup {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.filter-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px 16px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+  cursor: grab;
+}
+
+.filter-dialog-header:active,
+.filter-dialog-container.dragging .filter-dialog-header {
+  cursor: grabbing;
+}
+
+.filter-dialog-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.filter-drag-indicator {
+  font-size: 15px;
+  opacity: 0.45;
+  margin-right: 2px;
+  line-height: 1;
+}
+
+.filter-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.filter-dialog-count-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--theme-color, #1890ff);
+  color: #fff;
+}
+
+.filter-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-dialog-clear-btn {
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  color: var(--theme-color, #1890ff);
+}
+
+.filter-dialog-clear-btn:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.filter-dialog-clear-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+  color: inherit;
+}
+
+.filter-dialog-close-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0.6;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.filter-dialog-close-btn:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.filter-dialog-tip-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 18px;
+  font-size: 11px;
+  opacity: 0.65;
+  background: rgba(128, 128, 128, 0.05);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+}
+
+.filter-dialog-body {
+  padding: 12px 18px 18px 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 480px;
+}
+
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.filter-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  background: rgba(128, 128, 128, 0.08);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.filter-chip:hover {
+  border-color: rgba(128, 128, 128, 0.45);
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.filter-chip-include {
+  background: var(--theme-color, #1890ff) !important;
+  border-color: var(--theme-color, #1890ff) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.35);
+}
+
+.filter-chip-include .filter-chip-icon {
+  font-weight: bold;
+}
+
+.filter-chip-exclude {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  text-decoration: line-through;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+.filter-chip-exclude .filter-chip-icon {
+  font-weight: bold;
+}
+
+.filter-author-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  background: rgba(128, 128, 128, 0.06);
+  color: inherit;
+  font-size: 12px;
+  outline: none;
+  margin-bottom: 4px;
+  transition: border-color 0.15s;
+}
+
+.filter-author-search-input:focus {
+  border-color: var(--theme-color, #1890ff);
+}
+
+.filter-author-chips-scroll {
+  max-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.filter-author-empty {
+  font-size: 12px;
+  opacity: 0.5;
+  padding: 6px 0;
+}
+
+/* 顶部 Header 筛选按钮与角标 */
+.header-filter-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-filter-active-dot {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--theme-color, #1890ff);
+  box-shadow: 0 0 4px var(--theme-color, #1890ff);
+}
+
+/* 格式分组与全选标签样式 */
+.filter-format-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(128, 128, 128, 0.04);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.1);
+}
+
+.filter-format-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-format-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  opacity: 0.75;
+}
+
+.filter-chip-all {
+  font-weight: 600;
+  border-style: dashed;
+  background: rgba(128, 128, 128, 0.12);
+}
+
