@@ -49,6 +49,7 @@ import { getTempToken, updateUserConfig } from "../../utils/request/user";
 import i18n from "../../i18n";
 import { getNotification } from "../../utils/request/common";
 import TokenService from "../../utils/storage/tokenService";
+import { isFilterActive } from "../../utils/filterUtil";
 declare var window: any;
 
 class Header extends React.Component<HeaderProps, HeaderState> {
@@ -682,6 +683,47 @@ class Header extends React.Component<HeaderProps, HeaderState> {
           className="setting-icon-parrent"
           style={this.props.isCollapsed ? { marginLeft: "430px" } : {}}
         >
+          <div
+            className="setting-icon-container header-filter-btn"
+            onClick={() => {
+              this.props.handleFilterDisplay &&
+                this.props.handleFilterDisplay(!this.props.isFilterDisplay);
+            }}
+            style={{ marginTop: "2px" }}
+          >
+            <span
+              data-tooltip-id="my-tooltip"
+              data-tooltip-content={this.props.t("Filter books")}
+              data-tooltip-place="left"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  color: isFilterActive(this.props.filterConfig)
+                    ? "var(--theme-color, #1890ff)"
+                    : "inherit",
+                  display: "block",
+                }}
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              {isFilterActive(this.props.filterConfig) && (
+                <span className="header-filter-active-dot" />
+              )}
+            </span>
+          </div>
           <div
             className="setting-icon-container"
             onClick={() => {

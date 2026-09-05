@@ -8,8 +8,11 @@ export interface ManagerProps extends RouteComponentProps<any> {
   isOpenDeleteDialog: boolean;
   isDetailDialog: boolean;
   isOpenAddDialog: boolean;
+  isOpenTranslateDialog?: boolean;
+  currentBook?: BookModel;
   isOpenImportDialog: boolean;
   isSortDisplay: boolean;
+  isFilterDisplay?: boolean;
   isSettingOpen: boolean;
   isShowPopupNote: boolean;
   isAboutOpen: boolean;
@@ -37,6 +40,7 @@ export interface ManagerProps extends RouteComponentProps<any> {
   handleDeleteDialog: (isOpenDeleteDialog: boolean) => void;
   handleAddDialog: (isOpenAddDialog: boolean) => void;
   handleDetailDialog: (isDetailDialog: boolean) => void;
+  handleTranslateDialog?: (isOpen: boolean) => void;
   handleLoadingDialog: (isShowLoading: boolean) => void;
   handleNewDialog: (isShowNew: boolean) => void;
   handleShowSupport: (isShowSupport: boolean) => void;
@@ -54,6 +58,7 @@ export interface ManagerProps extends RouteComponentProps<any> {
   handleMode: (mode: string) => void;
   handleShowPopupNote: (isShowPopupNote: boolean) => void;
   handleSortShelfDialog: (isOpenSortShelfDialog: boolean) => void;
+  handleFilterDisplay?: (isFilterDisplay: boolean) => void;
   cloudSyncFunc: () => Promise<void>;
   t: (title: string) => string;
 }

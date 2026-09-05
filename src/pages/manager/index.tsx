@@ -21,6 +21,7 @@ import {
   handleEditDialog,
   handleDeleteDialog,
   handleAddDialog,
+  handleTranslateDialog,
   handleReadingState,
   handleShowPopupNote,
   handleSortShelfDialog,
@@ -28,6 +29,7 @@ import {
   handleImportShareDialog,
   handleShelf,
   handleMode,
+  handleFilterDisplay,
 } from "../../store/actions";
 import { withTranslation } from "react-i18next";
 
@@ -50,6 +52,7 @@ const mapStateToProps = (state: stateType) => {
     isSettingOpen: state.manager.isSettingOpen,
     isAboutOpen: state.manager.isAboutOpen,
     isSortDisplay: state.manager.isSortDisplay,
+    isFilterDisplay: state.manager.isFilterDisplay,
     isShowLoading: state.manager.isShowLoading,
     isShowNew: state.manager.isShowNew,
     isShowSupport: state.manager.isShowSupport,
@@ -63,6 +66,8 @@ const mapStateToProps = (state: stateType) => {
     isOpenLocalFileDialog: state.backupPage.isOpenLocalFileDialog,
     isOpenExportShareDialog: state.backupPage.isOpenExportShareDialog,
     isOpenImportShareDialog: state.backupPage.isOpenImportShareDialog,
+    isOpenTranslateDialog: state.book.isOpenTranslateDialog,
+    currentBook: state.book.currentBook,
   };
 };
 const actionCreator = {
@@ -77,6 +82,7 @@ const actionCreator = {
   handleEditDialog,
   handleDeleteDialog,
   handleAddDialog,
+  handleTranslateDialog,
   handleDetailDialog,
   handleSortShelfDialog,
   handleLoadingDialog,
@@ -94,6 +100,7 @@ const actionCreator = {
   handleShowPopupNote,
   handleShelf,
   handleMode,
+  handleFilterDisplay,
 };
 export default connect(
   mapStateToProps,

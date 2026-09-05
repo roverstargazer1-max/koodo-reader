@@ -5,6 +5,7 @@ import DeleteDialog from "../../components/dialogs/deleteDialog";
 import EditDialog from "../../components/dialogs/editDialog";
 import AddDialog from "../../components/dialogs/addDialog";
 import SortDialog from "../../components/dialogs/sortBookDialog";
+import FilterDialog from "../../components/dialogs/filterDialog";
 import LocalFileDialog from "../../components/dialogs/localFileDialog";
 import ImportDialog from "../../components/dialogs/importDialog";
 import OPDSDialog from "../../components/dialogs/opdsDialog";
@@ -23,6 +24,10 @@ import Arrow from "../../components/arrow";
 import LoadingDialog from "../../components/dialogs/loadingDialog";
 import { Toaster } from "react-hot-toast";
 import DetailDialog from "../../components/dialogs/detailDialog";
+import TranslateBookDialog from "../../components/dialogs/translateBookDialog";
+import TranslationWidget from "../../components/translationWidget";
+import { GlobalTranslationManager } from "../../utils/translation/translationManager";
+import BookUtil from "../../utils/file/bookUtil";
 import { Tooltip } from "react-tooltip";
 import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
 import SortShelfDialog from "../../components/dialogs/sortShelfDialog";
@@ -92,6 +97,12 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
   }
   componentDidMount() {
     this.props.handleReadingState(false);
+    GlobalTranslationManager.setRefreshLibraryCallback(() =>
+      this.props.handleFetchBooks()
+    );
+    GlobalTranslationManager.setOpenBookCallback((book: any) =>
+      BookUtil.redirectBook(book)
+    );
     document.addEventListener("dragstart", this.handleDocumentDragStart, true);
     document.addEventListener("dragend", this.handleDocumentDragEnd, true);
     document.addEventListener("dragenter", this.handleExternalDragEnter, true);
@@ -258,6 +269,9 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
             this.props.handleExportShareDialog(false);
             this.props.handleImportShareDialog(false);
             this.props.handleSetting(false);
+            if (this.props.handleFilterDisplay) {
+              this.props.handleFilterDisplay(false);
+            }
             this.handleDrag(false);
           }}
           style={
@@ -311,6 +325,7 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
         {this.props.isOpenAddDialog && <AddDialog />}
         {this.props.isShowLoading && <LoadingDialog />}
         {this.props.isSortDisplay && <SortDialog />}
+        {this.props.isFilterDisplay && <FilterDialog />}
         {this.props.isOpenLocalFileDialog && <LocalFileDialog />}
         {this.props.isOpenImportDialog && <ImportDialog />}
         {this.props.isOpenOPDSDialog && <OPDSDialog />}
@@ -322,6 +337,32 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
         {this.props.isOpenImportShareDialog && <ImportShareDialog />}
         {this.props.isSettingOpen && <SettingDialog />}
         {this.props.isDetailDialog && <DetailDialog />}
+        {(this.props.isOpenTranslateDialog ||
+          GlobalTranslationManager.getIsDialogOpen()) &&
+          (this.props.currentBook ||
+            GlobalTranslationManager.getActiveBook()) && (
+            <TranslateBookDialog
+              currentBook={
+                this.props.currentBook ||
+                GlobalTranslationManager.getActiveBook()!
+              }
+              isOpen={true}
+              onClose={() => {
+                GlobalTranslationManager.setDialogOpen(false);
+                if (this.props.handleTranslateDialog) {
+                  this.props.handleTranslateDialog(false);
+                }
+              }}
+              onRefreshBooks={this.props.handleFetchBooks}
+            />
+          )}
+        <TranslationWidget
+          onRestore={() => {
+            if (this.props.handleTranslateDialog) {
+              this.props.handleTranslateDialog(true);
+            }
+          }}
+        />
         {(!books || books.length === 0) && this.state.totalBooks ? null : (
           <Switch>
             {routes.map((ele) => (

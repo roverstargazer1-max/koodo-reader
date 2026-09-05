@@ -8,6 +8,7 @@ import {
   handleSelectBook,
   handleSelectedBooks,
   handleExportShareDialog,
+  handleFilterConfig,
 } from "../../../store/actions";
 import { stateType } from "../../../store";
 import { withTranslation } from "react-i18next";
@@ -27,6 +28,7 @@ const mappropsToProps = (state: stateType) => {
     viewMode: state.manager.viewMode,
     bookSortCode: state.manager.bookSortCode,
     noteSortCode: state.manager.noteSortCode,
+    filterConfig: state.manager.filterConfig,
   };
 };
 const actionCreator = {
@@ -38,6 +40,7 @@ const actionCreator = {
   handleSelectBook,
   handleSelectedBooks,
   handleExportShareDialog,
+  handleFilterConfig,
 };
 export default connect(
   mappropsToProps,

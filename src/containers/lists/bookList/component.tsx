@@ -15,6 +15,12 @@ import { isElectron } from "react-device-detect";
 import DatabaseService from "../../../utils/storage/databaseService";
 import { throttle } from "../../../utils/common";
 import { isRectOverlap, Rect } from "../../../utils/reader/selectionUtil";
+import ActiveFilterBar from "../../../components/activeFilterBar";
+import {
+  filterBooks,
+  isFilterActive,
+  createEmptyFilterConfig,
+} from "../../../utils/filterUtil";
 declare var window: any;
 let currentBookMode = "home";
 function getBookCountPerPage() {
@@ -172,7 +178,8 @@ class BookList extends React.Component<BookListProps, BookListState> {
       prevProps.searchResults !== this.props.searchResults ||
       prevProps.isSearch !== this.props.isSearch ||
       prevProps.mode !== this.props.mode ||
-      prevProps.shelfTitle !== this.props.shelfTitle
+      prevProps.shelfTitle !== this.props.shelfTitle ||
+      prevProps.filterConfig !== this.props.filterConfig
     ) {
       this.setState({
         displayedBooksCount: getBookCountPerPage(),
@@ -187,7 +194,10 @@ class BookList extends React.Component<BookListProps, BookListState> {
       this.loadFullBooksData();
     }
     // 阅读状态筛选变化时，重新加载完整书籍数据
-    if (prevState.readingStatusFilter !== this.state.readingStatusFilter) {
+    if (
+      prevState.readingStatusFilter !== this.state.readingStatusFilter ||
+      prevProps.filterConfig !== this.props.filterConfig
+    ) {
       this.loadFullBooksData();
     }
   }
@@ -571,6 +581,52 @@ class BookList extends React.Component<BookListProps, BookListState> {
 
   renderBookList = (books: Book[], bookMode: string) => {
     if (books.length === 0 && !this.props.isSearch) {
+      if (this.props.filterConfig && isFilterActive(this.props.filterConfig)) {
+        return (
+          <div
+            className="filter-empty-state"
+            style={{
+              width: "100%",
+              minHeight: "260px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "14px",
+              color: "inherit",
+              opacity: 0.85,
+              padding: "40px 0",
+            }}
+          >
+            <span
+              className="icon-search"
+              style={{ fontSize: "44px", opacity: 0.35 }}
+            />
+            <div style={{ fontSize: "16px", fontWeight: 500 }}>
+              <Trans>No books matching the filter</Trans>
+            </div>
+            <div
+              onClick={() => {
+                this.props.handleFilterConfig &&
+                  this.props.handleFilterConfig(createEmptyFilterConfig());
+              }}
+              style={{
+                cursor: "pointer",
+                padding: "7px 18px",
+                borderRadius: "18px",
+                fontSize: "13px",
+                background: "var(--theme-color, #1890ff)",
+                color: "#fff",
+                fontWeight: 500,
+                marginTop: "4px",
+                boxShadow: "0 2px 8px rgba(24, 144, 255, 0.3)",
+              }}
+            >
+              <Trans>Clear all filters</Trans>
+            </div>
+          </div>
+        );
+      }
       return <Redirect to="/manager/empty" />;
     }
     if (bookMode !== currentBookMode) {
@@ -646,6 +702,13 @@ class BookList extends React.Component<BookListProps, BookListState> {
         books,
         this.state.readingStatusFilter
       );
+    }
+    if (
+      (bookMode === "home" || !this.props.shelfTitle) &&
+      this.props.filterConfig &&
+      isFilterActive(this.props.filterConfig)
+    ) {
+      books = filterBooks(books, this.props.filterConfig);
     }
     const topBookKeys: string[] = ConfigService.getAllListConfig("topBooks");
     if (topBookKeys.length > 0) {
@@ -727,32 +790,11 @@ class BookList extends React.Component<BookListProps, BookListState> {
                 <Trans>Share shelf</Trans>
               </div>
             )}
-            <div className="book-list-total-page">
+            <div className="book-list-total-page" style={{ marginRight: "10px" }}>
               <Trans i18nKey="Total books" count={books.length}>
                 {"Total " + books.length + " books"}
               </Trans>
             </div>
-            <select
-              className="lang-setting-dropdown"
-              value={this.state.readingStatusFilter}
-              onChange={(e) => {
-                this.setState({ readingStatusFilter: e.target.value });
-              }}
-              style={{ marginRight: "10px", width: "70px", borderWidth: "0px" }}
-            >
-              <option value="" className="lang-setting-option">
-                {this.props.t("All")}
-              </option>
-              <option value="unread" className="lang-setting-option">
-                {this.props.t("Unread")}
-              </option>
-              <option value="reading" className="lang-setting-option">
-                {this.props.t("CurrentlyReading")}
-              </option>
-              <option value="finished" className="lang-setting-option">
-                {this.props.t("Finished")}
-              </option>
-            </select>
             <ViewMode />
           </div>
         </div>
@@ -768,6 +810,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
             className="book-list-container"
             onMouseDown={this.handleContainerMouseDown}
           >
+            <ActiveFilterBar />
             <ul
               className="book-list-item-box"
               ref={this.scrollContainer}

@@ -2,6 +2,7 @@ import { connect } from "react-redux";
 import { withTranslation } from "react-i18next";
 import {
   handleSortDisplay,
+  handleFilterDisplay,
   handleSetting,
   handleSettingMode,
   handleAbout,
@@ -35,12 +36,15 @@ const mapStateToProps = (state: stateType) => {
     userInfo: state.manager.userInfo,
     isLoadMore: state.manager.isLoadMore,
     isSortDisplay: state.manager.isSortDisplay,
+    isFilterDisplay: state.manager.isFilterDisplay,
+    filterConfig: state.manager.filterConfig,
     bookSortCode: state.manager.bookSortCode,
     importBookFunc: state.book.importBookFunc,
   };
 };
 const actionCreator = {
   handleSortDisplay,
+  handleFilterDisplay,
   handleLocalFileDialog,
   handleSetting,
   handleSettingMode,

@@ -3,6 +3,8 @@ import Book from "../../models/Book";
 export interface HeaderProps extends RouteComponentProps<any> {
   isSearch: boolean;
   isSortDisplay: boolean;
+  isFilterDisplay?: boolean;
+  filterConfig?: any;
   isAboutOpen: boolean;
   isCollapsed: boolean;
   isNewWarning: boolean;
@@ -15,6 +17,7 @@ export interface HeaderProps extends RouteComponentProps<any> {
   bookSortCode: { sort: number; order: number };
   importBookFunc: (file: any) => Promise<void>;
   handleSortDisplay: (isSortDisplay: boolean) => void;
+  handleFilterDisplay?: (isFilterDisplay: boolean) => void;
   handleSetting: (isSettingOpen: boolean) => void;
   handleAbout: (isAboutOpen: boolean) => void;
   handleLocalFileDialog: (isOpenLocalFileDialog: boolean) => void;
