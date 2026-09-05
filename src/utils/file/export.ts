@@ -435,7 +435,13 @@ export const convertNotesToMarkdown = (notes: any[]) => {
         md += `> ${note.text.replace(/\n/g, "\n> ")}\n\n`;
       }
       if (note.notes) {
-        md += `**Note:** ${note.notes}\n\n`;
+        const isTrans =
+          typeof note.tag === "string"
+            ? note.tag.includes("翻译") || note.tag.includes("Translation")
+            : Array.isArray(note.tag) &&
+              (note.tag.includes("翻译") || note.tag.includes("Translation"));
+        const label = isTrans ? "**Translation:**" : "**Note:**";
+        md += `${label} ${note.notes}\n\n`;
       }
       const meta: string[] = [];
       if (note.date) meta.push(`Date: ${note.date}`);
@@ -473,7 +479,12 @@ export const convertNotesToTxt = (notes: any[]) => {
         txt += `Text: ${note.text}\n`;
       }
       if (note.notes) {
-        txt += `Note: ${note.notes}\n`;
+        const isTrans =
+          typeof note.tag === "string"
+            ? note.tag.includes("翻译") || note.tag.includes("Translation")
+            : Array.isArray(note.tag) &&
+              (note.tag.includes("翻译") || note.tag.includes("Translation"));
+        txt += `${isTrans ? "Translation:" : "Note:"} ${note.notes}\n`;
       }
       if (note.date) txt += `Date: ${note.date}\n`;
       if (note.color) txt += `Color: ${note.color}\n`;
@@ -598,7 +609,13 @@ export const convertNotesToHTML = (notes: any[]): string => {
         body += `<blockquote>${escapeHTML(note.text)}</blockquote>\n`;
       }
       if (note.notes) {
-        body += `<div class="note"><strong>Note:</strong> ${escapeHTML(note.notes)}</div>\n`;
+        const isTrans =
+          typeof note.tag === "string"
+            ? note.tag.includes("翻译") || note.tag.includes("Translation")
+            : Array.isArray(note.tag) &&
+              (note.tag.includes("翻译") || note.tag.includes("Translation"));
+        const label = isTrans ? "Translation:" : "Note:";
+        body += `<div class="note"><strong>${label}</strong> ${escapeHTML(note.notes)}</div>\n`;
       }
       const meta: string[] = [];
       if (note.date) meta.push(`Date: ${note.date}`);

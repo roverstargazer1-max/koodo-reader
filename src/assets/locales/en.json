@@ -1527,5 +1527,20 @@
   "Copy Token": "Copy Token",
   "Token copied to clipboard": "Token copied to clipboard",
   "Pairing Token": "Pairing Token",
-  "Enter this token if your mobile browser asks for pairing key": "Enter this token if your mobile browser asks for pairing key"
+  "Enter this token if your mobile browser asks for pairing key": "Enter this token if your mobile browser asks for pairing key",
+  "Automatically save translation as note": "Automatically save translation as note",
+  "When AI translation is completed, automatically save it as a note and highlight the original text": "When AI translation is completed, automatically save it as a note and highlight the original text",
+  "Save as note": "Save as note",
+  "Update note": "Update note",
+  "Saved as note": "Saved as note",
+  "Saved as note successfully": "Saved as note successfully",
+  "Note updated successfully": "Note updated successfully",
+  "No translation text to save": "No translation text to save",
+  "Please wait for translation to complete": "Please wait for translation to complete",
+  "Copy translation": "Copy translation",
+  "Translation result...": "Translation result...",
+  "AI Translation": "AI Translation",
+  "Click to edit note": "Click to edit note",
+  "Click to edit": "Click to edit",
+  "Translation:": "Translation:"
 }

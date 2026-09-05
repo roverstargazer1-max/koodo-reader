@@ -4,7 +4,12 @@ import { PopupTransProps, PopupTransState } from "./interface";
 import {
   ConfigService,
   KookitConfig,
+  HighlightUtil,
+  NoteSyncManager,
 } from "../../../assets/lib/kookit-extra-browser.min";
+import DatabaseService from "../../../utils/storage/databaseService";
+import Note from "../../../models/Note";
+import copy from "copy-text-to-clipboard";
 import axios from "axios";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
@@ -18,6 +23,9 @@ import {
   executeCustomTranslation,
   isCustomRendererPlugin,
 } from "../../../utils/plugins/customPlugin";
+
+declare var window: any;
+
 class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
   private textAccumulator: string = "";
   private updateInterval: ReturnType<typeof setInterval> | null = null;
@@ -33,6 +41,9 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
       isAddNew: false,
       isFinishOutput: false,
       isAiWaiting: false,
+      isSavedAsNote: false,
+      savedNoteKey: "",
+      isEditing: false,
     };
   }
 
@@ -59,6 +70,42 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
   async componentDidMount() {
     let originalText = this.props.originalText.replace(/(\r\n|\n|\r)/gm, "");
     this.setState({ originalText: originalText });
+
+    // Check if current text is already saved as a note
+    if (this.props.noteKey) {
+      let existingNote: Note = await DatabaseService.getRecord(
+        this.props.noteKey,
+        "notes"
+      );
+      if (existingNote) {
+        this.setState({
+          isSavedAsNote: true,
+          savedNoteKey: existingNote.key,
+          translatedText: existingNote.notes || "",
+        });
+      }
+    } else if (this.props.currentBook) {
+      let allNotes: Note[] = await DatabaseService.getRecordsByBookKey(
+        this.props.currentBook.key,
+        "notes"
+      );
+      if (allNotes && allNotes.length > 0) {
+        let matched = allNotes.find(
+          (n) =>
+            n.text === originalText &&
+            n.tag &&
+            (n.tag.includes("翻译") || n.tag.includes("Translation"))
+        );
+        if (matched) {
+          this.setState({
+            isSavedAsNote: true,
+            savedNoteKey: matched.key,
+            translatedText: matched.notes || "",
+          });
+        }
+      }
+    }
+
     if (!this.state.transService) {
       let pluginList = this.props.plugins.filter(
         (item) =>
@@ -91,7 +138,12 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
   UNSAFE_componentWillReceiveProps(nextProps: PopupTransProps) {
     if (nextProps.originalText !== this.props.originalText) {
       let originalText = nextProps.originalText.replace(/(\r\n|\n|\r)/gm, "");
-      this.setState({ originalText: originalText, translatedText: "" });
+      this.setState({
+        originalText: originalText,
+        translatedText: "",
+        isSavedAsNote: false,
+        savedNoteKey: "",
+      });
       this.handleTrans(originalText);
     }
   }
@@ -134,9 +186,14 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
               doc.getSelection()?.empty();
             }
           } else {
-            this.setState({
-              translatedText: res,
-            });
+            this.setState(
+              {
+                translatedText: res,
+              },
+              () => {
+                this.checkAutoSave();
+              }
+            );
           }
         })
         .catch((err) => {
@@ -200,7 +257,9 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
       );
       this.stopUpdateInterval();
       this.textAccumulator = "";
-      this.setState({ isFinishOutput: true, isAiWaiting: false });
+      this.setState({ isFinishOutput: true, isAiWaiting: false }, () => {
+        this.checkAutoSave();
+      });
     } else if (
       this.props.isAuthed &&
       ConfigService.getReaderConfig("isDisableAI") !== "yes"
@@ -239,8 +298,146 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
       );
       this.stopUpdateInterval();
       this.textAccumulator = "";
-      this.setState({ isFinishOutput: true });
+      this.setState({ isFinishOutput: true }, () => {
+        this.checkAutoSave();
+      });
     }
+  };
+
+  checkAutoSave = () => {
+    if (
+      ConfigService.getReaderConfig("isAutoSaveTransNote") === "yes" &&
+      this.state.translatedText &&
+      !this.state.isSavedAsNote
+    ) {
+      this.handleSaveToNote(true);
+    }
+  };
+
+  handleCopyTrans = () => {
+    if (!this.state.translatedText) return;
+    copy(this.state.translatedText);
+    toast.success(this.props.t("Copying successful"));
+  };
+
+  handleNoteClick = (event: Event) => {
+    this.props.handleNoteKey((event.target as any).dataset.key);
+    this.props.handleMenuMode("note");
+    this.props.handleOpenMenu(true);
+  };
+
+  handleSaveToNote = async (silent = false) => {
+    const textToSave = this.state.translatedText.trim();
+    if (!textToSave) {
+      if (!silent)
+        toast.error(this.props.t("Please wait for translation to complete"));
+      return;
+    }
+
+    if (this.state.isSavedAsNote && this.state.savedNoteKey) {
+      let existingNote: Note = await DatabaseService.getRecord(
+        this.state.savedNoteKey,
+        "notes"
+      );
+      if (existingNote) {
+        existingNote.notes = textToSave;
+        if (!existingNote.tag) existingNote.tag = [];
+        if (!existingNote.tag.includes("翻译")) {
+          existingNote.tag.push("翻译");
+        }
+        await DatabaseService.updateRecord(existingNote, "notes");
+        if (this.props.htmlBook && this.props.htmlBook.rendition) {
+          this.props.htmlBook.rendition.removeOneNote(
+            existingNote.key,
+            this.props.chapterDocIndex
+          );
+          await this.props.htmlBook.rendition.createOneNote(
+            { ...existingNote, notes: "" },
+            this.handleNoteClick
+          );
+        }
+        let noteSyncManager = new NoteSyncManager(
+          DatabaseService,
+          ConfigService,
+          window.electronAPI?.fs,
+          window.electronAPI?.path
+        );
+        noteSyncManager.syncNote(existingNote, this.props.currentBook.key);
+        this.props.handleFetchNotes();
+        if (!silent) toast.success(this.props.t("Note updated successfully"));
+        return;
+      }
+    }
+
+    let bookKey = this.props.currentBook?.key || "";
+    let cfi = JSON.stringify(
+      ConfigService.getObjectConfig(bookKey, "recordLocation", {})
+    );
+    if (
+      this.props.currentBook?.format === "PDF" &&
+      !ConfigService.getAllListConfig("convertPDFBooks").includes(bookKey)
+    ) {
+      let bookLocation = this.props.htmlBook?.rendition?.getPositionByChapter(
+        this.props.chapterDocIndex
+      );
+      cfi = JSON.stringify(bookLocation);
+    }
+
+    let range = "{}";
+    if (this.props.htmlBook?.rendition?.getHighlightCoords) {
+      try {
+        range = JSON.stringify(
+          await this.props.htmlBook.rendition.getHighlightCoords(
+            this.props.chapterDocIndex
+          )
+        );
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    let percentage =
+      ConfigService.getObjectConfig(bookKey, "recordLocation", {}).percentage ||
+      "0";
+
+    let transStyle =
+      ConfigService.getReaderConfig("transHighlightStyle") || "underline";
+    let transColor =
+      ConfigService.getReaderConfig("transHighlightColor") || "#4A90E2";
+    let color = `${transStyle}-${transColor}`;
+    let tag = ["翻译"];
+
+    let note = new Note(
+      bookKey,
+      this.props.chapter,
+      this.props.chapterDocIndex,
+      this.state.originalText,
+      cfi,
+      range,
+      textToSave,
+      percentage,
+      color,
+      tag
+    );
+
+    await DatabaseService.saveRecord(note, "notes");
+    this.setState({ isSavedAsNote: true, savedNoteKey: note.key });
+    this.props.handleFetchNotes();
+
+    if (this.props.htmlBook && this.props.htmlBook.rendition) {
+      await this.props.htmlBook.rendition.createOneNote(
+        { ...note, notes: "" },
+        this.handleNoteClick
+      );
+    }
+    let noteSyncManager = new NoteSyncManager(
+      DatabaseService,
+      ConfigService,
+      window.electronAPI?.fs,
+      window.electronAPI?.path
+    );
+    noteSyncManager.syncNote(note, bookKey);
+    if (!silent) toast.success(this.props.t("Saved as note successfully"));
   };
   handleChangeService(target: string) {
     this.setState({ transService: target }, () => {
@@ -340,8 +537,8 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
                 className="trans-box"
                 style={
                   this.props.isDockedRight
-                    ? { flexDirection: "column", height: "calc(100% - 80px)" }
-                    : undefined
+                    ? { flexDirection: "column", height: "calc(100% - 110px)" }
+                    : { height: "calc(100% - 46px)" }
                 }
               >
                 <div
@@ -477,7 +674,17 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
                         </span>
                       </div>
                     ) : (
-                      this.state.translatedText
+                      <textarea
+                        className="trans-result-textarea"
+                        value={this.state.translatedText}
+                        onChange={(e) =>
+                          this.setState({
+                            translatedText: e.target.value,
+                            isSavedAsNote: false,
+                          })
+                        }
+                        placeholder={this.props.t("Translation result...")}
+                      />
                     )}
                     {this.state.transService.includes("ai-trans") &&
                       this.state.isFinishOutput && (
@@ -489,6 +696,49 @@ class PopupTrans extends React.Component<PopupTransProps, PopupTransState> {
                         </p>
                       )}
                   </div>
+                </div>
+              </div>
+
+              <div className="trans-action-bar">
+                <div className="trans-action-left">
+                  {this.state.isSavedAsNote ? (
+                    <span className="trans-saved-badge">
+                      <span className="icon-check trans-check-icon"></span>
+                      <Trans>Saved as note</Trans>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="trans-action-right">
+                  <button
+                    className="trans-action-btn"
+                    onClick={this.handleCopyTrans}
+                    disabled={!this.state.translatedText}
+                    title={this.props.t("Copy translation")}
+                  >
+                    <span className="icon-copy trans-btn-icon"></span>
+                    <Trans>Copy</Trans>
+                  </button>
+                  <button
+                    className={`trans-action-btn trans-save-btn ${
+                      this.state.isSavedAsNote ? "is-saved" : ""
+                    }`}
+                    onClick={() => this.handleSaveToNote(false)}
+                    disabled={
+                      !this.state.translatedText || this.state.isAiWaiting
+                    }
+                    title={
+                      this.state.isSavedAsNote
+                        ? this.props.t("Update note")
+                        : this.props.t("Save as note")
+                    }
+                  >
+                    <span className="icon-note trans-btn-icon"></span>
+                    {this.state.isSavedAsNote ? (
+                      <Trans>Update note</Trans>
+                    ) : (
+                      <Trans>Save as note</Trans>
+                    )}
+                  </button>
                 </div>
               </div>
             </>

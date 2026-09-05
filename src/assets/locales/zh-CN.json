@@ -1536,5 +1536,20 @@
   "Copy Token": "复制密钥",
   "Token copied to clipboard": "密钥已复制到剪贴板",
   "Pairing Token": "配对密钥",
-  "Enter this token if your mobile browser asks for pairing key": "手机浏览器直接输入网址时，若提示输入密钥请填入此值"
+  "Enter this token if your mobile browser asks for pairing key": "手机浏览器直接输入网址时，若提示输入密钥请填入此值",
+  "Automatically save translation as note": "自动保存翻译为笔记",
+  "When AI translation is completed, automatically save it as a note and highlight the original text": "当AI翻译完成后，自动将其保存为笔记并在正文中高亮原文",
+  "Save as note": "保存为笔记",
+  "Update note": "更新笔记",
+  "Saved as note": "已保存至笔记",
+  "Saved as note successfully": "成功保存至笔记",
+  "Note updated successfully": "笔记更新成功",
+  "No translation text to save": "没有可保存的译文内容",
+  "Please wait for translation to complete": "请等待翻译完成",
+  "Copy translation": "复制译文",
+  "Translation result...": "翻译结果...",
+  "AI Translation": "AI翻译",
+  "Click to edit note": "点击编辑笔记",
+  "Click to edit": "点击编辑",
+  "Translation:": "译文："
 }

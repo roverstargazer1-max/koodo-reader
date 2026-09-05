@@ -98,8 +98,11 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
             this.props.noteKey,
             this.props.chapterDocIndex
           );
+          const isTrans =
+            newNote.tag &&
+            (newNote.tag.includes("翻译") || newNote.tag.includes("Translation"));
           this.props.htmlBook.rendition.createOneNote(
-            newNote,
+            isTrans ? { ...newNote, notes: "" } : newNote,
             this.handleNoteClick
           );
         }
@@ -163,8 +166,11 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
         this.props.handleOpenMenu(false);
         this.props.handleFetchNotes();
         this.props.handleMenuMode("");
+        const isTrans =
+          note.tag &&
+          (note.tag.includes("翻译") || note.tag.includes("Translation"));
         await this.props.htmlBook.rendition.createOneNote(
-          note,
+          isTrans ? { ...note, notes: "" } : note,
           this.handleNoteClick
         );
         // Auto-sync note to enabled destinations

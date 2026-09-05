@@ -415,6 +415,12 @@ export const readingSettingList = [
   },
   {
     isElectron: false,
+    title: "Automatically save translation as note",
+    desc: "When AI translation is completed, automatically save it as a note and highlight the original text",
+    propName: "isAutoSaveTransNote",
+  },
+  {
+    isElectron: false,
     title: "Overwrite the default background style in the book",
     propName: "isOverwriteBackground",
   },

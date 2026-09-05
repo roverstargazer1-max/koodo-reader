@@ -193,8 +193,23 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         return item;
       });
     }
+    const prepareHighlightersForRender = (items: Note[]) => {
+      return items.map((item: Note) => {
+        const isTrans =
+          item.tag &&
+          (item.tag.includes("翻译") || item.tag.includes("Translation"));
+        if (isTrans) {
+          return {
+            ...item,
+            notes: "",
+          };
+        }
+        return item;
+      });
+    };
+
     await rendition.renderHighlighters(
-      highlightersByChapter,
+      prepareHighlightersForRender(highlightersByChapter),
       this.handleNoteClick
     );
     if (
@@ -228,7 +243,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         });
       }
       await rendition.renderHighlighters(
-        highlightersByChapter,
+        prepareHighlightersForRender(highlightersByChapter),
         this.handleNoteClick
       );
     }

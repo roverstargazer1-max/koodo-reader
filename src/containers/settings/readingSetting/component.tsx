@@ -44,6 +44,8 @@ class ReadingSetting extends React.Component<
         ConfigService.getReaderConfig("isOverwriteLink") === "yes",
       isOverwriteBackground:
         ConfigService.getReaderConfig("isOverwriteBackground") === "yes",
+      isAutoSaveTransNote:
+        ConfigService.getReaderConfig("isAutoSaveTransNote") === "yes",
     };
   }
 

@@ -5,6 +5,9 @@ import {
   handleFetchPlugins,
   handleSetting,
   handleSettingMode,
+  handleNoteKey,
+  handleFetchNotes,
+  handleShowPopupNote,
 } from "../../../store/actions";
 import { stateType } from "../../../store";
 import { withTranslation } from "react-i18next";
@@ -16,6 +19,8 @@ const mapStateToProps = (state: stateType) => {
     isAuthed: state.manager.isAuthed,
     currentBook: state.book.currentBook,
     noteKey: state.reader.noteKey,
+    highlight: state.reader.highlight,
+    htmlBook: state.reader.htmlBook,
   };
 };
 const actionCreator = {
@@ -24,6 +29,9 @@ const actionCreator = {
   handleFetchPlugins,
   handleSetting,
   handleSettingMode,
+  handleNoteKey,
+  handleFetchNotes,
+  handleShowPopupNote,
 };
 export default connect(
   mapStateToProps,

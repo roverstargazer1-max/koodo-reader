@@ -224,3 +224,106 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.trans-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 38px;
+  margin-top: 6px;
+  padding: 0 4px;
+}
+
+.trans-action-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trans-saved-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #27ae60;
+  background: rgba(39, 174, 96, 0.12);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.trans-check-icon {
+  font-size: 11px;
+}
+
+.trans-action-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trans-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: transparent;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+
+.trans-action-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.trans-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.trans-save-btn {
+  background: #f16464;
+  color: #fff;
+  border-color: #f16464;
+}
+
+.trans-save-btn:hover:not(:disabled) {
+  background: #e05252;
+  border-color: #e05252;
+}
+
+.trans-save-btn.is-saved {
+  background: #27ae60;
+  border-color: #27ae60;
+  color: #fff;
+}
+
+.trans-save-btn.is-saved:hover:not(:disabled) {
+  background: #219653;
+  border-color: #219653;
+}
+
+.trans-btn-icon {
+  font-size: 13px;
+}
+
+.trans-result-textarea {
+  width: 100%;
+  height: calc(100% - 25px);
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 15px;
+  line-height: 22px;
+  color: inherit;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  padding: 0;
+}
+
