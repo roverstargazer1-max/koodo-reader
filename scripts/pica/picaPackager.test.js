@@ -93,3 +93,60 @@ test("runConcurrentPool processes all items preserving order", async () => {
 
   assert.deepEqual(results, [10, 20, 30, 40, 50, 60, 70, 80]);
 });
+
+test("runConcurrentPool stops early when isCancelled returns true", async () => {
+  const items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  let cancelled = false;
+  let executedCount = 0;
+
+  await assert.rejects(
+    async () => {
+      await runConcurrentPool(
+        items,
+        async (item) => {
+          executedCount++;
+          if (item === 2) {
+            cancelled = true;
+          }
+          await new Promise((r) => setTimeout(r, 15));
+          return item;
+        },
+        2,
+        0,
+        null,
+        () => cancelled
+      );
+    },
+    {
+      name: "Error",
+      message: "Download cancelled by user",
+    }
+  );
+
+  // Since it cancelled on item 2, it should not execute all 10 items
+  assert.ok(executedCount < items.length, `Expected executedCount < 10, got ${executedCount}`);
+});
+
+test("runConcurrentPool gracefully propagates worker errors without unhandled rejections", async () => {
+  const items = [1, 2, 3, 4, 5];
+  await assert.rejects(
+    async () => {
+      await runConcurrentPool(
+        items,
+        async (item) => {
+          if (item === 2) {
+            throw new Error("Worker network failure");
+          }
+          await new Promise((r) => setTimeout(r, 10));
+          return item;
+        },
+        3,
+        0
+      );
+    },
+    {
+      name: "Error",
+      message: "Worker network failure",
+    }
+  );
+});

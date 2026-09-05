@@ -207,6 +207,9 @@ function initPicaIpc(ipcMain, getMainWindow) {
         });
 
         activeDownloadTasks.delete(taskId);
+        if (cancelled) {
+          return;
+        }
         const win = getMainWindow ? getMainWindow() : null;
         if (win && !win.isDestroyed()) {
           win.webContents.send("pica-download-finish", {
@@ -216,11 +219,13 @@ function initPicaIpc(ipcMain, getMainWindow) {
         }
       } catch (err) {
         activeDownloadTasks.delete(taskId);
+        const isUserCancel = cancelled || err.message === "Download cancelled by user";
         const win = getMainWindow ? getMainWindow() : null;
         if (win && !win.isDestroyed()) {
           win.webContents.send("pica-download-error", {
             comicId,
             msg: err.message,
+            cancelled: isUserCancel,
           });
         }
       }

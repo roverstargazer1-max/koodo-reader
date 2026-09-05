@@ -181,6 +181,7 @@ export interface PicaDialogState {
   downloadTasks: Record<string, PicaDownloadTask>;
   downloadQueue: string[];
   isQueueRunning: boolean;
+  currentDownloadingId: string | null;
 
   // Settings state
   config: PicaConfig;

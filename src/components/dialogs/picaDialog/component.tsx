@@ -179,6 +179,17 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
   private progressListener: any = null;
   private finishListener: any = null;
   private errorListener: any = null;
+  private comicCache = new Map<string, PicaComicItem>();
+
+  cacheComics = (items: (PicaComicItem | any)[]) => {
+    if (!Array.isArray(items)) return;
+    items.forEach((item) => {
+      const id = item.id || item._id;
+      if (id) {
+        this.comicCache.set(id, { ...item, id });
+      }
+    });
+  };
 
   constructor(props: PicaDialogProps) {
     super(props);
@@ -248,6 +259,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
       downloadTasks: savedTasks,
       downloadQueue: [],
       isQueueRunning: false,
+      currentDownloadingId: null,
 
       config: savedConfig,
       routeSpeedTest: {},
@@ -459,6 +471,8 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
         const targetId = comicId ? String(comicId) : "";
         if (!targetId || targetId === "undefined") return;
 
+        let shouldTriggerNext = false;
+
         this.setState((prev) => {
           const task = prev.downloadTasks[targetId] || {
             comicId: targetId,
@@ -468,6 +482,11 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
             status: "completed",
             percent: 100,
           };
+
+          // If the task was already cancelled by user, ignore completion
+          if (task.status === "cancelled") {
+            return null;
+          }
 
           const newTasks = {
             ...prev.downloadTasks,
@@ -483,9 +502,21 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
             },
           };
           this.saveTasks(newTasks);
-          return { downloadTasks: newTasks, isQueueRunning: false };
+
+          const isCurrent = prev.currentDownloadingId === targetId;
+          const newQueue = prev.downloadQueue.filter((id) => id !== targetId);
+          shouldTriggerNext = isCurrent || !prev.isQueueRunning;
+
+          return {
+            downloadTasks: newTasks,
+            downloadQueue: newQueue,
+            isQueueRunning: isCurrent ? false : prev.isQueueRunning,
+            currentDownloadingId: isCurrent ? null : prev.currentDownloadingId,
+          };
         }, () => {
-          setTimeout(() => this.processNextInQueue(), 600);
+          if (shouldTriggerNext) {
+            setTimeout(() => this.processNextInQueue(), 400);
+          }
         });
 
         toast.success(`${this.props.t("Download Completed")}: ${title || targetId}`);
@@ -504,34 +535,81 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
       this.errorListener = (arg1: any, arg2: any) => {
         const data = extractPayload(arg1, arg2);
         if (!data) return;
-        const { comicId, msg } = data;
+        const { comicId, msg, cancelled } = data;
         const targetId = comicId ? String(comicId) : "";
         if (!targetId || targetId === "undefined") return;
 
-        this.setState((prev) => {
-          const task = prev.downloadTasks[targetId] || {
-            comicId: targetId,
-            title: `Pica-${targetId}`,
-            author: "",
-            coverUrl: "",
-            status: "failed",
-            percent: 0,
-          };
+        const isCancelled = Boolean(cancelled) || msg === "Download cancelled by user";
+        let shouldTriggerNext = false;
+        let shouldToastError = false;
 
+        this.setState((prev) => {
+          const task = prev.downloadTasks[targetId];
+          const isCurrent = prev.currentDownloadingId === targetId;
+          const newQueue = prev.downloadQueue.filter((id) => id !== targetId);
+
+          // If task is already marked cancelled or event indicates user cancellation
+          if ((task && task.status === "cancelled") || isCancelled) {
+            const newTasks = {
+              ...prev.downloadTasks,
+              [targetId]: {
+                ...(task || {
+                  comicId: targetId,
+                  title: `Pica-${targetId}`,
+                  author: "",
+                  coverUrl: "",
+                  status: "cancelled",
+                  percent: 0,
+                }),
+                status: "cancelled" as const,
+              },
+            };
+            this.saveTasks(newTasks);
+
+            shouldTriggerNext = isCurrent;
+
+            return {
+              downloadTasks: newTasks,
+              downloadQueue: newQueue,
+              isQueueRunning: isCurrent ? false : prev.isQueueRunning,
+              currentDownloadingId: isCurrent ? null : prev.currentDownloadingId,
+            };
+          }
+
+          // Genuine download failure
+          shouldToastError = true;
           const newTasks = {
             ...prev.downloadTasks,
             [targetId]: {
-              ...task,
+              ...(task || {
+                comicId: targetId,
+                title: `Pica-${targetId}`,
+                author: "",
+                coverUrl: "",
+                status: "failed",
+                percent: 0,
+              }),
               status: "failed" as const,
               errorMsg: msg,
             },
           };
           this.saveTasks(newTasks);
-          return { downloadTasks: newTasks, isQueueRunning: false };
+          shouldTriggerNext = isCurrent || !prev.isQueueRunning;
+
+          return {
+            downloadTasks: newTasks,
+            downloadQueue: newQueue,
+            isQueueRunning: isCurrent ? false : prev.isQueueRunning,
+            currentDownloadingId: isCurrent ? null : prev.currentDownloadingId,
+          };
         }, () => {
-          setTimeout(() => this.processNextInQueue(), 600);
+          if (shouldToastError) {
+            toast.error(`${this.props.t("Download Failed")}: ${msg || ""}`);
+          }
+          if (shouldTriggerNext) {
+            setTimeout(() => this.processNextInQueue(), 400);
+          }
         });
-        toast.error(`${this.props.t("Download Failed")}: ${msg || ""}`);
       };
 
       ipc.on("pica-download-progress", this.progressListener);
@@ -662,6 +740,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
           ...c,
           id: c._id || c.id,
         }));
+        this.cacheComics(docs);
         this.setState({
           searchResults: docs,
           searchTotalPages: comicsData.pages || 1,
@@ -719,6 +798,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
           ...c,
           id: c._id || c.id,
         }));
+        this.cacheComics(docs);
         this.setState({
           categoryResults: docs,
           categoryTotalPages: comicsData.pages || 1,
@@ -752,6 +832,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
           ...c,
           id: c._id || c.id,
         }));
+        this.cacheComics(docs);
         this.setState({
           rankResults: docs,
           isRanking: false,
@@ -779,6 +860,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
           ...c,
           id: c._id || c.id,
         }));
+        this.cacheComics(docs);
         this.setState({
           randomResults: docs,
           isRandomLoading: false,
@@ -810,6 +892,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
           ...c,
           id: c._id || c.id,
         }));
+        this.cacheComics(docs);
         this.setState({
           favoriteResults: docs,
           favoriteTotalPages: comicsData.pages || 1,
@@ -972,18 +1055,33 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
     const pendingId = this.state.downloadQueue.find((id) => {
       const task = this.state.downloadTasks[id];
-      return task && (task.status === "pending" || task.status === "downloading");
+      return task && task.status === "pending";
     });
 
     if (!pendingId) {
-      this.setState({ isQueueRunning: false });
+      this.setState({ isQueueRunning: false, currentDownloadingId: null });
       return;
     }
 
     const task = this.state.downloadTasks[pendingId];
     if (!task) return;
 
-    this.setState({ isQueueRunning: true });
+    this.setState((prev) => {
+      const updatedTasks = {
+        ...prev.downloadTasks,
+        [pendingId]: {
+          ...task,
+          status: "downloading" as const,
+        },
+      };
+      this.saveTasks(updatedTasks);
+      return {
+        isQueueRunning: true,
+        currentDownloadingId: pendingId,
+        downloadTasks: updatedTasks,
+      };
+    });
+
     const ipc = getIpc();
     if (ipc) {
       ipc.invoke("pica-download", {
@@ -1000,6 +1098,10 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
       }).then((res: any) => {
         if (res && res.code !== 0) {
           this.setState((prev) => {
+            const currentTask = prev.downloadTasks[pendingId];
+            if (currentTask && (currentTask.status === "cancelled" || currentTask.status === "completed")) {
+              return null;
+            }
             const updated = {
               ...prev.downloadTasks,
               [pendingId]: {
@@ -1008,14 +1110,25 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                 errorMsg: res.msg || "Failed to start download",
               },
             };
+            const updatedQueue = prev.downloadQueue.filter((id) => id !== pendingId);
             this.saveTasks(updated);
-            return { downloadTasks: updated, isQueueRunning: false };
+            const wasCurrent = prev.currentDownloadingId === pendingId;
+            return {
+              downloadTasks: updated,
+              downloadQueue: updatedQueue,
+              isQueueRunning: wasCurrent ? false : prev.isQueueRunning,
+              currentDownloadingId: wasCurrent ? null : prev.currentDownloadingId,
+            };
           }, () => {
             this.processNextInQueue();
           });
         }
       }).catch((err: any) => {
         this.setState((prev) => {
+          const currentTask = prev.downloadTasks[pendingId];
+          if (currentTask && (currentTask.status === "cancelled" || currentTask.status === "completed")) {
+            return null;
+          }
           const updated = {
             ...prev.downloadTasks,
             [pendingId]: {
@@ -1024,8 +1137,15 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
               errorMsg: err.message,
             },
           };
+          const updatedQueue = prev.downloadQueue.filter((id) => id !== pendingId);
           this.saveTasks(updated);
-          return { downloadTasks: updated, isQueueRunning: false };
+          const wasCurrent = prev.currentDownloadingId === pendingId;
+          return {
+            downloadTasks: updated,
+            downloadQueue: updatedQueue,
+            isQueueRunning: wasCurrent ? false : prev.isQueueRunning,
+            currentDownloadingId: wasCurrent ? null : prev.currentDownloadingId,
+          };
         }, () => {
           this.processNextInQueue();
         });
@@ -1034,12 +1154,16 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
   };
 
   cancelDownload = async (comicId: string) => {
+    if (!comicId || comicId === "undefined") return;
+    const isCurrent = this.state.currentDownloadingId === comicId;
+
     const ipc = getIpc();
-    if (ipc && comicId && comicId !== "undefined") {
+    if (ipc) {
       try {
         await ipc.invoke("pica-cancel-download", { comicId });
       } catch (e) {}
     }
+
     this.setState((prev) => {
       const task = prev.downloadTasks[comicId];
       const newTasks = {
@@ -1061,14 +1185,34 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
       }
       const newQueue = prev.downloadQueue.filter((id) => id !== comicId && id !== "undefined");
       this.saveTasks(newTasks);
-      return { downloadTasks: newTasks, downloadQueue: newQueue, isQueueRunning: false };
+
+      const wasCurrent = prev.currentDownloadingId === comicId;
+      return {
+        downloadTasks: newTasks,
+        downloadQueue: newQueue,
+        isQueueRunning: wasCurrent ? false : prev.isQueueRunning,
+        currentDownloadingId: wasCurrent ? null : prev.currentDownloadingId,
+      };
     }, () => {
-      this.processNextInQueue();
+      if (isCurrent) {
+        this.processNextInQueue();
+      }
     });
     toast(this.props.t("Download Cancelled"));
   };
 
   deleteTask = (comicId: string) => {
+    if (!comicId || comicId === "undefined") return;
+    const isCurrent = this.state.currentDownloadingId === comicId;
+    if (isCurrent) {
+      const ipc = getIpc();
+      if (ipc) {
+        try {
+          ipc.invoke("pica-cancel-download", { comicId });
+        } catch (e) {}
+      }
+    }
+
     this.setState((prev) => {
       const copy = { ...prev.downloadTasks };
       delete copy[comicId];
@@ -1077,7 +1221,17 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
       }
       const newQueue = prev.downloadQueue.filter((id) => id !== comicId && id !== "undefined");
       this.saveTasks(copy);
-      return { downloadTasks: copy, downloadQueue: newQueue };
+      const wasCurrent = prev.currentDownloadingId === comicId;
+      return {
+        downloadTasks: copy,
+        downloadQueue: newQueue,
+        isQueueRunning: wasCurrent ? false : prev.isQueueRunning,
+        currentDownloadingId: wasCurrent ? null : prev.currentDownloadingId,
+      };
+    }, () => {
+      if (isCurrent) {
+        this.processNextInQueue();
+      }
     });
   };
 
@@ -1119,7 +1273,10 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
     }));
   };
 
-  toggleSelectBatchItem = (comicId: string) => {
+  toggleSelectBatchItem = (comicId: string, comic?: PicaComicItem) => {
+    if (comic) {
+      this.comicCache.set(comicId, comic);
+    }
     this.setState((prev) => {
       const exists = prev.selectedBatchIds.includes(comicId);
       return {
@@ -1132,14 +1289,30 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
 
   selectAllOnPage = () => {
     const pageIds = this.state.favoriteResults.map((c) => c.id);
-    this.setState({ selectedBatchIds: Array.from(new Set(pageIds)) });
+    if (pageIds.length === 0) return;
+    this.setState((prev) => {
+      const allSelected = pageIds.every((id) => prev.selectedBatchIds.includes(id));
+      return {
+        selectedBatchIds: allSelected
+          ? prev.selectedBatchIds.filter((id) => !pageIds.includes(id))
+          : Array.from(new Set([...prev.selectedBatchIds, ...pageIds])),
+      };
+    });
   };
 
   selectAllUnimported = () => {
     const unimportedIds = this.state.favoriteResults
       .filter((c) => !this.isComicInLibrary(c))
       .map((c) => c.id);
-    this.setState({ selectedBatchIds: unimportedIds });
+    if (unimportedIds.length === 0) return;
+    this.setState((prev) => {
+      const allUnimportedSelected = unimportedIds.every((id) => prev.selectedBatchIds.includes(id));
+      return {
+        selectedBatchIds: allUnimportedSelected
+          ? prev.selectedBatchIds.filter((id) => !unimportedIds.includes(id))
+          : Array.from(new Set([...prev.selectedBatchIds, ...unimportedIds])),
+      };
+    });
   };
 
   clearBatchSelection = () => {
@@ -1147,7 +1320,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
   };
 
   batchAddToQueue = () => {
-    const { selectedBatchIds } = this.state;
+    const { selectedBatchIds, downloadTasks, downloadQueue } = this.state;
     if (selectedBatchIds.length === 0) return;
 
     const allKnownComics = [
@@ -1158,20 +1331,61 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
       ...this.state.favoriteResults,
     ];
 
+    const newTasks: Record<string, PicaDownloadTask> = { ...downloadTasks };
+    const toQueue: string[] = [];
     let count = 0;
+
     selectedBatchIds.forEach((id) => {
-      const comic = allKnownComics.find((c) => c.id === id);
-      if (comic) {
-        this.enqueueDownload(comic, [], true);
-        count++;
+      if (!id || id === "undefined") return;
+
+      const comic =
+        this.comicCache.get(id) ||
+        allKnownComics.find((c) => c.id === id) ||
+        ({ id, title: `Pica-${id}` } as PicaComicItem);
+
+      const comicId = comic.id || (comic as any)._id || id;
+      const title = comic.title || `Pica-${comicId}`;
+      const author = comic.author || "";
+      const coverUrl = comic.thumbUrl || (comic.thumb ? (comic.thumb as any).fileServer : "");
+
+      const existingTask = newTasks[comicId];
+      if (existingTask && (existingTask.status === "downloading" || existingTask.status === "packaging")) {
+        return;
       }
+
+      newTasks[comicId] = {
+        comicId,
+        title,
+        author,
+        coverUrl,
+        status: "pending",
+        percent: 0,
+        selectedEpOrders: [],
+        combineCbz: true,
+      };
+
+      if (!downloadQueue.includes(comicId) && !toQueue.includes(comicId)) {
+        toQueue.push(comicId);
+      }
+      count++;
     });
 
-    this.setState({
-      isBatchMode: false,
-      selectedBatchIds: [],
-      currentTab: "downloads",
-    });
+    const newQueue = [...downloadQueue, ...toQueue];
+    this.saveTasks(newTasks);
+
+    this.setState(
+      {
+        downloadTasks: newTasks,
+        downloadQueue: newQueue,
+        isBatchMode: false,
+        selectedBatchIds: [],
+        currentTab: "downloads",
+      },
+      () => {
+        this.processNextInQueue();
+      }
+    );
+
     toast.success(`${count} ${this.props.t("Download started in background")}`);
   };
 
@@ -1265,13 +1479,17 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
     const inLibrary = this.isComicInLibrary(comic);
     const isSelected = selectedBatchIds.includes(comic.id);
 
+    if (comic && comic.id) {
+      this.comicCache.set(comic.id, comic);
+    }
+
     return (
       <div
         key={comic.id}
         className={`pica-comic-card ${isSelected ? "selected" : ""}`}
         onClick={() => {
           if (isBatchMode) {
-            this.toggleSelectBatchItem(comic.id);
+            this.toggleSelectBatchItem(comic.id, comic);
           } else {
             this.openComicDetail(comic.id);
           }
@@ -1298,7 +1516,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
               type="checkbox"
               className="pica-card-checkbox"
               checked={isSelected}
-              onChange={() => this.toggleSelectBatchItem(comic.id)}
+              onChange={() => this.toggleSelectBatchItem(comic.id, comic)}
               onClick={(e) => e.stopPropagation()}
             />
           )}
@@ -1815,7 +2033,10 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                       {isBatchMode && (
                         <>
                           <button className="pica-btn outline" onClick={this.selectAllOnPage}>
-                            {t("Select All On Page")}
+                            {favoriteResults.length > 0 &&
+                            favoriteResults.every((c) => selectedBatchIds.includes(c.id))
+                              ? t("Deselect")
+                              : t("Select All On Page")}
                           </button>
                           <button className="pica-btn outline" onClick={this.selectAllUnimported}>
                             {t("Select All Unimported")}
@@ -1949,7 +2170,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                       </div>
 
                       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        {task.status === "failed" && (
+                        {(task.status === "failed" || task.status === "cancelled") && (
                           <button
                             className="pica-btn secondary"
                             onClick={() => this.retryDownload(task.comicId)}
@@ -1957,7 +2178,7 @@ class PicaDialog extends React.Component<PicaDialogProps, PicaDialogState> {
                             {t("Retry")}
                           </button>
                         )}
-                        {(task.status === "downloading" || task.status === "pending") && (
+                        {(task.status === "downloading" || task.status === "pending" || task.status === "packaging") && (
                           <button
                             className="pica-btn danger"
                             onClick={() => this.cancelDownload(task.comicId)}

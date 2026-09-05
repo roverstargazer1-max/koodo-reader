@@ -135,22 +135,32 @@ async function downloadImageBuffer(url, client = null, maxRetries = 3) {
 /**
  * Concurrently download an array of items with a worker pool and delay
  */
-async function runConcurrentPool(items, workerFn, concurrency = 3, delayMs = 150, onItemDone = null) {
+async function runConcurrentPool(items, workerFn, concurrency = 3, delayMs = 150, onItemDone = null, isCancelled = () => false) {
   const results = new Array(items.length);
   let index = 0;
   let completed = 0;
+  let stopped = false;
 
   async function worker() {
-    while (index < items.length) {
+    while (index < items.length && !stopped) {
+      if (isCancelled && isCancelled()) {
+        stopped = true;
+        throw new Error("Download cancelled by user");
+      }
       const curIndex = index++;
-      results[curIndex] = await workerFn(items[curIndex], curIndex);
+      try {
+        results[curIndex] = await workerFn(items[curIndex], curIndex);
+      } catch (err) {
+        stopped = true;
+        throw err;
+      }
       completed++;
-      if (typeof onItemDone === "function") {
+      if (typeof onItemDone === "function" && !stopped) {
         try {
           onItemDone(completed, items.length);
         } catch (_) {}
       }
-      if (delayMs > 0) {
+      if (delayMs > 0 && !stopped) {
         const jitter = Math.floor(Math.random() * 80);
         await new Promise((r) => setTimeout(r, delayMs + jitter));
       }
@@ -162,7 +172,11 @@ async function runConcurrentPool(items, workerFn, concurrency = 3, delayMs = 150
   for (let i = 0; i < count; i++) {
     workers.push(worker());
   }
-  await Promise.all(workers);
+  const workerResults = await Promise.allSettled(workers);
+  const rejected = workerResults.find((r) => r.status === "rejected");
+  if (rejected) {
+    throw rejected.reason;
+  }
   return results;
 }
 
@@ -192,6 +206,8 @@ async function downloadComicPackage({
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
+  if (isCancelled()) throw new Error("Download cancelled by user");
+
   // 1. Fetch comic detail
   const detailRes = await client.getComicDetail(comicId);
   if (detailRes.code !== 200 || !detailRes.data || !detailRes.data.comic) {
@@ -199,11 +215,14 @@ async function downloadComicPackage({
   }
   const comic = detailRes.data.comic;
 
+  if (isCancelled()) throw new Error("Download cancelled by user");
+
   // 2. Fetch all episodes
   let allEps = [];
   let epPage = 1;
   let totalEpPages = 1;
   do {
+    if (isCancelled()) throw new Error("Download cancelled by user");
     const epsRes = await client.getEpisodes(comicId, epPage);
     if (epsRes.code === 200 && epsRes.data && epsRes.data.eps) {
       const epsData = epsRes.data.eps;
@@ -260,6 +279,7 @@ async function downloadComicPackage({
         let pPage = 1;
         let totalPPages = 1;
         do {
+          if (isCancelled()) throw new Error("Download cancelled by user");
           const pagesRes = await client.getEpisodePages(comicId, ep.order, pPage);
           if (pagesRes.code === 200 && pagesRes.data && pagesRes.data.pages) {
             const pData = pagesRes.data.pages;
@@ -293,7 +313,8 @@ async function downloadComicPackage({
               totalEps: totalEpisodes,
               status: "downloading",
             });
-          }
+          },
+          isCancelled
         );
 
         pageBuffers.forEach(({ buf }) => {
@@ -302,6 +323,8 @@ async function downloadComicPackage({
           allPageEntries.push({ buffer: buf, archivePath });
         });
       }
+
+      if (isCancelled()) throw new Error("Download cancelled by user");
 
       onProgress({
         percent: 92,
@@ -323,6 +346,7 @@ async function downloadComicPackage({
       const cbzFileName = `${authorPrefix}${sanitizeName(comic.title)}.cbz`;
       const cbzFilePath = path.join(targetDir, cbzFileName);
 
+      if (isCancelled()) throw new Error("Download cancelled by user");
       await buildCbzArchive(cbzFilePath, allPageEntries, comicInfoXml);
       const stat = fs.statSync(cbzFilePath);
       createdFiles.push({ path: cbzFilePath, name: cbzFileName, size: stat.size });
@@ -346,6 +370,7 @@ async function downloadComicPackage({
         let pPage = 1;
         let totalPPages = 1;
         do {
+          if (isCancelled()) throw new Error("Download cancelled by user");
           const pagesRes = await client.getEpisodePages(comicId, ep.order, pPage);
           if (pagesRes.code === 200 && pagesRes.data && pagesRes.data.pages) {
             const pData = pagesRes.data.pages;
@@ -377,7 +402,8 @@ async function downloadComicPackage({
               totalEps: totalEpisodes,
               status: "downloading",
             });
-          }
+          },
+          isCancelled
         );
 
         const fileEntries = pageBuffers.map((buf, pIdx) => ({
@@ -401,6 +427,7 @@ async function downloadComicPackage({
         const cbzFileName = `${authorPrefix}${sanitizeName(comic.title)} - ${sanitizeName(ep.title)}.cbz`;
         const cbzFilePath = path.join(targetDir, cbzFileName);
 
+        if (isCancelled()) throw new Error("Download cancelled by user");
         await buildCbzArchive(cbzFilePath, fileEntries, comicInfoXml);
         const stat = fs.statSync(cbzFilePath);
         createdFiles.push({ path: cbzFilePath, name: cbzFileName, size: stat.size });
