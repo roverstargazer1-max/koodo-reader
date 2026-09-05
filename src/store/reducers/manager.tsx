@@ -1,3 +1,5 @@
+import { createEmptyFilterConfig } from "../../utils/filterUtil";
+
 const initState = {
   books: null,
   plugins: null,
@@ -12,6 +14,8 @@ const initState = {
   isSettingOpen: false,
   viewMode: "card",
   isSortDisplay: false,
+  isFilterDisplay: false,
+  filterConfig: createEmptyFilterConfig(),
   isShowLoading: false,
   isNewWarning: false,
   isDetailDialog: false,
@@ -128,6 +132,16 @@ export function manager(
       return {
         ...state,
         isSortDisplay: action.payload,
+      };
+    case "HANDLE_FILTER_DISPLAY":
+      return {
+        ...state,
+        isFilterDisplay: action.payload,
+      };
+    case "HANDLE_FILTER_CONFIG":
+      return {
+        ...state,
+        filterConfig: action.payload,
       };
     case "HANDLE_SHOW_LOADING":
       return {

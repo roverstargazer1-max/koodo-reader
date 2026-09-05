@@ -13,6 +13,7 @@ import BookmarkModel from "../models/Bookmark";
 import HtmlBookModel from "../models/HtmlBook";
 import PluginModel from "../models/Plugin";
 import { HighlightValue } from "../utils/common";
+import { FilterConfig } from "../utils/filterUtil";
 const rootReducer = combineReducers({
   book,
   manager,
@@ -42,6 +43,8 @@ export type stateType = {
     isSettingOpen: boolean;
     viewMode: string;
     isSortDisplay: boolean;
+    isFilterDisplay: boolean;
+    filterConfig: FilterConfig;
     isAboutOpen: boolean;
     isShowLoading: boolean;
     isShowPopupNote: boolean;
@@ -66,6 +69,7 @@ export type stateType = {
     isOpenDeleteDialog: boolean;
     isOpenAddDialog: boolean;
     isOpenActionDialog: boolean;
+    isOpenTranslateDialog: boolean;
     isReading: boolean;
     currentBook: BookModel;
     renderBookFunc: () => void;
