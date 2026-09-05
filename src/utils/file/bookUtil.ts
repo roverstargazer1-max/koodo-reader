@@ -652,8 +652,12 @@ class BookUtil {
     if (isElectron) {
       const ipcRenderer = window.electronAPI;
       // Get all books first, then sort in JavaScript for natural sorting
+      const baseFields = ["key", "name", "author", "format"];
+      const selectFields = baseFields.includes(sortField)
+        ? baseFields.join(", ")
+        : [...baseFields, sortField].join(", ");
       let results = await ipcRenderer.invoke("custom-database-command", {
-        query: `SELECT key, ${sortField} FROM books`,
+        query: `SELECT ${selectFields} FROM books`,
         dbName: "books",
         storagePath: getStorageLocation(),
         executeType: "all",
@@ -661,8 +665,8 @@ class BookUtil {
 
       if (sortField === "name" || sortField === "author") {
         results.sort((a: any, b: any) => {
-          const comparison = a[sortField].localeCompare(
-            b[sortField],
+          const comparison = (a[sortField] || "").localeCompare(
+            b[sortField] || "",
             undefined,
             { numeric: true, sensitivity: "base" }
           );
@@ -679,37 +683,57 @@ class BookUtil {
         });
       }
 
-      return results.map((item: any) => ({ key: item.key }));
+      return results.map((item: any) => ({
+        key: item.key,
+        name: item.name,
+        author: item.author,
+        format: item.format,
+      }));
     } else {
       let books: Book[] = (await DatabaseService.getAllRecords("books")) || [];
       if (sortField === "name") {
         books.sort((a, b) => {
-          const comparison = a.name.localeCompare(b.name, undefined, {
+          const comparison = (a.name || "").localeCompare(b.name || "", undefined, {
             numeric: true,
             sensitivity: "base",
           });
           return orderField === "ASC" ? comparison : -comparison;
         });
         return books.map((item) => {
-          return { key: item.key };
+          return {
+            key: item.key,
+            name: item.name,
+            author: item.author,
+            format: item.format,
+          };
         });
       } else if (sortField === "author") {
         books.sort((a, b) => {
-          const comparison = a.author.localeCompare(b.author, undefined, {
+          const comparison = (a.author || "").localeCompare(b.author || "", undefined, {
             numeric: true,
             sensitivity: "base",
           });
           return orderField === "ASC" ? comparison : -comparison;
         });
         return books.map((item) => {
-          return { key: item.key };
+          return {
+            key: item.key,
+            name: item.name,
+            author: item.author,
+            format: item.format,
+          };
         });
       } else if (sortField === "key") {
         if (orderField === "DESC") {
           books = books.reverse();
         }
         return books.map((item) => {
-          return { key: item.key };
+          return {
+            key: item.key,
+            name: item.name,
+            author: item.author,
+            format: item.format,
+          };
         });
       } else {
         books.sort((a, b) => {
@@ -718,7 +742,12 @@ class BookUtil {
           return orderField === "ASC" ? comparison : -comparison;
         });
         return books.map((item) => {
-          return { key: item.key };
+          return {
+            key: item.key,
+            name: item.name,
+            author: item.author,
+            format: item.format,
+          };
         });
       }
     }

@@ -18,7 +18,8 @@ import {
 import toast from "react-hot-toast";
 import BookUtil from "../../utils/file/bookUtil";
 import i18n from "../../i18n";
-import { langToName } from "../../utils/common";
+import { langToName, getStorageLocation } from "../../utils/common";
+import { isElectron } from "react-device-detect";
 import { resetReaderRequest } from "../../utils/request/reader";
 import { resetThirdpartyRequest } from "../../utils/request/thirdparty";
 import DictUtil from "../../utils/file/dictUtil";
@@ -74,6 +75,12 @@ export function handleViewMode(mode: string) {
 
 export function handleSortDisplay(isSortDisplay: boolean) {
   return { type: "HANDLE_SORT_DISPLAY", payload: isSortDisplay };
+}
+export function handleFilterDisplay(isFilterDisplay: boolean) {
+  return { type: "HANDLE_FILTER_DISPLAY", payload: isFilterDisplay };
+}
+export function handleFilterConfig(filterConfig: any) {
+  return { type: "HANDLE_FILTER_CONFIG", payload: filterConfig };
 }
 export function handleLoadingDialog(isShowLoading: boolean) {
   return { type: "HANDLE_SHOW_LOADING", payload: isShowLoading };
@@ -146,9 +153,43 @@ export function handleFetchBooks() {
     if (bookSortCode.order === 2) {
       orderField = "DESC";
     }
-    let bookList: { key: string }[] = [];
+    const getBookMetaMap = async (): Promise<Record<string, any>> => {
+      const bookMetaMap: Record<string, any> = {};
+      if (isElectron) {
+        const ipcRenderer = (window as any).electronAPI;
+        if (ipcRenderer?.invoke) {
+          try {
+            const metas = await ipcRenderer.invoke("custom-database-command", {
+              query: "SELECT key, name, author, format FROM books",
+              dbName: "books",
+              storagePath: getStorageLocation(),
+              executeType: "all",
+            });
+            if (Array.isArray(metas)) {
+              metas.forEach((m: any) => {
+                if (m && m.key) bookMetaMap[m.key] = m;
+              });
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      } else {
+        const records = (await DatabaseService.getAllRecords("books")) || [];
+        records.forEach((m: any) => {
+          if (m && m.key) bookMetaMap[m.key] = m;
+        });
+      }
+      return bookMetaMap;
+    };
+
+    let bookList: { key: string; name?: string; author?: string; format?: string }[] = [];
     if (sortField === "recentRead") {
-      let allBookKeys = await DatabaseService.getAllRecordKeys("books");
+      const bookMetaMap = await getBookMetaMap();
+      let allBookKeys =
+        Object.keys(bookMetaMap).length > 0
+          ? Object.keys(bookMetaMap)
+          : await DatabaseService.getAllRecordKeys("books");
       let recentBookLKeys = ConfigService.getAllListConfig("recentBooks") || [];
       let sortedKeys = [
         ...recentBookLKeys.filter((key) => allBookKeys.includes(key)),
@@ -157,12 +198,13 @@ export function handleFetchBooks() {
       if (bookSortCode.order === 1) {
         sortedKeys = sortedKeys.reverse();
       }
-      sortedKeys = sortedKeys;
-      bookList = sortedKeys.map((key: string) => {
-        return { key };
-      });
+      bookList = sortedKeys.map((key: string) => bookMetaMap[key] || { key });
     } else if (sortField === "readingTime") {
-      let allBookKeys = await DatabaseService.getAllRecordKeys("books");
+      const bookMetaMap = await getBookMetaMap();
+      let allBookKeys =
+        Object.keys(bookMetaMap).length > 0
+          ? Object.keys(bookMetaMap)
+          : await DatabaseService.getAllRecordKeys("books");
       let durationObj = ConfigService.getAllObjectConfig("readingTime");
       var sortable: any[] = [];
       for (let obj in durationObj) {
@@ -179,12 +221,13 @@ export function handleFetchBooks() {
       if (bookSortCode.order === 1) {
         sortedKeys = sortedKeys.reverse();
       }
-      sortedKeys = sortedKeys;
-      bookList = sortedKeys.map((key: string) => {
-        return { key };
-      });
+      bookList = sortedKeys.map((key: string) => bookMetaMap[key] || { key });
     } else if (sortField === "percentage") {
-      let allBookKeys = await DatabaseService.getAllRecordKeys("books");
+      const bookMetaMap = await getBookMetaMap();
+      let allBookKeys =
+        Object.keys(bookMetaMap).length > 0
+          ? Object.keys(bookMetaMap)
+          : await DatabaseService.getAllRecordKeys("books");
       let locationObj = ConfigService.getAllObjectConfig("recordLocation");
       var sortable: any[] = [];
       for (let obj in locationObj) {
@@ -208,10 +251,7 @@ export function handleFetchBooks() {
       if (bookSortCode.order === 1) {
         sortedKeys = sortedKeys.reverse();
       }
-      sortedKeys = sortedKeys;
-      bookList = sortedKeys.map((key: string) => {
-        return { key };
-      });
+      bookList = sortedKeys.map((key: string) => bookMetaMap[key] || { key });
     } else {
       bookList = await BookUtil.getBookKeysWithSort(sortField, orderField);
     }
